@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>System Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --glass: rgba(18, 18, 18, 0.7);
+            --primary: #2d5a4f;
+            --text: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-color);
+            color: var(--text);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .hexagons {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .hexagon {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: var(--primary);
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            opacity: 0.1;
+            animation: pulse 8s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.1; }
+            50% { transform: scale(1.1); opacity: 0.15; }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #7d7d7d;
+        }
+
+        .stat-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .circle-progress {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary) 0%, var(--primary) var(--p), rgba(255,255,255,0.1) var(--p));
+            position: relative;
+        }
+
+        .circle-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+        }
+
+        .details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .details span {
+            font-size: 0.9rem;
+            color: #b3b3b3;
+        }
+
+        .docker-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .docker-table th,
+        .docker-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .docker-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-running { background: #2d5a4f; }
+        .status-exited { background: #5a2d2d; }
+    </style>
+</head>
+<body>
+    <div class="hexagons">
+        <div class="hexagon" style="top: 10%; left: 20%"></div>
+        <div class="hexagon" style="top: 30%; right: 15%"></div>
+        <div class="hexagon" style="bottom: 20%; left: 5%"></div>
+    </div>
+
+    <div class="container">
+        <div class="grid">
+            <div class="card">
+                <h2 class="card-title">CPU Usage</h2>
+                <div class="stat-container">
+                    <div class="circle-progress">
+                        <div class="circle-value">0%</div>
+                    </div>
+                    <canvas id="cpuChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="card-title">Memory Usage</h2>
+                <div class="stat-container">
+                    <div class="circle-progress">
+                        <div class="circle-value">0%</div>
+                    </div>
+                    <div class="details">
+                        <span>Total: <span id="mem-total">0 GiB</span></span>
+                        <span>Used: <span id="mem-used">0 GiB</span></span>
+                        <span>Free: <span id="mem-free">0 GiB</span></span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="card-title">Disk Usage</h2>
+                <div class="stat-container">
+                    <div class="circle-progress">
+                        <div class="circle-value">0%</div>
+                    </div>
+                    <div class="details">
+                        <span>Total: <span id="disk-total">0 GiB</span></span>
+                        <span>Used: <span id="disk-used">0 GiB</span></span>
+                        <span>Free: <span id="disk-free">0 GiB</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Docker Containers</h2>
+            <div class="docker-container">
+                <table class="docker-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Name</th>
+                            <th>Uptime</th>
+                            <th>Image</th>
+                        </tr>
+                    </thead>
+                    <tbody id="docker-data">
+                        <!-- Docker data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStats() {
+            fetch('/stats')
+                .then(response => response.json())
+                .then(data => {
+                    // Update CPU
+                    const cpuProgress = document.querySelector('.card:nth-child(1) .circle-progress');
+                    cpuProgress.style.setProperty('--p', `${data.system.cpu}%`);
+                    cpuProgress.querySelector('.circle-value').textContent = `${Math.round(data.system.cpu)}%`;
+
+                    // Update CPU chart
+                    cpuChart.data.labels = data.system.cpu_history.time;
+                    cpuChart.data.datasets[0].data = data.system.cpu_history.usage;
+                    cpuChart.update();
+
+                    // Update Memory
+                    const memProgress = document.querySelector('.card:nth-child(2) .circle-progress');
+                    memProgress.style.setProperty('--p', `${data.system.memory.percent}%`);
+                    memProgress.querySelector('.circle-value').textContent = `${Math.round(data.system.memory.percent)}%`;
+                    document.getElementById('mem-total').textContent = `${data.system.memory.total} GiB`;
+                    document.getElementById('mem-used').textContent = `${data.system.memory.used} GiB`;
+                    document.getElementById('mem-free').textContent = `${data.system.memory.free} GiB`;
+
+                    // Update Disk
+                    const diskProgress = document.querySelector('.card:nth-child(3) .circle-progress');
+                    diskProgress.style.setProperty('--p', `${data.system.disk.percent}%`);
+                    diskProgress.querySelector('.circle-value').textContent = `${Math.round(data.system.disk.percent)}%`;
+                    document.getElementById('disk-total').textContent = `${data.system.disk.total} GiB`;
+                    document.getElementById('disk-used').textContent = `${data.system.disk.used} GiB`;
+                    document.getElementById('disk-free').textContent = `${data.system.disk.free} GiB`;
+
+                    // Update Docker containers
+                    const dockerBody = document.getElementById('docker-data');
+                    dockerBody.innerHTML = data.docker.map(container => `
+                        <tr>
+                            <td><div class="status-indicator status-${container.status}"></div></td>
+                            <td>${container.name}</td>
+                            <td>${Math.floor(container.uptime / 3600)}h ${Math.floor((container.uptime % 3600) / 60)}m</td>
+                            <td>${container.image}</td>
+                        </tr>
+                    `).join('');
+                });
+        }
+
+        // Initialize CPU Chart
+        const ctx = document.getElementById('cpuChart').getContext('2d');
+        const cpuChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU Usage',
+                    data: [],
+                    borderColor: '#2d5a4f',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(45,90,79,0.2)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Update every 500ms
+        setInterval(updateStats, 500);
+        updateStats();
+    </script>
+</body>
+</html>
+
