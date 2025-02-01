@@ -22,6 +22,7 @@ def get_system_stats():
     mem_total_gb = round(mem.total / (1024 ** 3), 2)
     mem_used_gb = round(mem.used / (1024 ** 3), 2)
     mem_free_gb = round(mem.free / (1024 ** 3), 2)
+    mem_cached_gb = round(mem.cached / (1024 ** 3), 2)  # Added cached memory
     mem_percent = mem.percent
     
     # Disk
@@ -46,7 +47,8 @@ def get_system_stats():
             'percent': mem_percent,
             'total': mem_total_gb,
             'used': mem_used_gb,
-            'free': mem_free_gb
+            'free': mem_free_gb,
+            'cached': mem_cached_gb  # Added cached field
         },
         'disk': {
             'percent': disk_percent,

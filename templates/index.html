@@ -167,6 +167,7 @@
                         <span>Total: <span id="mem-total">0 GiB</span></span>
                         <span>Used: <span id="mem-used">0 GiB</span></span>
                         <span>Free: <span id="mem-free">0 GiB</span></span>
+                        <span>Cached: <span id="mem-cached">0 GiB</span></span> <!-- Added cached line -->
                     </div>
                 </div>
             </div>
@@ -227,6 +228,7 @@
                     document.getElementById('mem-total').textContent = `${data.system.memory.total} GiB`;
                     document.getElementById('mem-used').textContent = `${data.system.memory.used} GiB`;
                     document.getElementById('mem-free').textContent = `${data.system.memory.free} GiB`;
+                    document.getElementById('mem-cached').textContent = `${data.system.memory.cached} GiB`; // Added cached update
 
                     // Update Disk
                     const diskProgress = document.querySelector('.card:nth-child(3) .circle-progress');
@@ -281,4 +283,3 @@
     </script>
 </body>
 </html>
-
