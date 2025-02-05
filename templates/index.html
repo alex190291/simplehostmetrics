@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -241,11 +240,6 @@
             <div class="stat-container">
                 <canvas id="networkChart"></canvas>
             </div>
-            <div class="detail-view" id="network-detail-view" style="display: none;">
-                <!-- Two separate graphs for Input and Output -->
-                <canvas id="networkDetailChartInput" style="max-height:200px; margin-bottom: 1rem;"></canvas>
-                <canvas id="networkDetailChartOutput" style="max-height:200px;"></canvas>
-            </div>
         </div>
 
         <!-- Docker Containers Card -->
@@ -318,6 +312,7 @@
         const cpuChart = new Chart(cpuCtx, {
             type: 'line',
             data: {
+                // We'll generate empty labels for each data point.
                 labels: [],
                 datasets: [{
                     label: 'CPU Usage',
@@ -334,7 +329,10 @@
                 plugins: { legend: { display: false } },
                 scales: {
                     y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
+                    x: {
+                        grid: { display: false },
+                        ticks: { display: false } // Hide x-axis ticks
+                    }
                 }
             }
         });
@@ -445,41 +443,6 @@
                 }
             }
         });
-        // Initialize Detailed Network Charts (separate Input and Output)
-        const networkDetailCtxInput = document.getElementById('networkDetailChartInput').getContext('2d');
-        const networkDetailChartInput = new Chart(networkDetailCtxInput, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [] // will be populated per interface with unique colors
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: true } },
-                scales: {
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-        const networkDetailCtxOutput = document.getElementById('networkDetailChartOutput').getContext('2d');
-        const networkDetailChartOutput = new Chart(networkDetailCtxOutput, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [] // will be populated per interface with unique colors
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: true } },
-                scales: {
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
 
         // Cache DOM elements for system stats.
         const cpuCircle = document.querySelector('.card:nth-child(1) .circle-progress');
@@ -508,9 +471,6 @@
             });
         }
 
-        // Color palette for detailed network interfaces.
-        const colorPalette = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe"];
-
         // Update stats (including docker container and network info).
         function updateStats() {
             fetch('/stats')
@@ -519,7 +479,8 @@
                     // Update CPU basic stats.
                     cpuCircle.style.setProperty('--p', data.system.cpu + '%');
                     cpuCircleValue.textContent = Math.round(data.system.cpu) + '%';
-                    cpuChart.data.labels = data.system.cpu_history.time;
+                    // For the main CPU chart, generate an empty label for each data point.
+                    cpuChart.data.labels = data.system.cpu_history.usage.map(() => '');
                     cpuChart.data.datasets[0].data = data.system.cpu_history.usage;
                     cpuChart.update();
 
@@ -534,7 +495,13 @@
                     // Update Disk basic stats.
                     diskCircle.style.setProperty('--p', data.system.disk.percent + '%');
                     diskCircleValue.textContent = Math.round(data.system.disk.percent) + '%';
-                    // Update Disk details.
+                    // Update Disk text details from the detailed disk info.
+                    if(data.system.disk_details && data.system.disk_details.root) {
+                        document.getElementById('disk-total').textContent = data.system.disk_details.root.total + ' GiB';
+                        document.getElementById('disk-used').textContent = data.system.disk_details.root.used + ' GiB';
+                        document.getElementById('disk-free').textContent = data.system.disk_details.root.free + ' GiB';
+                    }
+                    // Update Disk details chart.
                     const diskHistoryLabels = data.system.disk_details.history.map(entry => entry.time);
                     const diskHistoryData = data.system.disk_details.history.map(entry => entry.used);
                     diskHistoryChart.data.labels = diskHistoryLabels;
@@ -572,7 +539,6 @@
                         if (mainInterface && interfaces[mainInterface].length > 0) {
                             const ifaceData = interfaces[mainInterface];
                             const labels = ifaceData.map(entry => entry.time);
-                            // Data is already filtered in Python for speeds below 0.2 MiB/s.
                             const inputData = ifaceData.map(entry => entry.input);
                             const outputData = ifaceData.map(entry => entry.output);
                             networkChart.data.labels = labels;
@@ -580,49 +546,6 @@
                             networkChart.data.datasets[1].data = outputData;
                             networkChart.update();
                         }
-                    }
-
-                    // Update Detailed Network Charts if expanded.
-                    if (document.getElementById('network-detail-view').style.display !== 'none' && data.network && data.network.interfaces) {
-                        const interfaces = data.network.interfaces;
-                        let detailLabels = [];
-                        // Prepare datasets for input and output charts separately.
-                        let inputDatasets = [];
-                        let outputDatasets = [];
-                        let colorIndex = 0;
-                        Object.keys(interfaces).forEach(iface => {
-                            const ifaceData = interfaces[iface];
-                            if (ifaceData.length > 0) {
-                                // Use the labels from the interface (assume same for input and output)
-                                detailLabels = ifaceData.map(entry => entry.time);
-                                const inputData = ifaceData.map(entry => entry.input);
-                                const outputData = ifaceData.map(entry => entry.output);
-                                const color = colorPalette[colorIndex % colorPalette.length];
-                                colorIndex++;
-                                inputDatasets.push({
-                                    label: iface + ' Input',
-                                    data: inputData,
-                                    borderColor: color,
-                                    backgroundColor: hexToRGBA(color, 0.2),
-                                    tension: 0.4,
-                                    fill: true
-                                });
-                                outputDatasets.push({
-                                    label: iface + ' Output',
-                                    data: outputData,
-                                    borderColor: color,
-                                    backgroundColor: hexToRGBA(color, 0.2),
-                                    tension: 0.4,
-                                    fill: true
-                                });
-                            }
-                        });
-                        networkDetailChartInput.data.labels = detailLabels;
-                        networkDetailChartInput.data.datasets = inputDatasets;
-                        networkDetailChartInput.update();
-                        networkDetailChartOutput.data.labels = detailLabels;
-                        networkDetailChartOutput.data.datasets = outputDatasets;
-                        networkDetailChartOutput.update();
                     }
 
                     // Update Docker containers table.
@@ -639,14 +562,6 @@
                         </tr>
                     `).join('');
                 });
-        }
-
-        // Helper function to convert hex color to rgba
-        function hexToRGBA(hex, alpha) {
-            let r = parseInt(hex.slice(1, 3), 16),
-                g = parseInt(hex.slice(3, 5), 16),
-                b = parseInt(hex.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
         setInterval(updateStats, 500);
