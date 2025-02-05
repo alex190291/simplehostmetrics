@@ -5,11 +5,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        /* Default (dark mode) variables */
         :root {
             --bg-color: #0a0a0a;
             --glass: rgba(18, 18, 18, 0.7);
             --primary: #2d5a4f;
             --text: #ffffff;
+        }
+        /* Light mode variables */
+        body.light-mode {
+            --bg-color: #f0f0f0;
+            --glass: rgba(255, 255, 255, 0.8);
+            --primary: #8bbabb;
+            --text: #000000;
         }
         * {
             box-sizing: border-box;
@@ -23,6 +31,7 @@
             min-height: 100vh;
             position: relative;
             overflow-x: hidden;
+            transition: background 0.3s, color 0.3s;
         }
         .hexagons {
             position: fixed;
@@ -64,6 +73,7 @@
             padding: 1.5rem;
             border: 1px solid rgba(255,255,255,0.1);
             position: relative;
+            transition: background 0.3s, border 0.3s;
         }
         .card-title {
             font-size: 1rem;
@@ -128,8 +138,33 @@
             padding: 0.75rem;
             border-radius: 0.5rem;
         }
-        table { color: #ffffff; width: 100%; }
+        table { color: var(--text); width: 100%; }
         table th, table td { padding: 0.5rem; text-align: left; }
+        button.update-btn {
+            background: var(--primary);
+            color: var(--text);
+            border: none;
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.3rem;
+            cursor: pointer;
+        }
+        /* Toggle button for light/dark mode */
+        .mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--primary);
+            color: var(--text);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            transition: background 0.3s, color 0.3s;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -209,6 +244,8 @@
                             <th>Name</th>
                             <th>Uptime</th>
                             <th>Image</th>
+                            <th>Image Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="docker-data">
@@ -219,39 +256,34 @@
         </div>
     </div>
 
+    <!-- Toggle button for light/dark mode with a bulb icon -->
+    <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
+
     <script>
-        // Generate a random integer between min and max (inclusive)
+        // Generate hexagon elements
         function randomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
-        
-        // Generate a random float between min and max
         function randomFloat(min, max) {
             return Math.random() * (max - min) + min;
         }
-        
-        // Generate many hexagon elements with random positions, sizes, and animation delays
         function generateHexagons(count) {
             const container = document.getElementById('hexagon-container');
             for (let i = 0; i < count; i++) {
                 const hex = document.createElement('div');
                 hex.classList.add('hexagon');
-                
                 const top = randomInt(0, 100);
                 const left = randomInt(0, 100);
                 const size = randomInt(80, 250);
                 const delay = randomFloat(0, 10).toFixed(1);
-                
                 hex.style.top = top + '%';
                 hex.style.left = left + '%';
                 hex.style.width = size + 'px';
                 hex.style.height = size + 'px';
                 hex.style.animationDelay = delay + 's';
-                
                 container.appendChild(hex);
             }
         }
-        
         generateHexagons(40);
 
         document.querySelectorAll('.card .card-title').forEach(title => {
@@ -263,7 +295,7 @@
             });
         });
 
-        // Initialize CPU Chart (basic)
+        // Initialize charts (CPU, Memory, Disk)
         const cpuCtx = document.getElementById('cpuChart').getContext('2d');
         const cpuChart = new Chart(cpuCtx, {
             type: 'line',
@@ -272,7 +304,7 @@
                 datasets: [{
                     label: 'CPU Usage',
                     data: [],
-                    borderColor: '#2d5a4f',
+                    borderColor: 'var(--primary)',
                     tension: 0.4,
                     fill: true,
                     backgroundColor: 'rgba(45,90,79,0.2)'
@@ -288,8 +320,6 @@
                 }
             }
         });
-
-        // Initialize CPU Detail Chart for 24hr history
         const cpuDetailCtx = document.getElementById('cpuDetailChart').getContext('2d');
         const cpuDetailChart = new Chart(cpuDetailCtx, {
             type: 'line',
@@ -298,7 +328,7 @@
                 datasets: [{
                     label: '24hr CPU Usage (%)',
                     data: [],
-                    borderColor: '#2d5a4f',
+                    borderColor: 'var(--primary)',
                     tension: 0.4,
                     fill: true,
                     backgroundColor: 'rgba(45,90,79,0.2)'
@@ -314,8 +344,6 @@
                 }
             }
         });
-
-        // Initialize Memory Detail Chart for 24hr history
         const memoryDetailCtx = document.getElementById('memoryDetailChart').getContext('2d');
         const memoryDetailChart = new Chart(memoryDetailCtx, {
             type: 'line',
@@ -324,7 +352,7 @@
                 datasets: [{
                     label: '24hr Memory Usage (%)',
                     data: [],
-                    borderColor: '#2d5a4f',
+                    borderColor: 'var(--primary)',
                     tension: 0.4,
                     fill: true,
                     backgroundColor: 'rgba(45,90,79,0.2)'
@@ -340,8 +368,6 @@
                 }
             }
         });
-
-        // Initialize Disk History Chart for "/" filesystem
         const diskCtx = document.getElementById('diskHistoryChart').getContext('2d');
         const diskHistoryChart = new Chart(diskCtx, {
             type: 'line',
@@ -350,7 +376,7 @@
                 datasets: [{
                     label: '/ Filesystem Used (MB)',
                     data: [],
-                    borderColor: '#2d5a4f',
+                    borderColor: 'var(--primary)',
                     tension: 0.4,
                     fill: true,
                     backgroundColor: 'rgba(45,90,79,0.2)'
@@ -367,45 +393,54 @@
             }
         });
 
-        // Cache DOM elements
+        // Cache DOM elements for system stats.
         const cpuCircle = document.querySelector('.card:nth-child(1) .circle-progress');
         const cpuCircleValue = cpuCircle.querySelector('.circle-value');
         const memCircle = document.querySelector('.card:nth-child(2) .circle-progress');
         const memCircleValue = memCircle.querySelector('.circle-value');
         const diskCircle = document.querySelector('.card:nth-child(3) .circle-progress');
         const diskCircleValue = diskCircle.querySelector('.circle-value');
-
         const memTotalEl = document.getElementById('mem-total');
         const memUsedEl = document.getElementById('mem-used');
         const memFreeEl = document.getElementById('mem-free');
         const memCachedEl = document.getElementById('mem-cached');
-
         const cpuLoad15El = document.getElementById('cpu-load15');
-
         const diskTotalEl = document.getElementById('disk-total');
         const diskUsedEl = document.getElementById('disk-used');
         const diskFreeEl = document.getElementById('disk-free');
-
         const diskRootTotalEl = document.getElementById('disk-root-total');
         const diskRootUsedEl = document.getElementById('disk-root-used');
         const diskRootFreeEl = document.getElementById('disk-root-free');
         const diskRootPercentEl = document.getElementById('disk-root-percent');
-
         const dockerDataEl = document.getElementById('docker-data');
 
-        // Update stats function; update detailed charts only if respective detail view is expanded.
+        // Function to trigger container update via POST.
+        function updateContainer(containerName) {
+            fetch(`/update/${containerName}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(err => {
+                alert("Error updating container: " + err);
+            });
+        }
+
+        // Update stats (including docker container info).
         function updateStats() {
             fetch('/stats')
                 .then(response => response.json())
                 .then(data => {
-                    // Update basic CPU stats
+                    // Update CPU basic stats.
                     cpuCircle.style.setProperty('--p', data.system.cpu + '%');
                     cpuCircleValue.textContent = Math.round(data.system.cpu) + '%';
                     cpuChart.data.labels = data.system.cpu_history.time;
                     cpuChart.data.datasets[0].data = data.system.cpu_history.usage;
                     cpuChart.update();
 
-                    // Update basic Memory stats
+                    // Update Memory basic stats.
                     memCircle.style.setProperty('--p', data.system.memory.percent + '%');
                     memCircleValue.textContent = Math.round(data.system.memory.percent) + '%';
                     memTotalEl.textContent = data.system.memory.total + ' GiB';
@@ -413,14 +448,14 @@
                     memFreeEl.textContent = data.system.memory.free + ' GiB';
                     memCachedEl.textContent = data.system.memory.cached + ' GiB';
 
-                    // Update basic Disk stats
+                    // Update Disk basic stats.
                     diskCircle.style.setProperty('--p', data.system.disk.percent + '%');
                     diskCircleValue.textContent = Math.round(data.system.disk.percent) + '%';
                     diskTotalEl.textContent = data.system.disk.total + ' GiB';
                     diskUsedEl.textContent = data.system.disk.used + ' GiB';
                     diskFreeEl.textContent = data.system.disk.free + ' GiB';
 
-                    // Update CPU details only if expanded
+                    // Update CPU details if expanded.
                     if (document.getElementById('cpu-detail-view').style.display !== 'none') {
                         cpuLoad15El.textContent = data.system.cpu_details.load15.toFixed(2);
                         const cpuHistoryLabels = data.system.cpu_details.history24h.map(entry => entry.time);
@@ -430,7 +465,7 @@
                         cpuDetailChart.update();
                     }
 
-                    // Update Memory details (24hr Memory Usage) only if expanded
+                    // Update Memory details if expanded.
                     if (document.getElementById('memory-detail-view').style.display !== 'none') {
                         const memoryHistoryLabels = data.system.memory_details.history24h.map(entry => entry.time);
                         const memoryHistoryData = data.system.memory_details.history24h.map(entry => entry.usage);
@@ -439,7 +474,7 @@
                         memoryDetailChart.update();
                     }
 
-                    // Update Disk details only if expanded
+                    // Update Disk details if expanded.
                     if (document.getElementById('disk-detail-view').style.display !== 'none') {
                         diskRootTotalEl.textContent = data.system.disk_details.root.total;
                         diskRootUsedEl.textContent = data.system.disk_details.root.used;
@@ -452,20 +487,30 @@
                         diskHistoryChart.update();
                     }
 
-                    // Update Docker containers (always update)
-                    dockerDataEl.innerHTML = data.docker.map(container =>
-                        `<tr>
+                    // Update Docker containers table.
+                    dockerDataEl.innerHTML = data.docker.map(container => `
+                        <tr>
                             <td><div class="status-indicator status-${container.status}"></div></td>
                             <td>${container.name}</td>
                             <td>${Math.floor(container.uptime / 3600)}h ${Math.floor((container.uptime % 3600) / 60)}m</td>
                             <td>${container.image}</td>
-                        </tr>`
-                    ).join('');
+                            <td>${container.up_to_date ? 'Up-to-date' : 'Update available'}</td>
+                            <td>
+                                ${container.up_to_date ? '' : `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>`}
+                            </td>
+                        </tr>
+                    `).join('');
                 });
         }
 
         setInterval(updateStats, 500);
         updateStats();
+
+        // Light/dark mode toggle functionality.
+        const modeToggle = document.getElementById('modeToggle');
+        modeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+        });
     </script>
 </body>
 </html>

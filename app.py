@@ -1,10 +1,8 @@
-# app.py
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import psutil
 import docker
 from datetime import datetime
 import time
-import os
 import threading
 
 app = Flask(__name__)
@@ -30,7 +28,6 @@ def get_cpu_details():
     return {'load15': load15}
 
 def get_memory_details():
-    # No detailed table; memory details will be provided via the 24hr graph
     return {}
 
 def get_disk_details():
@@ -38,9 +35,7 @@ def get_disk_details():
     disk = psutil.disk_usage('/')
     now = time.time()
     global disk_history
-    # Append current used space to history
     disk_history.append({'time': now, 'used': disk.used})
-    # Keep history for the last 7 days
     seven_days_ago = now - 7 * 24 * 3600
     disk_history = [entry for entry in disk_history if entry['time'] >= seven_days_ago]
     history = [
@@ -67,6 +62,10 @@ last_heavy_update = 0
 last_disk_update = 0
 cached_disk_details = {}
 
+# Global dictionary to store update status for each container by name.
+# True means the container’s image is up to date.
+image_update_info = {}
+
 def get_docker_info():
     containers = []
     for container in client.containers.list(all=True):
@@ -78,12 +77,17 @@ def get_docker_info():
             uptime = int(time.time() - dt_created.timestamp())
         except Exception:
             uptime = 0
+        image_tag = container.image.tags[0] if container.image.tags else 'N/A'
+        # Look up the image update status from our global dictionary.
+        # Default to True (up-to-date) if no check has been done yet.
+        up_to_date = image_update_info.get(container.name, True)
         info = {
             'name': container.name,
             'status': container.status,
-            'image': container.image.tags[0] if container.image.tags else 'N/A',
+            'image': image_tag,
             'created': container.attrs.get('Created', ''),
-            'uptime': uptime
+            'uptime': uptime,
+            'up_to_date': up_to_date
         }
         containers.append(info)
     return containers
@@ -97,7 +101,6 @@ def update_stats_cache():
             mem = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
             
-            # Update basic CPU history (for short-term chart)
             now_str = datetime.now().strftime('%H:%M:%S')
             cpu_history['time'].append(now_str)
             cpu_history['usage'].append(cpu_percent)
@@ -106,24 +109,21 @@ def update_stats_cache():
                 cpu_history['usage'].pop(0)
             
             current_time = time.time()
-            # Sample CPU usage for 24hr history every 10 seconds
             if current_time - last_cpu_24h_update >= 10:
                 cpu_history_24h.append({'time': current_time, 'usage': cpu_percent})
                 twenty_four_hours_ago = current_time - 24 * 3600
                 cpu_history_24h[:] = [entry for entry in cpu_history_24h if entry['time'] >= twenty_four_hours_ago]
                 last_cpu_24h_update = current_time
             
-            # Sample Memory usage (percentage) for 24hr history every 10 seconds
             if current_time - last_memory_24h_update >= 10:
                 memory_history_24h.append({'time': current_time, 'usage': mem.percent})
                 twenty_four_hours_ago = current_time - 24 * 3600
                 memory_history_24h[:] = [entry for entry in memory_history_24h if entry['time'] >= twenty_four_hours_ago]
                 last_memory_24h_update = current_time
             
-            # Update heavy details every 5 seconds (excluding disk details)
             if current_time - last_heavy_update >= 5:
                 heavy_cpu_details = get_cpu_details()
-                heavy_memory_details = get_memory_details()  # returns empty dict
+                heavy_memory_details = get_memory_details()
                 heavy_docker = get_docker_info()
                 last_heavy_update = current_time
             else:
@@ -131,12 +131,10 @@ def update_stats_cache():
                 heavy_memory_details = cached_heavy.get('memory_details', {})
                 heavy_docker = cached_heavy.get('docker', [])
             
-            # Update disk details every 5 minutes (300 seconds)
             if current_time - last_disk_update >= 300:
                 cached_disk_details = get_disk_details()
                 last_disk_update = current_time
             
-            # Format the 24hr CPU history for charting (time as HH:MM)
             cpu_history_24h_formatted = [
                 {
                     'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
@@ -146,7 +144,6 @@ def update_stats_cache():
             ]
             heavy_cpu_details['history24h'] = cpu_history_24h_formatted
             
-            # Format the 24hr Memory history for charting (time as HH:MM)
             memory_history_24h_formatted = [
                 {
                     'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
@@ -190,8 +187,37 @@ def update_stats_cache():
             print("Error updating cache:", e)
         time.sleep(0.25)
 
-# Start the cache updater thread on app startup
+def check_image_updates():
+    """Every eight hours, check for each container whether its image is up-to-date.
+       For each container, we pull the image and compare the image id with the one
+       used by the running container. (Note that pulling a new image will update the local copy,
+       but the running container continues to use the old image until it is re-created.)
+    """
+    global image_update_info
+    while True:
+        try:
+            for container in client.containers.list(all=True):
+                if not container.image.tags:
+                    continue  # skip if no tag available
+                image_tag = container.image.tags[0]
+                try:
+                    # Pull the latest image from the registry.
+                    latest_image = client.images.pull(image_tag)
+                except Exception as e:
+                    print(f"Error pulling image {image_tag} for container {container.name}: {e}")
+                    continue
+                # Compare the IDs.
+                # (If they differ, then an update is available.)
+                up_to_date = (container.image.id == latest_image.id)
+                image_update_info[container.name] = up_to_date
+        except Exception as e:
+            print("Error checking image updates:", e)
+        # Sleep for eight hours (8*3600 seconds)
+        time.sleep(8 * 3600)
+
+# Start the background threads
 threading.Thread(target=update_stats_cache, daemon=True).start()
+threading.Thread(target=check_image_updates, daemon=True).start()
 
 @app.route('/')
 def index():
@@ -200,6 +226,62 @@ def index():
 @app.route('/stats')
 def stats():
     return jsonify(cached_stats)
+
+@app.route('/update/<container_name>', methods=['POST'])
+def update_container(container_name):
+    """Update a container by removing it and its image then re-creating it with the same settings."""
+    try:
+        container = client.containers.get(container_name)
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Container not found: {str(e)}"}), 404
+
+    try:
+        # Get basic configuration from the container's attributes.
+        config = container.attrs.get('Config', {})
+        host_config = container.attrs.get('HostConfig', {})
+
+        # Save settings (a best‐effort; not all settings are re-creatable)
+        image_tag = container.image.tags[0] if container.image.tags else None
+        if image_tag is None:
+            return jsonify({"status": "error", "message": "Container has no image tag"}), 400
+
+        cmd = config.get('Cmd')
+        env = config.get('Env')
+        # For ports, we try to extract the port bindings from HostConfig.
+        ports = host_config.get('PortBindings')
+        # For volumes, we check the container config
+        volumes = list(config.get('Volumes', {}).keys()) if config.get('Volumes') else None
+
+        # Stop and remove the container.
+        try:
+            container.stop(timeout=10)
+        except Exception as e:
+            print("Error stopping container:", e)
+        container.remove()
+
+        # Remove the old image (force removal).
+        try:
+            client.images.remove(image=image_tag, force=True)
+        except Exception as e:
+            print("Error removing image:", e)
+
+        # Pull the latest image.
+        client.images.pull(image_tag)
+
+        # Re-create and start the container.
+        # (Note: this is a best‐effort re-creation and may need adjustment for your production use.)
+        new_container = client.containers.run(
+            image=image_tag,
+            name=container_name,
+            command=cmd,
+            environment=env,
+            ports=ports,
+            volumes=volumes,
+            detach=True
+        )
+        return jsonify({"status": "success", "message": f"Container '{container_name}' updated successfully."})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Error updating container: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
