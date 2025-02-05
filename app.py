@@ -8,7 +8,7 @@ import threading
 import logging
 
 # Set up logging to see debug output.
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 client = docker.from_env()
@@ -309,4 +309,4 @@ if __name__ == '__main__':
     # Start the background threads here.
     threading.Thread(target=update_stats_cache, daemon=True).start()
     threading.Thread(target=check_image_updates, daemon=True).start()
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=True)
