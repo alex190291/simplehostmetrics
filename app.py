@@ -10,21 +10,10 @@ import threading
 app = Flask(__name__)
 client = docker.from_env()
 
-# History storage for CPU and /data folder size
+# History storage for CPU and "/" disk usage
 cpu_history = {'time': [], 'usage': []}
 MAX_HISTORY = 30
-data_folder_history = []  # To store /data folder size history
-
-def get_folder_size(folder):
-    total = 0
-    for dirpath, dirnames, filenames in os.walk(folder):
-        for f in filenames:
-            try:
-                fp = os.path.join(dirpath, f)
-                total += os.path.getsize(fp)
-            except Exception:
-                continue
-    return total
+disk_history = []  # To store "/" filesystem usage history
 
 def get_cpu_details():
     # Calculate 15-minute load average (steal load removed)
@@ -67,27 +56,21 @@ def get_memory_details():
     }
 
 def get_disk_details():
+    # Get "/" filesystem details only
     disk = psutil.disk_usage('/')
-    try:
-        disk_data = psutil.disk_usage('/data')
-    except Exception:
-        disk_data = None
     now = time.time()
-    try:
-        data_folder_size = get_folder_size('/data')
-    except Exception:
-        data_folder_size = 0
-    global data_folder_history
-    data_folder_history.append({'time': now, 'size': data_folder_size})
+    global disk_history
+    # Append current used space to history
+    disk_history.append({'time': now, 'used': disk.used})
     # Keep history for the last 7 days
     seven_days_ago = now - 7 * 24 * 3600
-    data_folder_history = [entry for entry in data_folder_history if entry['time'] >= seven_days_ago]
+    disk_history = [entry for entry in disk_history if entry['time'] >= seven_days_ago]
     history = [
         {
             'time': datetime.fromtimestamp(entry['time']).strftime('%Y-%m-%d %H:%M:%S'),
-            'size': round(entry['size'] / (1024 ** 2), 2)  # size in MB
+            'used': round(entry['used'] / (1024 ** 2), 2)  # used space in MB
         }
-        for entry in data_folder_history
+        for entry in disk_history
     ]
     return {
         'root': {
@@ -96,12 +79,6 @@ def get_disk_details():
             'free': round(disk.free / (1024 ** 3), 2),
             'percent': disk.percent
         },
-        'data': {
-            'total': round(disk_data.total / (1024 ** 3), 2) if disk_data else 0,
-            'used': round(disk_data.used / (1024 ** 3), 2) if disk_data else 0,
-            'free': round(disk_data.free / (1024 ** 3), 2) if disk_data else 0,
-            'percent': disk_data.percent if disk_data else 0
-        },
         'history': history
     }
 
@@ -109,13 +86,15 @@ def get_disk_details():
 cached_stats = {}
 cached_heavy = {}
 last_heavy_update = 0
+last_disk_update = 0
+cached_disk_details = {}
 
 def get_docker_info():
     containers = []
     for container in client.containers.list(all=True):
         try:
             created = container.attrs.get('Created', '')
-            # Use fromisoformat for faster parsing; adjust format if needed.
+            # Adjust the ISO format if necessary
             if created.endswith('Z'):
                 created = created[:-1] + '+00:00'
             dt_created = datetime.fromisoformat(created) if created else datetime.now()
@@ -133,7 +112,11 @@ def get_docker_info():
     return containers
 
 def update_stats_cache():
-    global cached_stats, cached_heavy, last_heavy_update, cpu_history
+    global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details, cpu_history
+    # Initialize temporary storage for heavy details
+    heavy_cpu_details = {}
+    heavy_memory_details = {}
+    heavy_docker = []
     while True:
         try:
             # Light stats update (every 0.25 sec)
@@ -149,15 +132,25 @@ def update_stats_cache():
                 cpu_history['time'].pop(0)
                 cpu_history['usage'].pop(0)
             
-            # Update heavy details every 2 seconds
-            if time.time() - last_heavy_update >= 2:
-                cached_heavy = {
-                    'cpu_details': get_cpu_details(),
-                    'memory_details': get_memory_details(),
-                    'disk_details': get_disk_details(),
-                    'docker': get_docker_info()
-                }
-                last_heavy_update = time.time()
+            current_time = time.time()
+            # Update heavy details every 5 seconds (excluding disk details)
+            if current_time - last_heavy_update >= 5:
+                heavy_cpu_details = get_cpu_details()
+                heavy_memory_details = get_memory_details()
+                heavy_docker = get_docker_info()
+                last_heavy_update = current_time
+            
+            # Update disk details only every 5 minutes (300 seconds)
+            if current_time - last_disk_update >= 300:
+                cached_disk_details = get_disk_details()
+                last_disk_update = current_time
+            
+            cached_heavy = {
+                'cpu_details': heavy_cpu_details,
+                'memory_details': heavy_memory_details,
+                'docker': heavy_docker,
+                'disk_details': cached_disk_details
+            }
             
             cached_stats = {
                 'system': {
@@ -200,4 +193,3 @@ def stats():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-

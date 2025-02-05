@@ -208,16 +208,10 @@
                 </div>
                 <div class="detail-view" id="disk-detail-view" style="display: none;">
                     <div style="margin-bottom: 1rem;">
-                        <strong>Root Usage:</strong> Total: <span id="disk-root-total">0</span> GiB, 
+                        <strong>/ (Root) Usage:</strong> Total: <span id="disk-root-total">0</span> GiB, 
                         Used: <span id="disk-root-used">0</span> GiB, 
                         Free: <span id="disk-root-free">0</span> GiB, 
                         Percent: <span id="disk-root-percent">0</span>%
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <strong>/data Usage:</strong> Total: <span id="disk-data-total">0</span> GiB, 
-                        Used: <span id="disk-data-used">0</span> GiB, 
-                        Free: <span id="disk-data-free">0</span> GiB, 
-                        Percent: <span id="disk-data-percent">0</span>%
                     </div>
                     <canvas id="diskHistoryChart" style="max-height:200px;"></canvas>
                 </div>
@@ -322,14 +316,14 @@
             }
         });
 
-        // Initialize Disk History Chart for /data folder
+        // Initialize Disk History Chart for "/" filesystem
         const diskCtx = document.getElementById('diskHistoryChart').getContext('2d');
         const diskHistoryChart = new Chart(diskCtx, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [{
-                    label: '/data Folder Size (MB)',
+                    label: '/ Filesystem Used (MB)',
                     data: [],
                     borderColor: '#2d5a4f',
                     tension: 0.4,
@@ -373,11 +367,6 @@
         const diskRootUsedEl = document.getElementById('disk-root-used');
         const diskRootFreeEl = document.getElementById('disk-root-free');
         const diskRootPercentEl = document.getElementById('disk-root-percent');
-
-        const diskDataTotalEl = document.getElementById('disk-data-total');
-        const diskDataUsedEl = document.getElementById('disk-data-used');
-        const diskDataFreeEl = document.getElementById('disk-data-free');
-        const diskDataPercentEl = document.getElementById('disk-data-percent');
 
         const dockerDataEl = document.getElementById('docker-data');
 
@@ -434,14 +423,10 @@
                     diskRootUsedEl.textContent = data.system.disk_details.root.used;
                     diskRootFreeEl.textContent = data.system.disk_details.root.free;
                     diskRootPercentEl.textContent = data.system.disk_details.root.percent;
-                    diskDataTotalEl.textContent = data.system.disk_details.data.total;
-                    diskDataUsedEl.textContent = data.system.disk_details.data.used;
-                    diskDataFreeEl.textContent = data.system.disk_details.data.free;
-                    diskDataPercentEl.textContent = data.system.disk_details.data.percent;
                     
-                    // Update Disk history chart (/data folder size)
+                    // Update Disk history chart ("/" filesystem)
                     const historyLabels = data.system.disk_details.history.map(entry => entry.time);
-                    const historyData = data.system.disk_details.history.map(entry => entry.size);
+                    const historyData = data.system.disk_details.history.map(entry => entry.used);
                     diskHistoryChart.data.labels = historyLabels;
                     diskHistoryChart.data.datasets[0].data = historyData;
                     diskHistoryChart.update();
@@ -464,4 +449,3 @@
     </script>
 </body>
 </html>
-
