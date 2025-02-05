@@ -13,11 +13,13 @@ client = docker.from_env()
 # History storage for CPU (short and 24hr) and "/" disk usage
 cpu_history = {'time': [], 'usage': []}  # for basic chart (last 30 samples)
 cpu_history_24h = []  # for detailed 24hr chart, sampled every 10 seconds
+memory_history_24h = []  # for detailed 24hr memory usage history (percentage), sampled every 10 seconds
 MAX_HISTORY = 30
 disk_history = []  # to store "/" filesystem usage history
 
 # Global variables for scheduling 24hr history updates
 last_cpu_24h_update = 0
+last_memory_24h_update = 0
 
 def get_cpu_details():
     # Return only the 15-min load average
@@ -25,10 +27,10 @@ def get_cpu_details():
         load15 = psutil.getloadavg()[2]
     except Exception:
         load15 = 0
-    return { 'load15': load15 }
+    return {'load15': load15}
 
 def get_memory_details():
-    # Removed top 5 processes computation
+    # No detailed table; memory details will be provided via the 24hr graph
     return {}
 
 def get_disk_details():
@@ -70,7 +72,6 @@ def get_docker_info():
     for container in client.containers.list(all=True):
         try:
             created = container.attrs.get('Created', '')
-            # Adjust the ISO format if necessary
             if created.endswith('Z'):
                 created = created[:-1] + '+00:00'
             dt_created = datetime.fromisoformat(created) if created else datetime.now()
@@ -89,7 +90,7 @@ def get_docker_info():
 
 def update_stats_cache():
     global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details
-    global cpu_history, cpu_history_24h, last_cpu_24h_update
+    global cpu_history, cpu_history_24h, last_cpu_24h_update, memory_history_24h, last_memory_24h_update
     while True:
         try:
             cpu_percent = psutil.cpu_percent()
@@ -109,13 +110,20 @@ def update_stats_cache():
             if current_time - last_cpu_24h_update >= 10:
                 cpu_history_24h.append({'time': current_time, 'usage': cpu_percent})
                 twenty_four_hours_ago = current_time - 24 * 3600
-                cpu_history_24h = [entry for entry in cpu_history_24h if entry['time'] >= twenty_four_hours_ago]
+                cpu_history_24h[:] = [entry for entry in cpu_history_24h if entry['time'] >= twenty_four_hours_ago]
                 last_cpu_24h_update = current_time
+            
+            # Sample Memory usage (percentage) for 24hr history every 10 seconds
+            if current_time - last_memory_24h_update >= 10:
+                memory_history_24h.append({'time': current_time, 'usage': mem.percent})
+                twenty_four_hours_ago = current_time - 24 * 3600
+                memory_history_24h[:] = [entry for entry in memory_history_24h if entry['time'] >= twenty_four_hours_ago]
+                last_memory_24h_update = current_time
             
             # Update heavy details every 5 seconds (excluding disk details)
             if current_time - last_heavy_update >= 5:
                 heavy_cpu_details = get_cpu_details()
-                heavy_memory_details = get_memory_details()  # now returns an empty dict
+                heavy_memory_details = get_memory_details()  # returns empty dict
                 heavy_docker = get_docker_info()
                 last_heavy_update = current_time
             else:
@@ -128,7 +136,7 @@ def update_stats_cache():
                 cached_disk_details = get_disk_details()
                 last_disk_update = current_time
             
-            # Format the 24hr CPU history for charting (show time as HH:MM)
+            # Format the 24hr CPU history for charting (time as HH:MM)
             cpu_history_24h_formatted = [
                 {
                     'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
@@ -137,6 +145,16 @@ def update_stats_cache():
                 for entry in cpu_history_24h
             ]
             heavy_cpu_details['history24h'] = cpu_history_24h_formatted
+            
+            # Format the 24hr Memory history for charting (time as HH:MM)
+            memory_history_24h_formatted = [
+                {
+                    'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
+                    'usage': entry['usage']
+                }
+                for entry in memory_history_24h
+            ]
+            heavy_memory_details['history24h'] = memory_history_24h_formatted
             
             cached_heavy = {
                 'cpu_details': heavy_cpu_details,

@@ -141,7 +141,7 @@
         <div class="grid">
             <!-- CPU Card -->
             <div class="card">
-                <h2 class="card-title">CPU Usage (click to toggle details)</h2>
+                <h2 class="card-title">CPU Usage</h2>
                 <div class="stat-container">
                     <div class="circle-progress">
                         <div class="circle-value">0%</div>
@@ -156,7 +156,7 @@
 
             <!-- Memory Card -->
             <div class="card">
-                <h2 class="card-title">Memory Usage (click to toggle details)</h2>
+                <h2 class="card-title">Memory Usage</h2>
                 <div class="stat-container">
                     <div class="circle-progress">
                         <div class="circle-value">0%</div>
@@ -169,23 +169,13 @@
                     </div>
                 </div>
                 <div class="detail-view" id="memory-detail-view" style="display: none;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PID</th>
-                                <th>Name</th>
-                                <th>Memory %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="memory-top5">
-                        </tbody>
-                    </table>
+                    <canvas id="memoryDetailChart" style="max-height:200px;"></canvas>
                 </div>
             </div>
 
             <!-- Disk Card -->
             <div class="card">
-                <h2 class="card-title">Disk Usage (click to toggle details)</h2>
+                <h2 class="card-title">Disk Usage</h2>
                 <div class="stat-container">
                     <div class="circle-progress">
                         <div class="circle-value">0%</div>
@@ -247,14 +237,9 @@
                 const hex = document.createElement('div');
                 hex.classList.add('hexagon');
                 
-                // Randomize position (as percentages)
                 const top = randomInt(0, 100);
                 const left = randomInt(0, 100);
-                
-                // Randomize size between 80px and 250px
                 const size = randomInt(80, 250);
-                
-                // Randomize animation delay between 0 and 10 seconds
                 const delay = randomFloat(0, 10).toFixed(1);
                 
                 hex.style.top = top + '%';
@@ -267,10 +252,8 @@
             }
         }
         
-        // Generate 40 hexagon shapes on page load
         generateHexagons(40);
 
-        // Toggle detail views on card title click
         document.querySelectorAll('.card .card-title').forEach(title => {
             title.addEventListener('click', function() {
                 const detailView = this.parentElement.querySelector('.detail-view');
@@ -280,7 +263,7 @@
             });
         });
 
-        // Initialize CPU Chart (basic, short-term)
+        // Initialize CPU Chart (basic)
         const cpuCtx = document.getElementById('cpuChart').getContext('2d');
         const cpuChart = new Chart(cpuCtx, {
             type: 'line',
@@ -332,6 +315,32 @@
             }
         });
 
+        // Initialize Memory Detail Chart for 24hr history
+        const memoryDetailCtx = document.getElementById('memoryDetailChart').getContext('2d');
+        const memoryDetailChart = new Chart(memoryDetailCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '24hr Memory Usage (%)',
+                    data: [],
+                    borderColor: '#2d5a4f',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(45,90,79,0.2)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
         // Initialize Disk History Chart for "/" filesystem
         const diskCtx = document.getElementById('diskHistoryChart').getContext('2d');
         const diskHistoryChart = new Chart(diskCtx, {
@@ -358,7 +367,7 @@
             }
         });
 
-        // Cache DOM elements to improve performance
+        // Cache DOM elements
         const cpuCircle = document.querySelector('.card:nth-child(1) .circle-progress');
         const cpuCircleValue = cpuCircle.querySelector('.circle-value');
         const memCircle = document.querySelector('.card:nth-child(2) .circle-progress');
@@ -384,8 +393,7 @@
 
         const dockerDataEl = document.getElementById('docker-data');
 
-        // Update stats function with cached selectors.
-        // Detailed card values (CPU detail chart) are updated only if the respective detail view is expanded.
+        // Update stats function; update detailed charts only if respective detail view is expanded.
         function updateStats() {
             fetch('/stats')
                 .then(response => response.json())
@@ -393,7 +401,6 @@
                     // Update basic CPU stats
                     cpuCircle.style.setProperty('--p', data.system.cpu + '%');
                     cpuCircleValue.textContent = Math.round(data.system.cpu) + '%';
-                    // Update CPU basic chart
                     cpuChart.data.labels = data.system.cpu_history.time;
                     cpuChart.data.datasets[0].data = data.system.cpu_history.usage;
                     cpuChart.update();
@@ -416,14 +423,22 @@
                     // Update CPU details only if expanded
                     if (document.getElementById('cpu-detail-view').style.display !== 'none') {
                         cpuLoad15El.textContent = data.system.cpu_details.load15.toFixed(2);
-                        const historyLabels = data.system.cpu_details.history24h.map(entry => entry.time);
-                        const historyData = data.system.cpu_details.history24h.map(entry => entry.usage);
-                        cpuDetailChart.data.labels = historyLabels;
-                        cpuDetailChart.data.datasets[0].data = historyData;
+                        const cpuHistoryLabels = data.system.cpu_details.history24h.map(entry => entry.time);
+                        const cpuHistoryData = data.system.cpu_details.history24h.map(entry => entry.usage);
+                        cpuDetailChart.data.labels = cpuHistoryLabels;
+                        cpuDetailChart.data.datasets[0].data = cpuHistoryData;
                         cpuDetailChart.update();
                     }
 
-                    // (Memory detailed view remains unchanged; it's still available if needed)
+                    // Update Memory details (24hr Memory Usage) only if expanded
+                    if (document.getElementById('memory-detail-view').style.display !== 'none') {
+                        const memoryHistoryLabels = data.system.memory_details.history24h.map(entry => entry.time);
+                        const memoryHistoryData = data.system.memory_details.history24h.map(entry => entry.usage);
+                        memoryDetailChart.data.labels = memoryHistoryLabels;
+                        memoryDetailChart.data.datasets[0].data = memoryHistoryData;
+                        memoryDetailChart.update();
+                    }
+
                     // Update Disk details only if expanded
                     if (document.getElementById('disk-detail-view').style.display !== 'none') {
                         diskRootTotalEl.textContent = data.system.disk_details.root.total;
@@ -449,7 +464,6 @@
                 });
         }
 
-        // Update stats every 500ms
         setInterval(updateStats, 500);
         updateStats();
     </script>
