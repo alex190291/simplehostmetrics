@@ -240,6 +240,11 @@
             <div class="stat-container">
                 <canvas id="networkChart"></canvas>
             </div>
+            <!-- Detailed Network Throughput View -->
+            <div class="detail-view" id="network-detail-view" style="display: none;">
+                <canvas id="networkDetailInputChart" style="max-height:200px;"></canvas>
+                <canvas id="networkDetailOutputChart" style="max-height:200px; margin-top: 1rem;"></canvas>
+            </div>
         </div>
 
         <!-- Docker Containers Card -->
@@ -444,6 +449,46 @@
             }
         });
 
+        // Initialize detailed network charts (for input and output)
+        const networkDetailInputCtx = document.getElementById('networkDetailInputChart').getContext('2d');
+        const networkDetailInputChart = new Chart(networkDetailInputCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: true } 
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { grid: { color: 'rgba(255,255,255,0.1)' } }
+                }
+            }
+        });
+        const networkDetailOutputCtx = document.getElementById('networkDetailOutputChart').getContext('2d');
+        const networkDetailOutputChart = new Chart(networkDetailOutputCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: true } 
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { grid: { color: 'rgba(255,255,255,0.1)' } }
+                }
+            }
+        });
+
         // Cache DOM elements for system stats.
         const cpuCircle = document.querySelector('.card:nth-child(1) .circle-progress');
         const cpuCircleValue = cpuCircle.querySelector('.circle-value');
@@ -546,6 +591,72 @@
                             networkChart.data.datasets[1].data = outputData;
                             networkChart.update();
                         }
+                    }
+
+                    // Update Detailed Network Charts if expanded.
+                    if (document.getElementById('network-detail-view').style.display !== 'none' && data.network && data.network.interfaces) {
+                        let detailedInterfaces = {};
+                        // Include all interfaces matching any of these prefixes: enp, ens, eth, tun, wg, vpn, docker, veth or br-
+                        for (let iface in data.network.interfaces) {
+                            if (/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
+                                detailedInterfaces[iface] = data.network.interfaces[iface];
+                            }
+                        }
+                        // Prepare datasets for input and output.
+                        const colorPalette = [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ];
+                        let inputDatasets = [];
+                        let outputDatasets = [];
+                        let index = 0;
+                        for (let iface in detailedInterfaces) {
+                            const ifaceData = detailedInterfaces[iface];
+                            // Create data points (x: time, y: value)
+                            const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
+                            const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
+                            let color = colorPalette[index % colorPalette.length];
+                            inputDatasets.push({
+                                label: iface,
+                                data: inputPoints,
+                                borderColor: color,
+                                tension: 0.4,
+                                fill: false
+                            });
+                            outputDatasets.push({
+                                label: iface,
+                                data: outputPoints,
+                                borderColor: color,
+                                tension: 0.4,
+                                fill: false
+                            });
+                            index++;
+                        }
+                        // Update the detailed input chart.
+                        networkDetailInputChart.data.datasets = inputDatasets;
+                        networkDetailInputChart.data.labels = []; // using time scale from data points
+                        networkDetailInputChart.options.plugins.legend.display = true;
+                        networkDetailInputChart.options.scales.x = {
+                            type: 'time',
+                            time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
+                            grid: { display: false }
+                        };
+                        networkDetailInputChart.update();
+
+                        // Update the detailed output chart.
+                        networkDetailOutputChart.data.datasets = outputDatasets;
+                        networkDetailOutputChart.data.labels = [];
+                        networkDetailOutputChart.options.plugins.legend.display = true;
+                        networkDetailOutputChart.options.scales.x = {
+                            type: 'time',
+                            time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
+                            grid: { display: false }
+                        };
+                        networkDetailOutputChart.update();
                     }
 
                     // Update Docker containers table.
