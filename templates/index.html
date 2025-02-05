@@ -3,7 +3,10 @@
 <head>
     <title>System Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Chart.js library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Date adapter for time scales -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
         /* Default (dark mode) variables */
         :root {
@@ -173,6 +176,23 @@
         .docker-card {
             margin-top: 1.5rem;
         }
+        /* Container for multiple detailed network charts */
+        .chart-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .chart-row canvas {
+            flex: 1 1 calc(50% - 1rem);
+            height: 90px !important;
+        }
+        /* Labels above detailed charts */
+        .detail-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -242,8 +262,10 @@
             </div>
             <!-- Detailed Network Throughput View -->
             <div class="detail-view" id="network-detail-view" style="display: none;">
-                <canvas id="networkDetailInputChart" style="max-height:200px;"></canvas>
-                <canvas id="networkDetailOutputChart" style="max-height:200px; margin-top: 1rem;"></canvas>
+                <div class="detail-label">Input Throughput</div>
+                <div id="networkDetailInputCharts"></div>
+                <div class="detail-label" style="margin-top:1rem;">Output Throughput</div>
+                <div id="networkDetailOutputCharts" style="margin-top:1rem;"></div>
             </div>
         </div>
 
@@ -274,7 +296,21 @@
     <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
 
     <script>
-        // Generate hexagon elements
+        // Global variables to hold detailed network charts arrays.
+        let networkDetailInputCharts = []; // array of Chart objects for input
+        let networkDetailOutputCharts = []; // array of Chart objects for output
+        let lastDetailedNetworkUpdate = 0;
+
+        // Utility: split an array into chunks of size n.
+        function chunkArray(array, n) {
+            let chunks = [];
+            for (let i = 0; i < array.length; i += n) {
+                chunks.push(array.slice(i, i + n));
+            }
+            return chunks;
+        }
+
+        // Generate hexagon elements.
         function randomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
@@ -303,7 +339,6 @@
         // Make entire card clickable to toggle its detail view.
         document.querySelectorAll('.card').forEach(card => {
             card.addEventListener('click', function(e) {
-                // Avoid toggling when clicking on a button inside the card.
                 if (e.target.tagName.toLowerCase() === 'button') return;
                 const detailView = this.querySelector('.detail-view');
                 if (detailView) {
@@ -312,12 +347,11 @@
             });
         });
 
-        // Initialize charts (CPU, Memory, Disk)
+        // Initialize charts (CPU, Memory, Disk, Aggregated Network)
         const cpuCtx = document.getElementById('cpuChart').getContext('2d');
         const cpuChart = new Chart(cpuCtx, {
             type: 'line',
             data: {
-                // We'll generate empty labels for each data point.
                 labels: [],
                 datasets: [{
                     label: 'CPU Usage',
@@ -334,10 +368,7 @@
                 plugins: { legend: { display: false } },
                 scales: {
                     y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: {
-                        grid: { display: false },
-                        ticks: { display: false } // Hide x-axis ticks
-                    }
+                    x: { grid: { display: false }, ticks: { display: false } }
                 }
             }
         });
@@ -359,10 +390,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: {
-                    y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
-                }
+                scales: { y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
             }
         });
         const memoryDetailCtx = document.getElementById('memoryDetailChart').getContext('2d');
@@ -383,10 +411,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: {
-                    y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
-                }
+                scales: { y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
             }
         });
         const diskCtx = document.getElementById('diskHistoryChart').getContext('2d');
@@ -407,13 +432,9 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: {
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
-                }
+                scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
             }
         });
-        // Initialize Aggregated Network Chart (non-detailed view)
         const networkCtx = document.getElementById('networkChart').getContext('2d');
         const networkChart = new Chart(networkCtx, {
             type: 'line',
@@ -442,52 +463,72 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: {
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false } }
-                }
+                scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
             }
         });
 
-        // Initialize detailed network charts (for input and output)
-        const networkDetailInputCtx = document.getElementById('networkDetailInputChart').getContext('2d');
-        const networkDetailInputChart = new Chart(networkDetailInputCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: []
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { 
-                    legend: { display: true } 
-                },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' } }
-                }
-            }
-        });
-        const networkDetailOutputCtx = document.getElementById('networkDetailOutputChart').getContext('2d');
-        const networkDetailOutputChart = new Chart(networkDetailOutputCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: []
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { 
-                    legend: { display: true } 
-                },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { grid: { color: 'rgba(255,255,255,0.1)' } }
-                }
-            }
-        });
+        // Function to update/create detailed network charts.
+        function updateDetailedNetworkCharts(inputDatasets, outputDatasets) {
+            const maxPerChart = 10;
+            const inputChunks = chunkArray(inputDatasets, maxPerChart);
+            const outputChunks = chunkArray(outputDatasets, maxPerChart);
+            const inputContainer = document.getElementById('networkDetailInputCharts');
+            const outputContainer = document.getElementById('networkDetailOutputCharts');
+            inputContainer.innerHTML = '';
+            outputContainer.innerHTML = '';
+            networkDetailInputCharts = [];
+            networkDetailOutputCharts = [];
+            inputChunks.forEach(chunk => {
+                const rowDiv = document.createElement('div');
+                rowDiv.classList.add('chart-row');
+                const canvas = document.createElement('canvas');
+                rowDiv.appendChild(canvas);
+                inputContainer.appendChild(rowDiv);
+                const chart = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: { datasets: chunk },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: true } },
+                        scales: {
+                            x: { 
+                                type: 'time',
+                                time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
+                                grid: { display: false }
+                            },
+                            y: { grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
+                    }
+                });
+                networkDetailInputCharts.push(chart);
+            });
+            outputChunks.forEach(chunk => {
+                const rowDiv = document.createElement('div');
+                rowDiv.classList.add('chart-row');
+                const canvas = document.createElement('canvas');
+                rowDiv.appendChild(canvas);
+                outputContainer.appendChild(rowDiv);
+                const chart = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: { datasets: chunk },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: true } },
+                        scales: {
+                            x: { 
+                                type: 'time',
+                                time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
+                                grid: { display: false }
+                            },
+                            y: { grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
+                    }
+                });
+                networkDetailOutputCharts.push(chart);
+            });
+        }
 
         // Cache DOM elements for system stats.
         const cpuCircle = document.querySelector('.card:nth-child(1) .circle-progress');
@@ -504,16 +545,10 @@
 
         // Function to trigger container update via POST.
         function updateContainer(containerName) {
-            fetch(`/update/${containerName}`, {
-                method: 'POST'
-            })
+            fetch(`/update/${containerName}`, { method: 'POST' })
             .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-            })
-            .catch(err => {
-                alert("Error updating container: " + err);
-            });
+            .then(data => { alert(data.message); })
+            .catch(err => { alert("Error updating container: " + err); });
         }
 
         // Update stats (including docker container and network info).
@@ -521,65 +556,53 @@
             fetch('/stats')
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Received stats data:", data);
+                    // Even if data.system is missing (for whatever reason), update UI with defaults.
+                    const system = data.system || {
+                        cpu: 0,
+                        memory: { percent: 0, total: 0, used: 0, free: 0, cached: 0 },
+                        disk: { percent: 0 },
+                        cpu_history: { usage: [] },
+                        disk_details: { history: [] }
+                    };
+
                     // Update CPU basic stats.
-                    cpuCircle.style.setProperty('--p', data.system.cpu + '%');
-                    cpuCircleValue.textContent = Math.round(data.system.cpu) + '%';
-                    // For the main CPU chart, generate an empty label for each data point.
-                    cpuChart.data.labels = data.system.cpu_history.usage.map(() => '');
-                    cpuChart.data.datasets[0].data = data.system.cpu_history.usage;
+                    cpuCircle.style.setProperty('--p', system.cpu + '%');
+                    cpuCircleValue.textContent = Math.round(system.cpu) + '%';
+                    cpuChart.data.labels = system.cpu_history.usage.map(() => '');
+                    cpuChart.data.datasets[0].data = system.cpu_history.usage;
                     cpuChart.update();
 
                     // Update Memory basic stats.
-                    memCircle.style.setProperty('--p', data.system.memory.percent + '%');
-                    memCircleValue.textContent = Math.round(data.system.memory.percent) + '%';
-                    memTotalEl.textContent = data.system.memory.total + ' GiB';
-                    memUsedEl.textContent = data.system.memory.used + ' GiB';
-                    memFreeEl.textContent = data.system.memory.free + ' GiB';
-                    memCachedEl.textContent = data.system.memory.cached + ' GiB';
+                    memCircle.style.setProperty('--p', system.memory.percent + '%');
+                    memCircleValue.textContent = Math.round(system.memory.percent) + '%';
+                    memTotalEl.textContent = system.memory.total + ' GiB';
+                    memUsedEl.textContent = system.memory.used + ' GiB';
+                    memFreeEl.textContent = system.memory.free + ' GiB';
+                    memCachedEl.textContent = system.memory.cached + ' GiB';
 
                     // Update Disk basic stats.
-                    diskCircle.style.setProperty('--p', data.system.disk.percent + '%');
-                    diskCircleValue.textContent = Math.round(data.system.disk.percent) + '%';
-                    // Update Disk text details from the detailed disk info.
-                    if(data.system.disk_details && data.system.disk_details.root) {
-                        document.getElementById('disk-total').textContent = data.system.disk_details.root.total + ' GiB';
-                        document.getElementById('disk-used').textContent = data.system.disk_details.root.used + ' GiB';
-                        document.getElementById('disk-free').textContent = data.system.disk_details.root.free + ' GiB';
+                    diskCircle.style.setProperty('--p', system.disk.percent + '%');
+                    diskCircleValue.textContent = Math.round(system.disk.percent) + '%';
+                    if(system.disk_details && system.disk_details.root) {
+                        document.getElementById('disk-total').textContent = system.disk_details.root.total + ' GiB';
+                        document.getElementById('disk-used').textContent = system.disk_details.root.used + ' GiB';
+                        document.getElementById('disk-free').textContent = system.disk_details.root.free + ' GiB';
                     }
-                    // Update Disk details chart.
-                    const diskHistoryLabels = data.system.disk_details.history.map(entry => entry.time);
-                    const diskHistoryData = data.system.disk_details.history.map(entry => entry.used);
-                    diskHistoryChart.data.labels = diskHistoryLabels;
-                    diskHistoryChart.data.datasets[0].data = diskHistoryData;
-                    diskHistoryChart.update();
-
-                    // Update CPU details if expanded.
-                    if (document.getElementById('cpu-detail-view').style.display !== 'none') {
-                        const cpuHistoryLabels = data.system.cpu_details.history24h.map(entry => entry.time);
-                        const cpuHistoryData = data.system.cpu_details.history24h.map(entry => entry.usage);
-                        cpuDetailChart.data.labels = cpuHistoryLabels;
-                        cpuDetailChart.data.datasets[0].data = cpuHistoryData;
-                        cpuDetailChart.update();
+                    if(system.disk_details && system.disk_details.history) {
+                        const diskHistoryLabels = system.disk_details.history.map(entry => entry.time);
+                        const diskHistoryData = system.disk_details.history.map(entry => entry.used);
+                        diskHistoryChart.data.labels = diskHistoryLabels;
+                        diskHistoryChart.data.datasets[0].data = diskHistoryData;
+                        diskHistoryChart.update();
                     }
 
-                    // Update Memory details if expanded.
-                    if (document.getElementById('memory-detail-view').style.display !== 'none') {
-                        const memoryHistoryLabels = data.system.memory_details.history24h.map(entry => entry.time);
-                        const memoryHistoryData = data.system.memory_details.history24h.map(entry => entry.usage);
-                        memoryDetailChart.data.labels = memoryHistoryLabels;
-                        memoryDetailChart.data.datasets[0].data = memoryHistoryData;
-                        memoryDetailChart.update();
-                    }
-
-                    // Update Aggregated Network Chart (non-detailed view)
+                    // Update Aggregated Network Chart (non-detailed view).
                     if (data.network && data.network.interfaces) {
                         const interfaces = data.network.interfaces;
-                        // Only show the main network interface (starts with enp, ens or eth)
                         let mainInterface = null;
                         Object.keys(interfaces).forEach(key => {
-                            if (/^(enp|ens|eth)/.test(key)) {
-                                mainInterface = key;
-                            }
+                            if (/^(enp|ens|eth)/.test(key)) { mainInterface = key; }
                         });
                         if (mainInterface && interfaces[mainInterface].length > 0) {
                             const ifaceData = interfaces[mainInterface];
@@ -595,90 +618,76 @@
 
                     // Update Detailed Network Charts if expanded.
                     if (document.getElementById('network-detail-view').style.display !== 'none' && data.network && data.network.interfaces) {
-                        let detailedInterfaces = {};
-                        // Include all interfaces matching any of these prefixes: enp, ens, eth, tun, wg, vpn, docker, veth or br-
-                        for (let iface in data.network.interfaces) {
-                            if (/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
-                                detailedInterfaces[iface] = data.network.interfaces[iface];
+                        let now = Date.now();
+                        if (now - lastDetailedNetworkUpdate > 5000) {
+                            let detailedInterfaces = {};
+                            for (let iface in data.network.interfaces) {
+                                if (/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
+                                    detailedInterfaces[iface] = data.network.interfaces[iface];
+                                }
                             }
+                            const colorPalette = [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)'
+                            ];
+                            let inputDatasets = [];
+                            let outputDatasets = [];
+                            let dockerContainers = data.docker || [];
+                            let dockerIndex = 0;
+                            for (let iface in detailedInterfaces) {
+                                const ifaceData = detailedInterfaces[iface];
+                                let label = iface;
+                                if (/^(veth|br-)/.test(iface)) {
+                                    if (dockerIndex < dockerContainers.length) {
+                                        label = dockerContainers[dockerIndex].name;
+                                        dockerIndex++;
+                                    }
+                                }
+                                const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
+                                const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
+                                let color = colorPalette[inputDatasets.length % colorPalette.length];
+                                inputDatasets.push({
+                                    label: label,
+                                    data: inputPoints,
+                                    borderColor: color,
+                                    tension: 0.4,
+                                    fill: false
+                                });
+                                outputDatasets.push({
+                                    label: label,
+                                    data: outputPoints,
+                                    borderColor: color,
+                                    tension: 0.4,
+                                    fill: false
+                                });
+                            }
+                            updateDetailedNetworkCharts(inputDatasets, outputDatasets);
+                            lastDetailedNetworkUpdate = now;
                         }
-                        // Prepare datasets for input and output.
-                        const colorPalette = [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)'
-                        ];
-                        let inputDatasets = [];
-                        let outputDatasets = [];
-                        let index = 0;
-                        for (let iface in detailedInterfaces) {
-                            const ifaceData = detailedInterfaces[iface];
-                            // Create data points (x: time, y: value)
-                            const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
-                            const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
-                            let color = colorPalette[index % colorPalette.length];
-                            inputDatasets.push({
-                                label: iface,
-                                data: inputPoints,
-                                borderColor: color,
-                                tension: 0.4,
-                                fill: false
-                            });
-                            outputDatasets.push({
-                                label: iface,
-                                data: outputPoints,
-                                borderColor: color,
-                                tension: 0.4,
-                                fill: false
-                            });
-                            index++;
-                        }
-                        // Update the detailed input chart.
-                        networkDetailInputChart.data.datasets = inputDatasets;
-                        networkDetailInputChart.data.labels = []; // using time scale from data points
-                        networkDetailInputChart.options.plugins.legend.display = true;
-                        networkDetailInputChart.options.scales.x = {
-                            type: 'time',
-                            time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
-                            grid: { display: false }
-                        };
-                        networkDetailInputChart.update();
-
-                        // Update the detailed output chart.
-                        networkDetailOutputChart.data.datasets = outputDatasets;
-                        networkDetailOutputChart.data.labels = [];
-                        networkDetailOutputChart.options.plugins.legend.display = true;
-                        networkDetailOutputChart.options.scales.x = {
-                            type: 'time',
-                            time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
-                            grid: { display: false }
-                        };
-                        networkDetailOutputChart.update();
                     }
 
                     // Update Docker containers table.
-                    dockerDataEl.innerHTML = data.docker.map(container => `
-                        <tr>
+                    dockerDataEl.innerHTML = (data.docker || []).map(container => {
+                        return `<tr>
                             <td><div class="status-indicator status-${container.status}"></div></td>
                             <td>${container.name}</td>
                             <td>${Math.floor(container.uptime / 3600)}h ${Math.floor((container.uptime % 3600) / 60)}m</td>
                             <td>${container.image}</td>
                             <td>${container.up_to_date ? 'Up-to-date' : 'Update available'}</td>
-                            <td>
-                                ${container.up_to_date ? '' : `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>`}
-                            </td>
-                        </tr>
-                    `).join('');
-                });
+                            <td>${container.up_to_date ? '' : `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>`}</td>
+                        </tr>`;
+                    }).join('');
+                })
+                .catch(err => console.error("Error fetching stats:", err));
         }
 
         setInterval(updateStats, 500);
         updateStats();
 
-        // Light/dark mode toggle functionality.
         const modeToggle = document.getElementById('modeToggle');
         modeToggle.addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
