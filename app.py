@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, render_template, jsonify, request
 import psutil
 import docker
@@ -92,9 +93,15 @@ def get_docker_info():
         containers.append(info)
     return containers
 
+# Global variables for network throughput stats.
+prev_net_io = None
+prev_net_time = None
+network_history = {}  # Structure: { interface_name: [ {time, input, output}, ... ] }
+
 def update_stats_cache():
     global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details
     global cpu_history, cpu_history_24h, last_cpu_24h_update, memory_history_24h, last_memory_24h_update
+    global prev_net_io, prev_net_time, network_history
     while True:
         try:
             cpu_percent = psutil.cpu_percent()
@@ -160,6 +167,36 @@ def update_stats_cache():
                 'disk_details': cached_disk_details
             }
             
+            # Update network stats.
+            current_net = psutil.net_io_counters(pernic=True)
+            net_current_time = current_time  # reuse current_time
+            if prev_net_io is None:
+                prev_net_io = current_net
+                prev_net_time = net_current_time
+            else:
+                dt = net_current_time - prev_net_time
+                for iface, stats in current_net.items():
+                    prev_stats = prev_net_io.get(iface)
+                    if prev_stats is not None:
+                        input_speed = (stats.bytes_recv - prev_stats.bytes_recv) / dt / (1024 * 1024)
+                        output_speed = (stats.bytes_sent - prev_stats.bytes_sent) / dt / (1024 * 1024)
+                        # Ignore traffic below 200KB/s (~0.2 MiB/s)
+                        if input_speed < 0.2:
+                            input_speed = 0
+                        if output_speed < 0.2:
+                            output_speed = 0
+                        if iface not in network_history:
+                            network_history[iface] = []
+                        network_history[iface].append({
+                            'time': datetime.fromtimestamp(net_current_time).strftime('%H:%M:%S'),
+                            'input': input_speed,
+                            'output': output_speed
+                        })
+                        if len(network_history[iface]) > MAX_HISTORY:
+                            network_history[iface].pop(0)
+                prev_net_io = current_net
+                prev_net_time = net_current_time
+            
             cached_stats = {
                 'system': {
                     'cpu': cpu_percent,
@@ -168,7 +205,7 @@ def update_stats_cache():
                         'total': round(mem.total / (1024 ** 3), 2),
                         'used': round(mem.used / (1024 ** 3), 2),
                         'free': round(mem.free / (1024 ** 3), 2),
-                        'cached': round(mem.cached / (1024 ** 3), 2)
+                        'cached': round(getattr(mem, 'cached', 0) / (1024 ** 3), 2)
                     },
                     'disk': {
                         'percent': disk.percent,
@@ -182,6 +219,10 @@ def update_stats_cache():
                     'disk_details': cached_heavy.get('disk_details', {})
                 },
                 'docker': cached_heavy.get('docker', [])
+            }
+            # Include network stats in the cached stats.
+            cached_stats['network'] = {
+                'interfaces': network_history
             }
         except Exception as e:
             print("Error updating cache:", e)
