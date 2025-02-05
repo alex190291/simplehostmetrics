@@ -150,17 +150,7 @@
                 </div>
                 <div class="detail-view" id="cpu-detail-view" style="display: none;">
                     <div><strong>15-min Load Average:</strong> <span id="cpu-load15">0</span></div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PID</th>
-                                <th>Name</th>
-                                <th>CPU %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cpu-top5">
-                        </tbody>
-                    </table>
+                    <canvas id="cpuDetailChart" style="max-height:200px;"></canvas>
                 </div>
             </div>
 
@@ -290,7 +280,7 @@
             });
         });
 
-        // Initialize CPU Chart
+        // Initialize CPU Chart (basic, short-term)
         const cpuCtx = document.getElementById('cpuChart').getContext('2d');
         const cpuChart = new Chart(cpuCtx, {
             type: 'line',
@@ -298,6 +288,32 @@
                 labels: [],
                 datasets: [{
                     label: 'CPU Usage',
+                    data: [],
+                    borderColor: '#2d5a4f',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(45,90,79,0.2)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Initialize CPU Detail Chart for 24hr history
+        const cpuDetailCtx = document.getElementById('cpuDetailChart').getContext('2d');
+        const cpuDetailChart = new Chart(cpuDetailCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '24hr CPU Usage (%)',
                     data: [],
                     borderColor: '#2d5a4f',
                     tension: 0.4,
@@ -356,8 +372,6 @@
         const memCachedEl = document.getElementById('mem-cached');
 
         const cpuLoad15El = document.getElementById('cpu-load15');
-        const cpuTop5El = document.getElementById('cpu-top5');
-        const memTop5El = document.getElementById('memory-top5');
 
         const diskTotalEl = document.getElementById('disk-total');
         const diskUsedEl = document.getElementById('disk-used');
@@ -370,21 +384,21 @@
 
         const dockerDataEl = document.getElementById('docker-data');
 
-        // Update stats function with cached selectors
+        // Update stats function with cached selectors.
+        // Detailed card values (CPU detail chart) are updated only if the respective detail view is expanded.
         function updateStats() {
             fetch('/stats')
                 .then(response => response.json())
                 .then(data => {
-                    // Update CPU basic stats
+                    // Update basic CPU stats
                     cpuCircle.style.setProperty('--p', data.system.cpu + '%');
                     cpuCircleValue.textContent = Math.round(data.system.cpu) + '%';
-
-                    // Update CPU chart
+                    // Update CPU basic chart
                     cpuChart.data.labels = data.system.cpu_history.time;
                     cpuChart.data.datasets[0].data = data.system.cpu_history.usage;
                     cpuChart.update();
 
-                    // Update Memory basic stats
+                    // Update basic Memory stats
                     memCircle.style.setProperty('--p', data.system.memory.percent + '%');
                     memCircleValue.textContent = Math.round(data.system.memory.percent) + '%';
                     memTotalEl.textContent = data.system.memory.total + ' GiB';
@@ -392,46 +406,38 @@
                     memFreeEl.textContent = data.system.memory.free + ' GiB';
                     memCachedEl.textContent = data.system.memory.cached + ' GiB';
 
-                    // Update Disk basic stats
+                    // Update basic Disk stats
                     diskCircle.style.setProperty('--p', data.system.disk.percent + '%');
                     diskCircleValue.textContent = Math.round(data.system.disk.percent) + '%';
                     diskTotalEl.textContent = data.system.disk.total + ' GiB';
                     diskUsedEl.textContent = data.system.disk.used + ' GiB';
                     diskFreeEl.textContent = data.system.disk.free + ' GiB';
 
-                    // Update CPU details
-                    cpuLoad15El.textContent = data.system.cpu_details.load15.toFixed(2);
-                    cpuTop5El.innerHTML = data.system.cpu_details.top5.map(proc =>
-                        `<tr>
-                            <td>${proc.pid}</td>
-                            <td>${proc.name}</td>
-                            <td>${proc.cpu.toFixed(2)}</td>
-                        </tr>`
-                    ).join('');
+                    // Update CPU details only if expanded
+                    if (document.getElementById('cpu-detail-view').style.display !== 'none') {
+                        cpuLoad15El.textContent = data.system.cpu_details.load15.toFixed(2);
+                        const historyLabels = data.system.cpu_details.history24h.map(entry => entry.time);
+                        const historyData = data.system.cpu_details.history24h.map(entry => entry.usage);
+                        cpuDetailChart.data.labels = historyLabels;
+                        cpuDetailChart.data.datasets[0].data = historyData;
+                        cpuDetailChart.update();
+                    }
 
-                    // Update Memory details (top 5 processes)
-                    memTop5El.innerHTML = data.system.memory_details.top5.map(proc =>
-                        `<tr>
-                            <td>${proc.pid}</td>
-                            <td>${proc.name}</td>
-                            <td>${proc.memory.toFixed(2)}</td>
-                        </tr>`
-                    ).join('');
+                    // (Memory detailed view remains unchanged; it's still available if needed)
+                    // Update Disk details only if expanded
+                    if (document.getElementById('disk-detail-view').style.display !== 'none') {
+                        diskRootTotalEl.textContent = data.system.disk_details.root.total;
+                        diskRootUsedEl.textContent = data.system.disk_details.root.used;
+                        diskRootFreeEl.textContent = data.system.disk_details.root.free;
+                        diskRootPercentEl.textContent = data.system.disk_details.root.percent;
+                        const diskHistoryLabels = data.system.disk_details.history.map(entry => entry.time);
+                        const diskHistoryData = data.system.disk_details.history.map(entry => entry.used);
+                        diskHistoryChart.data.labels = diskHistoryLabels;
+                        diskHistoryChart.data.datasets[0].data = diskHistoryData;
+                        diskHistoryChart.update();
+                    }
 
-                    // Update Disk details
-                    diskRootTotalEl.textContent = data.system.disk_details.root.total;
-                    diskRootUsedEl.textContent = data.system.disk_details.root.used;
-                    diskRootFreeEl.textContent = data.system.disk_details.root.free;
-                    diskRootPercentEl.textContent = data.system.disk_details.root.percent;
-                    
-                    // Update Disk history chart ("/" filesystem)
-                    const historyLabels = data.system.disk_details.history.map(entry => entry.time);
-                    const historyData = data.system.disk_details.history.map(entry => entry.used);
-                    diskHistoryChart.data.labels = historyLabels;
-                    diskHistoryChart.data.datasets[0].data = historyData;
-                    diskHistoryChart.update();
-
-                    // Update Docker containers
+                    // Update Docker containers (always update)
                     dockerDataEl.innerHTML = data.docker.map(container =>
                         `<tr>
                             <td><div class="status-indicator status-${container.status}"></div></td>

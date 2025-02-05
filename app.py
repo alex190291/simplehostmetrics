@@ -10,50 +10,26 @@ import threading
 app = Flask(__name__)
 client = docker.from_env()
 
-# History storage for CPU and "/" disk usage
-cpu_history = {'time': [], 'usage': []}
+# History storage for CPU (short and 24hr) and "/" disk usage
+cpu_history = {'time': [], 'usage': []}  # for basic chart (last 30 samples)
+cpu_history_24h = []  # for detailed 24hr chart, sampled every 10 seconds
 MAX_HISTORY = 30
-disk_history = []  # To store "/" filesystem usage history
+disk_history = []  # to store "/" filesystem usage history
+
+# Global variables for scheduling 24hr history updates
+last_cpu_24h_update = 0
 
 def get_cpu_details():
-    # Calculate 15-minute load average (steal load removed)
+    # Return only the 15-min load average
     try:
         load15 = psutil.getloadavg()[2]
     except Exception:
         load15 = 0
-    procs = list(psutil.process_iter(['pid', 'name']))
-    # Initialize measurement (first call always returns 0)
-    for proc in procs:
-        try:
-            proc.cpu_percent(interval=None)
-        except Exception:
-            pass
-    # Sleep to allow measurement; kept at 0.25 to maintain measurement consistency
-    time.sleep(0.25)
-    proc_list = []
-    for proc in procs:
-        try:
-            cpu = proc.cpu_percent(interval=None)
-            proc_list.append({'pid': proc.pid, 'name': proc.info['name'], 'cpu': cpu})
-        except Exception:
-            continue
-    top5 = sorted(proc_list, key=lambda x: x['cpu'], reverse=True)[:5]
-    return {
-        'load15': load15,
-        'top5': top5
-    }
+    return { 'load15': load15 }
 
 def get_memory_details():
-    procs = []
-    for proc in psutil.process_iter(['pid', 'name', 'memory_percent']):
-        try:
-            procs.append({'pid': proc.pid, 'name': proc.info['name'], 'memory': proc.info['memory_percent']})
-        except Exception:
-            continue
-    top5 = sorted(procs, key=lambda x: x['memory'], reverse=True)[:5]
-    return {
-        'top5': top5
-    }
+    # Removed top 5 processes computation
+    return {}
 
 def get_disk_details():
     # Get "/" filesystem details only
@@ -112,19 +88,15 @@ def get_docker_info():
     return containers
 
 def update_stats_cache():
-    global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details, cpu_history
-    # Initialize temporary storage for heavy details
-    heavy_cpu_details = {}
-    heavy_memory_details = {}
-    heavy_docker = []
+    global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details
+    global cpu_history, cpu_history_24h, last_cpu_24h_update
     while True:
         try:
-            # Light stats update (every 0.25 sec)
             cpu_percent = psutil.cpu_percent()
             mem = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
             
-            # Update CPU history
+            # Update basic CPU history (for short-term chart)
             now_str = datetime.now().strftime('%H:%M:%S')
             cpu_history['time'].append(now_str)
             cpu_history['usage'].append(cpu_percent)
@@ -133,17 +105,38 @@ def update_stats_cache():
                 cpu_history['usage'].pop(0)
             
             current_time = time.time()
+            # Sample CPU usage for 24hr history every 10 seconds
+            if current_time - last_cpu_24h_update >= 10:
+                cpu_history_24h.append({'time': current_time, 'usage': cpu_percent})
+                twenty_four_hours_ago = current_time - 24 * 3600
+                cpu_history_24h = [entry for entry in cpu_history_24h if entry['time'] >= twenty_four_hours_ago]
+                last_cpu_24h_update = current_time
+            
             # Update heavy details every 5 seconds (excluding disk details)
             if current_time - last_heavy_update >= 5:
                 heavy_cpu_details = get_cpu_details()
-                heavy_memory_details = get_memory_details()
+                heavy_memory_details = get_memory_details()  # now returns an empty dict
                 heavy_docker = get_docker_info()
                 last_heavy_update = current_time
+            else:
+                heavy_cpu_details = cached_heavy.get('cpu_details', {})
+                heavy_memory_details = cached_heavy.get('memory_details', {})
+                heavy_docker = cached_heavy.get('docker', [])
             
-            # Update disk details only every 5 minutes (300 seconds)
+            # Update disk details every 5 minutes (300 seconds)
             if current_time - last_disk_update >= 300:
                 cached_disk_details = get_disk_details()
                 last_disk_update = current_time
+            
+            # Format the 24hr CPU history for charting (show time as HH:MM)
+            cpu_history_24h_formatted = [
+                {
+                    'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
+                    'usage': entry['usage']
+                }
+                for entry in cpu_history_24h
+            ]
+            heavy_cpu_details['history24h'] = cpu_history_24h_formatted
             
             cached_heavy = {
                 'cpu_details': heavy_cpu_details,
@@ -188,7 +181,6 @@ def index():
 
 @app.route('/stats')
 def stats():
-    # Return the cached stats
     return jsonify(cached_stats)
 
 if __name__ == '__main__':
