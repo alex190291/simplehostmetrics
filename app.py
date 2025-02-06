@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template, jsonify, request
 import psutil
 import docker
@@ -7,8 +6,8 @@ import time
 import threading
 import logging
 
-# Set up logging to see debug output.
-#logging.basicConfig(level=logging.DEBUG)
+# Uncomment for debugging:
+# logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 client = docker.from_env()
@@ -17,9 +16,25 @@ client = docker.from_env()
 cached_stats = {
     'system': {
         'cpu': 0,
-        'memory': {'percent': 0, 'total': 0, 'used': 0, 'free': 0, 'cached': 0},
-        'disk': {'percent': 0},
+        'memory': {
+            'percent': 0,
+            'total': 0,
+            'used': 0,
+            'free': 0,
+            'cached': 0
+        },
+        'disk': {
+            'percent': 0,
+            'total': 0,
+            'used': 0,
+            'free': 0
+        },
         'cpu_history': {'time': [], 'usage': []},
+        # For basic views, record memory in GB:
+        'memory_history': {'time': [], 'free': [], 'used': [], 'cached': []},
+        # For disk basic view (in GiB)
+        'disk_history_basic': {'time': [], 'total': [], 'used': [], 'free': []},
+        # For extended views:
         'cpu_details': {},
         'memory_details': {},
         'disk_details': {'root': {'total': 0, 'used': 0, 'free': 0}, 'history': []}
@@ -28,16 +43,20 @@ cached_stats = {
     'network': {'interfaces': {}}
 }
 
-# Other global variables for stats history.
-cpu_history = {'time': [], 'usage': []}  # for basic chart (last 30 samples)
-cpu_history_24h = []  # for detailed 24hr chart, sampled every 10 seconds
-memory_history_24h = []  # for detailed 24hr memory usage history (percentage), sampled every 10 seconds
 MAX_HISTORY = 30
-disk_history = []  # to store "/" filesystem usage history
+cpu_history = {'time': [], 'usage': []}  # Short-term CPU history
+memory_history_basic = {'time': [], 'free': [], 'used': [], 'cached': []}  # in GB
+cpu_history_24h = []         # 24hr CPU history
+# For extended memory view, record full used memory (in GB)
+memory_history_24h = []      
+# Disk basic history (in GiB)
+disk_history_basic = {'time': [], 'total': [], 'used': [], 'free': []}
+# For extended disk view, record raw disk.used values (will be converted to GB)
+disk_history = []
 
-# Global variables for scheduling 24hr history updates
 last_cpu_24h_update = 0
 last_memory_24h_update = 0
+last_disk_update = 0  # Updated every 10 seconds
 
 def get_cpu_details():
     try:
@@ -47,6 +66,7 @@ def get_cpu_details():
     return {'load15': load15}
 
 def get_memory_details():
+    # Detailed memory info can be added here if needed.
     return {}
 
 def get_disk_details():
@@ -55,11 +75,12 @@ def get_disk_details():
     global disk_history
     disk_history.append({'time': now, 'used': disk.used})
     seven_days_ago = now - 7 * 24 * 3600
-    disk_history = [entry for entry in disk_history if entry['time'] >= seven_days_ago]
+    disk_history[:] = [entry for entry in disk_history if entry['time'] >= seven_days_ago]
     history = [
         {
             'time': datetime.fromtimestamp(entry['time']).strftime('%Y-%m-%d %H:%M:%S'),
-            'used': round(entry['used'] / (1024 ** 2), 2)
+            # Convert used bytes to GB (2 decimal places)
+            'used': round(entry['used'] / (1024 ** 3), 2)
         }
         for entry in disk_history
     ]
@@ -73,13 +94,11 @@ def get_disk_details():
         'history': history
     }
 
-# Global cache for heavy details.
 cached_heavy = {}
 last_heavy_update = 0
 last_disk_update = 0
 cached_disk_details = {}
 
-# Global dictionary to store update status for each container by name.
 image_update_info = {}
 
 def get_docker_info():
@@ -105,15 +124,16 @@ def get_docker_info():
         })
     return containers
 
-# Global variables for network throughput stats.
 prev_net_io = None
 prev_net_time = None
-network_history = {}  # { interface_name: [ {time, input, output}, ... ] }
+network_history = {}  # Per-interface network stats
 
 def update_stats_cache():
     global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details
     global cpu_history, cpu_history_24h, last_cpu_24h_update, memory_history_24h, last_memory_24h_update
+    global memory_history_basic, disk_history_basic, disk_history
     global prev_net_io, prev_net_time, network_history
+
     while True:
         try:
             cpu_percent = psutil.cpu_percent()
@@ -121,11 +141,41 @@ def update_stats_cache():
             disk = psutil.disk_usage('/')
             
             now_str = datetime.now().strftime('%H:%M:%S')
+            # Update CPU short history
             cpu_history['time'].append(now_str)
             cpu_history['usage'].append(cpu_percent)
             if len(cpu_history['time']) > MAX_HISTORY:
                 cpu_history['time'].pop(0)
                 cpu_history['usage'].pop(0)
+            
+            # Update Memory basic history in GB
+            total_mem_GB = mem.total / (1024 ** 3)
+            free_GB = mem.free / (1024 ** 3)
+            cached_GB = getattr(mem, 'cached', 0) / (1024 ** 3)
+            used_no_cache_GB = (mem.used - getattr(mem, 'cached', 0)) / (1024 ** 3)
+            memory_history_basic['time'].append(now_str)
+            memory_history_basic['free'].append(round(free_GB, 2))
+            memory_history_basic['used'].append(round(used_no_cache_GB, 2))
+            memory_history_basic['cached'].append(round(cached_GB, 2))
+            if len(memory_history_basic['time']) > MAX_HISTORY:
+                memory_history_basic['time'].pop(0)
+                memory_history_basic['free'].pop(0)
+                memory_history_basic['used'].pop(0)
+                memory_history_basic['cached'].pop(0)
+            
+            # Update Disk basic history in GiB
+            total_disk_GB = round(disk.total / (1024 ** 3), 2)
+            used_disk_GB = round(disk.used / (1024 ** 3), 2)
+            free_disk_GB = round(disk.free / (1024 ** 3), 2)
+            disk_history_basic['time'].append(now_str)
+            disk_history_basic.setdefault('total', []).append(total_disk_GB)
+            disk_history_basic.setdefault('used', []).append(used_disk_GB)
+            disk_history_basic.setdefault('free', []).append(free_disk_GB)
+            if len(disk_history_basic['time']) > MAX_HISTORY:
+                disk_history_basic['time'].pop(0)
+                disk_history_basic['total'].pop(0)
+                disk_history_basic['used'].pop(0)
+                disk_history_basic['free'].pop(0)
             
             current_time = time.time()
             if current_time - last_cpu_24h_update >= 10:
@@ -135,7 +185,8 @@ def update_stats_cache():
                 last_cpu_24h_update = current_time
             
             if current_time - last_memory_24h_update >= 10:
-                memory_history_24h.append({'time': current_time, 'usage': mem.percent})
+                # For extended view, record full used memory in GB
+                memory_history_24h.append({'time': current_time, 'usage': round(mem.used / (1024 ** 3), 2)})
                 twenty_four_hours_ago = current_time - 24 * 3600
                 memory_history_24h[:] = [entry for entry in memory_history_24h if entry['time'] >= twenty_four_hours_ago]
                 last_memory_24h_update = current_time
@@ -150,7 +201,7 @@ def update_stats_cache():
                 heavy_memory_details = cached_heavy.get('memory_details', {})
                 heavy_docker = cached_heavy.get('docker', [])
             
-            if current_time - last_disk_update >= 300:
+            if current_time - last_disk_update >= 10:
                 cached_disk_details = get_disk_details()
                 last_disk_update = current_time
             
@@ -220,6 +271,8 @@ def update_stats_cache():
                         'free': round(disk.free / (1024 ** 3), 2)
                     },
                     'cpu_history': cpu_history,
+                    'memory_history': memory_history_basic,
+                    'disk_history_basic': disk_history_basic,
                     'cpu_details': cached_heavy.get('cpu_details', {}),
                     'memory_details': cached_heavy.get('memory_details', {}),
                     'disk_details': cached_heavy.get('disk_details', {})
@@ -230,7 +283,8 @@ def update_stats_cache():
             logging.debug("Updated cached_stats: %s", cached_stats)
         except Exception as e:
             logging.error("Error updating cache: %s", e)
-        time.sleep(0.25)
+        time.sleep(0.25);
+
 
 def check_image_updates():
     global image_update_info
@@ -306,7 +360,6 @@ def update_container(container_name):
         return jsonify({"status": "error", "message": f"Error updating container: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    # Start the background threads here.
     threading.Thread(target=update_stats_cache, daemon=True).start()
     threading.Thread(target=check_image_updates, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=True)

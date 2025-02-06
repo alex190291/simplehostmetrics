@@ -1,697 +1,807 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>System Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <!-- Chart.js library -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Date adapter for time scales -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <style>
-        /* Default (dark mode) variables */
-        :root {
-            --bg-color: #0a0a0a;
-            --glass: rgba(18, 18, 18, 0.7);
-            --primary: #2d5a4f;
-            --text: #aaaaaa;
-        }
-        /* Light mode variables */
-        body.light-mode {
-            --bg-color: #f0f0f0;
-            --glass: rgba(255, 255, 255, 0.8);
-            --primary: #8bbabb;
-            --text: #000000;
-        }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-color);
-            color: var(--text);
-            min-height: 100vh;
-            position: relative;
-            overflow-x: hidden;
-            transition: background 0.3s, color 0.3s;
-        }
-        .hexagons {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            z-index: -1;
-        }
-        .hexagon {
-            position: absolute;
-            background: var(--primary);
-            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-            opacity: 0.1;
-            animation: pulse 10s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.1; }
-            50% { transform: scale(1.2); opacity: 0.15; }
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-            position: relative;
-            z-index: 1;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .card {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-            transition: background 0.3s, border 0.3s, transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-        }
-        .card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .card-title {
-            font-size: 1rem;
-            margin-bottom: 1rem;
-            color: #7d7d7d;
-        }
-        .stat-container {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .circle-progress {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: conic-gradient(var(--primary) 0%, var(--primary) var(--p), rgba(255,255,255,0.1) var(--p));
-            position: relative;
-        }
-        .circle-value {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.2rem;
-        }
-        .details {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .details span {
-            font-size: 0.9rem;
-            color: #b3b3b3;
-        }
-        .docker-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-        .docker-table th,
-        .docker-table td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .docker-container {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .status-running { background: #2d5a4f; }
-        .status-exited { background: #5a2d2d; }
-        .detail-view {
-            margin-top: 1rem;
-            background: rgba(0, 0, 0, 0.15);
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-        }
-        table { color: var(--text); width: 100%; }
-        table th, table td { padding: 0.5rem; text-align: left; }
-        button.update-btn {
-            background: var(--primary);
-            color: var(--text);
-            border: none;
-            padding: 0.3rem 0.5rem;
-            border-radius: 0.3rem;
-            cursor: pointer;
-        }
-        /* Toggle button for light/dark mode */
-        .mode-toggle {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: var(--primary);
-            color: var(--text);
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            transition: background 0.3s, color 0.3s;
-            z-index: 1000;
-        }
-        /* Add vertical spacing between network and docker cards */
-        .docker-card {
-            margin-top: 1.5rem;
-        }
-        /* Container for multiple detailed network charts */
-        .chart-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        .chart-row canvas {
-            flex: 1 1 calc(50% - 1rem);
-            height: 90px !important;
-        }
-        /* Labels above detailed charts */
-        .detail-label {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            text-align: center;
-        }
-    </style>
+  <title>System Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Date adapter for time scales -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <style>
+    /* Default (dark mode) variables */
+    :root {
+      --bg-color: #0a0a0a;
+      --glass: rgba(18, 18, 18, 0.7);
+      --primary: #2d5a4f;
+      --text: #aaaaaa;
+    }
+    /* Light mode variables */
+    body.light-mode {
+      --bg-color: #f0f0f0;
+      --glass: rgba(255, 255, 255, 0.8);
+      --primary: #8bbabb;
+      --text: #000000;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-color);
+      color: var(--text);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
+    }
+    .hexagons {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: -1;
+    }
+    .hexagon {
+      position: absolute;
+      background: var(--primary);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      opacity: 0.1;
+      animation: pulse 10s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.1; }
+      50% { transform: scale(1.2); opacity: 0.15; }
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      position: relative;
+      transition: background 0.3s, border 0.3s, transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .card-title {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: #7d7d7d;
+    }
+    .stat-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+    }
+    /* Chart container with extra padding */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 300px;
+      height: 200px;
+      padding: 10px;
+    }
+    .chart-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3rem;
+      color: rgba(255,255,255,0.2);
+      pointer-events: none;
+    }
+    /* Legend for Memory and Disk basic charts */
+    .color-labels {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      margin-right: 10px;
+      min-width: 60px;
+    }
+    .color-label {
+      display: flex;
+      align-items: center;
+      font-size: 0.8rem;  /* lowered from 0.9rem */
+      margin-bottom: 4px;
+    }
+    .color-box {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 5px;
+      border-radius: 3px;
+      border: 1px solid #000;
+    }
+    /* Memory legend: free (dark green), used (dark red), cached (dark blue) */
+    .color-box.free { background-color: #1e8449; }
+    .color-box.used { background-color: #922b21; }
+    .color-box.cached { background-color: #21618c; }
+    /* Disk legend: total (gray), used (dark red), free (dark green) */
+    .color-box.total { background-color: #7f8c8d; }
+    /* New CSS for docker status indicator */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-green { background-color: #1e8449; }
+    .status-yellow { background-color: #f1c40f; }
+    .status-blue { background-color: #21618c; }
+    .status-red { background-color: #c0392b; }
+    .detail-view .graph-label {
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .detail-view canvas {
+      height: 200px !important;
+      max-height: 200px;
+      width: 100%;
+    }
+    table { color: var(--text); width: 100%; }
+    table th, table td { padding: 0.5rem; text-align: left; }
+    button.update-btn {
+      background: var(--primary);
+      color: var(--text);
+      border: none;
+      padding: 0.3rem 0.5rem;
+      border-radius: 0.3rem;
+      cursor: pointer;
+    }
+    .mode-toggle {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: var(--primary);
+      color: var(--text);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      transition: background 0.3s, color 0.3s;
+      z-index: 1000;
+    }
+    .docker-card { margin-top: 1.5rem; }
+    .chart-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .chart-row canvas {
+      flex: 1 1 calc(50% - 1rem);
+      height: 90px !important;
+    }
+    .detail-label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-    <div class="hexagons" id="hexagon-container">
-        <!-- Hexagon elements will be generated by script -->
+  <div class="hexagons" id="hexagon-container">
+    <!-- Hexagon elements will be generated by script -->
+  </div>
+  <div class="container">
+    <div class="grid">
+      <!-- CPU Card -->
+      <div class="card">
+        <h2 class="card-title">CPU Usage</h2>
+        <div class="stat-container">
+          <div class="chart-container">
+            <canvas id="cpuChart"></canvas>
+            <div id="cpuOverlay" class="chart-overlay">0%</div>
+          </div>
+        </div>
+        <div class="detail-view" id="cpu-detail-view" style="display: none;">
+          <div class="graph-label">24hr CPU Usage</div>
+          <canvas id="cpuDetailChart"></canvas>
+        </div>
+      </div>
+      <!-- Memory Card -->
+      <div class="card">
+        <h2 class="card-title">Memory Usage</h2>
+        <div class="stat-container">
+          <div class="color-labels">
+            <div class="color-label"><span class="color-box free"></span>Free (GB)</div>
+            <div class="color-label"><span class="color-box used"></span>Used (GB)</div>
+            <div class="color-label"><span class="color-box cached"></span>Cached (GB)</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="memoryChart"></canvas>
+            <div id="memoryOverlay" class="chart-overlay">0</div>
+          </div>
+        </div>
+        <div class="detail-view" id="memory-detail-view" style="display: none;">
+          <div class="graph-label">24hr Memory Usage (GB)</div>
+          <canvas id="memoryDetailChart"></canvas>
+        </div>
+      </div>
+      <!-- Disk Card -->
+      <div class="card">
+        <h2 class="card-title">Disk Usage</h2>
+        <div class="stat-container">
+          <div class="color-labels">
+            <!-- "Total" removed per request -->
+            <div class="color-label"><span class="color-box used"></span>Used (GB)</div>
+            <div class="color-label"><span class="color-box free"></span>Free (GB)</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="diskChart"></canvas>
+            <div id="diskOverlay" class="chart-overlay">0</div>
+          </div>
+        </div>
+        <div class="detail-view" id="disk-detail-view" style="display: none;">
+          <div class="graph-label">7-Day Disk Used (GB)</div>
+          <canvas id="diskHistoryChart"></canvas>
+        </div>
+      </div>
     </div>
-
-    <div class="container">
-        <div class="grid">
-            <!-- CPU Card -->
-            <div class="card">
-                <h2 class="card-title">CPU Usage</h2>
-                <div class="stat-container">
-                    <div class="circle-progress">
-                        <div class="circle-value">0%</div>
-                    </div>
-                    <canvas id="cpuChart"></canvas>
-                </div>
-                <div class="detail-view" id="cpu-detail-view" style="display: none;">
-                    <canvas id="cpuDetailChart" style="max-height:200px;"></canvas>
-                </div>
-            </div>
-
-            <!-- Memory Card -->
-            <div class="card">
-                <h2 class="card-title">Memory Usage</h2>
-                <div class="stat-container">
-                    <div class="circle-progress">
-                        <div class="circle-value">0%</div>
-                    </div>
-                    <div class="details">
-                        <span>Total: <span id="mem-total">0 GiB</span></span>
-                        <span>Used: <span id="mem-used">0 GiB</span></span>
-                        <span>Free: <span id="mem-free">0 GiB</span></span>
-                        <span>Cached: <span id="mem-cached">0 GiB</span></span>
-                    </div>
-                </div>
-                <div class="detail-view" id="memory-detail-view" style="display: none;">
-                    <canvas id="memoryDetailChart" style="max-height:200px;"></canvas>
-                </div>
-            </div>
-
-            <!-- Disk Card -->
-            <div class="card">
-                <h2 class="card-title">Disk Usage</h2>
-                <div class="stat-container">
-                    <div class="circle-progress">
-                        <div class="circle-value">0%</div>
-                    </div>
-                    <div class="details">
-                        <span>Total: <span id="disk-total">0 GiB</span></span>
-                        <span>Used: <span id="disk-used">0 GiB</span></span>
-                        <span>Free: <span id="disk-free">0 GiB</span></span>
-                    </div>
-                </div>
-                <div class="detail-view" id="disk-detail-view" style="display: none;">
-                    <canvas id="diskHistoryChart" style="max-height:200px;"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Network Card (full width) -->
-        <div class="card">
-            <h2 class="card-title">Network Throughput</h2>
-            <div class="stat-container">
-                <canvas id="networkChart"></canvas>
-            </div>
-            <!-- Detailed Network Throughput View -->
-            <div class="detail-view" id="network-detail-view" style="display: none;">
-                <div class="detail-label">Input Throughput</div>
-                <div id="networkDetailInputCharts"></div>
-                <div class="detail-label" style="margin-top:1rem;">Output Throughput</div>
-                <div id="networkDetailOutputCharts" style="margin-top:1rem;"></div>
-            </div>
-        </div>
-
-        <!-- Docker Containers Card -->
-        <div class="card docker-card">
-            <h2 class="card-title">Docker Containers</h2>
-            <div class="docker-container">
-                <table class="docker-table">
-                    <thead>
-                        <tr>
-                            <th>Status</th>
-                            <th>Name</th>
-                            <th>Uptime</th>
-                            <th>Image</th>
-                            <th>Image Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="docker-data">
-                        <!-- Docker data will be inserted here -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <!-- Network Card -->
+    <div class="card">
+      <h2 class="card-title">Network Throughput</h2>
+      <div class="stat-container">
+        <canvas id="networkChart"></canvas>
+      </div>
+      <div class="detail-view" id="network-detail-view" style="display: none;">
+        <div class="detail-label">Input Throughput</div>
+        <div id="networkDetailInputCharts"></div>
+        <div class="detail-label" style="margin-top:1rem;">Output Throughput</div>
+        <div id="networkDetailOutputCharts" style="margin-top:1rem;"></div>
+      </div>
     </div>
-
-    <!-- Toggle button for light/dark mode with a bulb icon -->
-    <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
-
-    <script>
-        // Global variables to hold detailed network charts arrays.
-        let networkDetailInputCharts = []; // array of Chart objects for input
-        let networkDetailOutputCharts = []; // array of Chart objects for output
-        let lastDetailedNetworkUpdate = 0;
-
-        // Utility: split an array into chunks of size n.
-        function chunkArray(array, n) {
-            let chunks = [];
-            for (let i = 0; i < array.length; i += n) {
-                chunks.push(array.slice(i, i + n));
+    <!-- Docker Containers Card -->
+    <div class="card docker-card">
+      <h2 class="card-title">Docker Containers</h2>
+      <div class="docker-container">
+        <table class="docker-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Name</th>
+              <th>Uptime</th>
+              <th>Image</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="docker-data">
+            <!-- Docker data will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
+  <script>
+    // Global variables for detailed network charts.
+    let networkDetailInputCharts = [];
+    let networkDetailOutputCharts = [];
+    let lastDetailedNetworkUpdate = 0;
+    function chunkArray(array, n) {
+      let chunks = [];
+      for (let i = 0; i < array.length; i += n) {
+        chunks.push(array.slice(i, i + n));
+      }
+      return chunks;
+    }
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    function randomFloat(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+    function generateHexagons(count) {
+      const container = document.getElementById('hexagon-container');
+      for (let i = 0; i < count; i++) {
+        const hex = document.createElement('div');
+        hex.classList.add('hexagon');
+        const top = randomInt(0, 100);
+        const left = randomInt(0, 100);
+        const size = randomInt(80, 250);
+        const delay = randomFloat(0, 10).toFixed(1);
+        hex.style.top = top + '%';
+        hex.style.left = left + '%';
+        hex.style.width = size + 'px';
+        hex.style.height = size + 'px';
+        hex.style.animationDelay = delay + 's';
+        container.appendChild(hex);
+      }
+    }
+    generateHexagons(40);
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('click', function(e) {
+        if (e.target.tagName.toLowerCase() === 'button') return;
+        const detailView = this.querySelector('.detail-view');
+        if (detailView) {
+          detailView.style.display = (detailView.style.display === 'none' || detailView.style.display === '') ? 'block' : 'none';
+        }
+      });
+    });
+    // CPU Chart & Overlay (Basic View)
+    const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+    const cpuChart = new Chart(cpuCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'CPU Usage',
+          data: [],
+          borderColor: 'rgba(36,45,43,1)',
+          tension: 0.4,
+          fill: true,
+          backgroundColor: 'rgba(45,90,79,0.2)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        layout: { padding: { left: 10, right: 10 } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false }, ticks: { display: false } }
+        }
+      }
+    });
+    const cpuOverlay = document.getElementById('cpuOverlay');
+    const cpuDetailCtx = document.getElementById('cpuDetailChart').getContext('2d');
+    const cpuDetailChart = new Chart(cpuDetailCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: '24hr CPU Usage (%)',
+          data: [],
+          borderColor: 'rgba(36,45,43,1)',
+          tension: 0.4,
+          fill: true,
+          backgroundColor: 'rgba(45,90,79,0.2)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    // Memory Basic Chart – 3 datasets: Free, Used, Cached (in GB)
+    const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+    const memoryBasicChart = new Chart(memoryCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Free',
+            data: [],
+            borderColor: '#1e8449', // dark green
+            tension: 0.4,
+            fill: false,
+            borderWidth: 2
+          },
+          {
+            label: 'Used',
+            data: [],
+            borderColor: '#922b21', // dark red
+            tension: 0.4,
+            fill: false,
+            borderWidth: 2
+          },
+          {
+            label: 'Cached',
+            data: [],
+            borderColor: '#21618c', // dark blue
+            tension: 0.4,
+            fill: false,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        layout: { padding: { left: 10, right: 10 } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    const memoryOverlay = document.getElementById('memoryOverlay');
+    const memoryDetailCtx = document.getElementById('memoryDetailChart').getContext('2d');
+    const memoryDetailChart = new Chart(memoryDetailCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: '24hr Memory Usage (GB)',
+          data: [],
+          borderColor: '#21618c',
+          tension: 0.4,
+          fill: true,
+          backgroundColor: 'rgba(33,97,140,0.2)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    // Disk Basic Chart – 2 datasets: Used, Free (in GiB)
+    const diskCtx = document.getElementById('diskChart').getContext('2d');
+    const diskBasicChart = new Chart(diskCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Used',
+            data: [],
+            borderColor: '#922b21', // dark red
+            tension: 0.4,
+            fill: false,
+            borderWidth: 2
+          },
+          {
+            label: 'Free',
+            data: [],
+            borderColor: '#1e8449', // dark green
+            tension: 0.4,
+            fill: false,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        layout: { padding: { left: 10, right: 10 } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    const diskOverlay = document.getElementById('diskOverlay');
+    const diskDetailCtx = document.getElementById('diskHistoryChart').getContext('2d');
+    const diskHistoryChart = new Chart(diskDetailCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: '7-Day Disk Used (GB)',
+          data: [],
+          borderColor: '#922b21',
+          tension: 0.4,
+          fill: true,
+          backgroundColor: 'rgba(146,43,33,0.2)',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    // Network Aggregated Chart
+    const networkCtx = document.getElementById('networkChart').getContext('2d');
+    const networkChart = new Chart(networkCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Input (MiB/s)',
+            data: [],
+            borderColor: 'rgba(36,45,43,1)',
+            tension: 0.4,
+            fill: true,
+            backgroundColor: 'rgba(45,90,79,0.2)',
+            borderWidth: 2
+          },
+          {
+            label: 'Output (MiB/s)',
+            data: [],
+            borderColor: '#ff5555',
+            tension: 0.4,
+            fill: true,
+            backgroundColor: 'rgba(255,85,85,0.2)',
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+    // Network Detailed Charts
+    function updateDetailedNetworkCharts(inputDatasets, outputDatasets) {
+      const maxPerChart = 10;
+      const inputChunks = chunkArray(inputDatasets, maxPerChart);
+      const outputChunks = chunkArray(outputDatasets, maxPerChart);
+      const inputContainer = document.getElementById('networkDetailInputCharts');
+      const outputContainer = document.getElementById('networkDetailOutputCharts');
+      inputContainer.innerHTML = '';
+      outputContainer.innerHTML = '';
+      networkDetailInputCharts = [];
+      networkDetailOutputCharts = [];
+      inputChunks.forEach(chunk => {
+        const rowDiv = document.createElement('div');
+        rowDiv.classList.add('chart-row');
+        const canvas = document.createElement('canvas');
+        rowDiv.appendChild(canvas);
+        inputContainer.appendChild(rowDiv);
+        const chart = new Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: { datasets: chunk },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: {
+              x: {
+                type: 'time',
+                time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
+                grid: { display: false }
+              },
+              y: { grid: { color: 'rgba(255,255,255,0.1)' } }
             }
-            return chunks;
-        }
-
-        // Generate hexagon elements.
-        function randomInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
-        function randomFloat(min, max) {
-            return Math.random() * (max - min) + min;
-        }
-        function generateHexagons(count) {
-            const container = document.getElementById('hexagon-container');
-            for (let i = 0; i < count; i++) {
-                const hex = document.createElement('div');
-                hex.classList.add('hexagon');
-                const top = randomInt(0, 100);
-                const left = randomInt(0, 100);
-                const size = randomInt(80, 250);
-                const delay = randomFloat(0, 10).toFixed(1);
-                hex.style.top = top + '%';
-                hex.style.left = left + '%';
-                hex.style.width = size + 'px';
-                hex.style.height = size + 'px';
-                hex.style.animationDelay = delay + 's';
-                container.appendChild(hex);
+          }
+        });
+        networkDetailInputCharts.push(chart);
+      });
+      outputChunks.forEach(chunk => {
+        const rowDiv = document.createElement('div');
+        rowDiv.classList.add('chart-row');
+        const canvas = document.createElement('canvas');
+        rowDiv.appendChild(canvas);
+        outputContainer.appendChild(rowDiv);
+        const chart = new Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: { datasets: chunk },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: {
+              x: {
+                type: 'time',
+                time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
+                grid: { display: false }
+              },
+              y: { grid: { color: 'rgba(255,255,255,0.1)' } }
             }
-        }
-        generateHexagons(40);
-
-        // Make entire card clickable to toggle its detail view.
-        document.querySelectorAll('.card').forEach(card => {
-            card.addEventListener('click', function(e) {
-                if (e.target.tagName.toLowerCase() === 'button') return;
-                const detailView = this.querySelector('.detail-view');
-                if (detailView) {
-                    detailView.style.display = detailView.style.display === 'none' || detailView.style.display === '' ? 'block' : 'none';
+          }
+        });
+        networkDetailOutputCharts.push(chart);
+      });
+    }
+    function updateStats() {
+      fetch('/stats')
+        .then(response => response.json())
+        .then(data => {
+          console.log("Received stats data:", data);
+          const system = data.system || {
+            cpu: 0,
+            memory: { percent: 0, total: 0, used: 0, free: 0, cached: 0 },
+            disk: { percent: 0 },
+            cpu_history: { usage: [] },
+            disk_details: { history: [] }
+          };
+          // CPU Basic
+          cpuOverlay.textContent = Math.round(system.cpu) + '%';
+          cpuChart.data.labels = system.cpu_history.usage.map(() => '');
+          cpuChart.data.datasets[0].data = system.cpu_history.usage;
+          cpuChart.update();
+          if(system.cpu_details && system.cpu_details.history24h) {
+            const cpuDetailLabels = system.cpu_details.history24h.map(entry => entry.time);
+            const cpuDetailData = system.cpu_details.history24h.map(entry => entry.usage);
+            cpuDetailChart.data.labels = cpuDetailLabels;
+            cpuDetailChart.data.datasets[0].data = cpuDetailData;
+            cpuDetailChart.update();
+          }
+          // Memory Basic – in GB; set y-axis max to total memory.
+          if(system.memory_history) {
+            memoryBasicChart.data.labels = system.memory_history.time;
+            memoryBasicChart.data.datasets[0].data = system.memory_history.free;
+            memoryBasicChart.data.datasets[1].data = system.memory_history.used;
+            memoryBasicChart.data.datasets[2].data = system.memory_history.cached;
+            if(system.memory.total){
+              memoryBasicChart.options.scales.y.max = system.memory.total;
+            }
+            memoryBasicChart.update();
+          }
+          memoryOverlay.textContent = system.memory.used.toFixed(2);
+          // Memory Extended (update only if visible)
+          const memDetailView = document.getElementById('memory-detail-view');
+          if(memDetailView && memDetailView.style.display !== 'none' &&
+             system.memory_details && system.memory_details.history24h) {
+            const memDetailLabels = system.memory_details.history24h.map(entry => entry.time);
+            const memDetailData = system.memory_details.history24h.map(entry => entry.usage);
+            memoryDetailChart.data.labels = memDetailLabels;
+            memoryDetailChart.data.datasets[0].data = memDetailData;
+            memoryDetailChart.update();
+          }
+          // Disk Basic – in GiB; set y-axis max to total disk capacity.
+          if(system.disk_history_basic) {
+            diskBasicChart.data.labels = system.disk_history_basic.time;
+            diskBasicChart.data.datasets[0].data = system.disk_history_basic.used;
+            diskBasicChart.data.datasets[1].data = system.disk_history_basic.free;
+            if(system.disk.total){
+              diskBasicChart.options.scales.y.max = system.disk.total;
+            }
+            diskBasicChart.update();
+          }
+          diskOverlay.textContent = system.disk.used.toFixed(2);
+          // Disk Extended (update only if visible)
+          const diskDetailView = document.getElementById('disk-detail-view');
+          if(diskDetailView && diskDetailView.style.display !== 'none' &&
+             system.disk_details && system.disk_details.history) {
+            const diskDetailLabels = system.disk_details.history.map(entry => entry.time);
+            const diskDetailData = system.disk_details.history.map(entry => entry.used);
+            diskHistoryChart.data.labels = diskDetailLabels;
+            diskHistoryChart.data.datasets[0].data = diskDetailData;
+            diskHistoryChart.update();
+          }
+          // Network Aggregated – select interface with prefix "enp" if available.
+          if(data.network && data.network.interfaces) {
+            const interfaces = data.network.interfaces;
+            let mainInterface = null;
+            Object.keys(interfaces).forEach(key => {
+              if(/^enp/.test(key)) { mainInterface = key; }
+            });
+            if(!mainInterface) { mainInterface = Object.keys(interfaces)[0] || null; }
+            if(mainInterface && interfaces[mainInterface].length > 0) {
+              const ifaceData = interfaces[mainInterface];
+              const labels = ifaceData.map(entry => entry.time);
+              const inputData = ifaceData.map(entry => entry.input);
+              const outputData = ifaceData.map(entry => entry.output);
+              networkChart.data.labels = labels;
+              networkChart.data.datasets[0].data = inputData;
+              networkChart.data.datasets[1].data = outputData;
+              networkChart.update();
+            }
+          }
+          // Network Detailed (update only if visible)
+          const netDetailView = document.getElementById('network-detail-view');
+          if(netDetailView && netDetailView.style.display !== 'none' && data.network && data.network.interfaces) {
+            let now = Date.now();
+            if(now - lastDetailedNetworkUpdate > 5000) {
+              let detailedInterfaces = {};
+              for(let iface in data.network.interfaces) {
+                if(/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
+                  detailedInterfaces[iface] = data.network.interfaces[iface];
                 }
-            });
-        });
-
-        // Initialize charts (CPU, Memory, Disk, Aggregated Network)
-        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
-        const cpuChart = new Chart(cpuCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'CPU Usage',
-                    data: [],
-                    borderColor: 'rgba(36, 45, 43, 1)',
-                    tension: 0.4,
-                    fill: true,
-                    backgroundColor: 'rgba(45,90,79,0.2)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
-                    x: { grid: { display: false }, ticks: { display: false } }
+              }
+              const colorPalette = [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+              ];
+              let inputDatasets = [];
+              let outputDatasets = [];
+              let dockerContainers = data.docker || [];
+              let dockerIndex = 0;
+              for(let iface in detailedInterfaces) {
+                const ifaceData = detailedInterfaces[iface];
+                let label = iface;
+                if(/^(veth|br-)/.test(iface)) {
+                  if(dockerIndex < dockerContainers.length) {
+                    label = dockerContainers[dockerIndex].name;
+                    dockerIndex++;
+                  }
                 }
-            }
-        });
-        const cpuDetailCtx = document.getElementById('cpuDetailChart').getContext('2d');
-        const cpuDetailChart = new Chart(cpuDetailCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: '24hr CPU Usage (%)',
-                    data: [],
-                    borderColor: 'rgba(36, 45, 43, 1)',
-                    tension: 0.4,
-                    fill: true,
-                    backgroundColor: 'rgba(45,90,79,0.2)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
-            }
-        });
-        const memoryDetailCtx = document.getElementById('memoryDetailChart').getContext('2d');
-        const memoryDetailChart = new Chart(memoryDetailCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: '24hr Memory Usage (%)',
-                    data: [],
-                    borderColor: 'rgba(36, 45, 43, 1)',
-                    tension: 0.4,
-                    fill: true,
-                    backgroundColor: 'rgba(45,90,79,0.2)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { max: 100, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
-            }
-        });
-        const diskCtx = document.getElementById('diskHistoryChart').getContext('2d');
-        const diskHistoryChart = new Chart(diskCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: '/ Filesystem Used (MB)',
-                    data: [],
-                    borderColor: 'rgba(36, 45, 43, 1)',
-                    tension: 0.4,
-                    fill: true,
-                    backgroundColor: 'rgba(45,90,79,0.2)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
-            }
-        });
-        const networkCtx = document.getElementById('networkChart').getContext('2d');
-        const networkChart = new Chart(networkCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'Input (MiB/s)',
-                        data: [],
-                        borderColor: 'rgba(36, 45, 43, 1)',
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: 'rgba(45,90,79,0.2)'
-                    },
-                    {
-                        label: 'Output (MiB/s)',
-                        data: [],
-                        borderColor: '#ff5555',
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: 'rgba(255,85,85,0.2)'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { display: false } } }
-            }
-        });
-
-        // Function to update/create detailed network charts.
-        function updateDetailedNetworkCharts(inputDatasets, outputDatasets) {
-            const maxPerChart = 10;
-            const inputChunks = chunkArray(inputDatasets, maxPerChart);
-            const outputChunks = chunkArray(outputDatasets, maxPerChart);
-            const inputContainer = document.getElementById('networkDetailInputCharts');
-            const outputContainer = document.getElementById('networkDetailOutputCharts');
-            inputContainer.innerHTML = '';
-            outputContainer.innerHTML = '';
-            networkDetailInputCharts = [];
-            networkDetailOutputCharts = [];
-            inputChunks.forEach(chunk => {
-                const rowDiv = document.createElement('div');
-                rowDiv.classList.add('chart-row');
-                const canvas = document.createElement('canvas');
-                rowDiv.appendChild(canvas);
-                inputContainer.appendChild(rowDiv);
-                const chart = new Chart(canvas.getContext('2d'), {
-                    type: 'line',
-                    data: { datasets: chunk },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: true } },
-                        scales: {
-                            x: { 
-                                type: 'time',
-                                time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
-                                grid: { display: false }
-                            },
-                            y: { grid: { color: 'rgba(255,255,255,0.1)' } }
-                        }
-                    }
+                const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
+                const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
+                let color = colorPalette[inputDatasets.length % colorPalette.length];
+                inputDatasets.push({
+                  label: label,
+                  data: inputPoints,
+                  borderColor: color,
+                  tension: 0.4,
+                  fill: false,
+                  borderWidth: 2
                 });
-                networkDetailInputCharts.push(chart);
-            });
-            outputChunks.forEach(chunk => {
-                const rowDiv = document.createElement('div');
-                rowDiv.classList.add('chart-row');
-                const canvas = document.createElement('canvas');
-                rowDiv.appendChild(canvas);
-                outputContainer.appendChild(rowDiv);
-                const chart = new Chart(canvas.getContext('2d'), {
-                    type: 'line',
-                    data: { datasets: chunk },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: true } },
-                        scales: {
-                            x: { 
-                                type: 'time',
-                                time: { parser: 'HH:mm:ss', tooltipFormat: 'HH:mm:ss', unit: 'second', displayFormats: { second: 'HH:mm:ss' } },
-                                grid: { display: false }
-                            },
-                            y: { grid: { color: 'rgba(255,255,255,0.1)' } }
-                        }
-                    }
+                outputDatasets.push({
+                  label: label,
+                  data: outputPoints,
+                  borderColor: color,
+                  tension: 0.4,
+                  fill: false,
+                  borderWidth: 2
                 });
-                networkDetailOutputCharts.push(chart);
-            });
-        }
-
-        // Cache DOM elements for system stats.
-        const cpuCircle = document.querySelector('.card:nth-child(1) .circle-progress');
-        const cpuCircleValue = cpuCircle.querySelector('.circle-value');
-        const memCircle = document.querySelector('.card:nth-child(2) .circle-progress');
-        const memCircleValue = memCircle.querySelector('.circle-value');
-        const diskCircle = document.querySelector('.card:nth-child(3) .circle-progress');
-        const diskCircleValue = diskCircle.querySelector('.circle-value');
-        const memTotalEl = document.getElementById('mem-total');
-        const memUsedEl = document.getElementById('mem-used');
-        const memFreeEl = document.getElementById('mem-free');
-        const memCachedEl = document.getElementById('mem-cached');
-        const dockerDataEl = document.getElementById('docker-data');
-
-        // Function to trigger container update via POST.
-        function updateContainer(containerName) {
-            fetch(`/update/${containerName}`, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => { alert(data.message); })
-            .catch(err => { alert("Error updating container: " + err); });
-        }
-
-        // Update stats (including docker container and network info).
-        function updateStats() {
-            fetch('/stats')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Received stats data:", data);
-                    // Even if data.system is missing (for whatever reason), update UI with defaults.
-                    const system = data.system || {
-                        cpu: 0,
-                        memory: { percent: 0, total: 0, used: 0, free: 0, cached: 0 },
-                        disk: { percent: 0 },
-                        cpu_history: { usage: [] },
-                        disk_details: { history: [] }
-                    };
-
-                    // Update CPU basic stats.
-                    cpuCircle.style.setProperty('--p', system.cpu + '%');
-                    cpuCircleValue.textContent = Math.round(system.cpu) + '%';
-                    cpuChart.data.labels = system.cpu_history.usage.map(() => '');
-                    cpuChart.data.datasets[0].data = system.cpu_history.usage;
-                    cpuChart.update();
-
-                    // Update Memory basic stats.
-                    memCircle.style.setProperty('--p', system.memory.percent + '%');
-                    memCircleValue.textContent = Math.round(system.memory.percent) + '%';
-                    memTotalEl.textContent = system.memory.total + ' GiB';
-                    memUsedEl.textContent = system.memory.used + ' GiB';
-                    memFreeEl.textContent = system.memory.free + ' GiB';
-                    memCachedEl.textContent = system.memory.cached + ' GiB';
-
-                    // Update Disk basic stats.
-                    diskCircle.style.setProperty('--p', system.disk.percent + '%');
-                    diskCircleValue.textContent = Math.round(system.disk.percent) + '%';
-                    if(system.disk_details && system.disk_details.root) {
-                        document.getElementById('disk-total').textContent = system.disk_details.root.total + ' GiB';
-                        document.getElementById('disk-used').textContent = system.disk_details.root.used + ' GiB';
-                        document.getElementById('disk-free').textContent = system.disk_details.root.free + ' GiB';
-                    }
-                    if(system.disk_details && system.disk_details.history) {
-                        const diskHistoryLabels = system.disk_details.history.map(entry => entry.time);
-                        const diskHistoryData = system.disk_details.history.map(entry => entry.used);
-                        diskHistoryChart.data.labels = diskHistoryLabels;
-                        diskHistoryChart.data.datasets[0].data = diskHistoryData;
-                        diskHistoryChart.update();
-                    }
-
-                    // Update Aggregated Network Chart (non-detailed view).
-                    if (data.network && data.network.interfaces) {
-                        const interfaces = data.network.interfaces;
-                        let mainInterface = null;
-                        Object.keys(interfaces).forEach(key => {
-                            if (/^(enp|ens|eth)/.test(key)) { mainInterface = key; }
-                        });
-                        if (mainInterface && interfaces[mainInterface].length > 0) {
-                            const ifaceData = interfaces[mainInterface];
-                            const labels = ifaceData.map(entry => entry.time);
-                            const inputData = ifaceData.map(entry => entry.input);
-                            const outputData = ifaceData.map(entry => entry.output);
-                            networkChart.data.labels = labels;
-                            networkChart.data.datasets[0].data = inputData;
-                            networkChart.data.datasets[1].data = outputData;
-                            networkChart.update();
-                        }
-                    }
-
-                    // Update Detailed Network Charts if expanded.
-                    if (document.getElementById('network-detail-view').style.display !== 'none' && data.network && data.network.interfaces) {
-                        let now = Date.now();
-                        if (now - lastDetailedNetworkUpdate > 5000) {
-                            let detailedInterfaces = {};
-                            for (let iface in data.network.interfaces) {
-                                if (/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
-                                    detailedInterfaces[iface] = data.network.interfaces[iface];
-                                }
-                            }
-                            const colorPalette = [
-                                'rgba(255, 99, 132, 1)',
-                                'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)',
-                                'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)',
-                                'rgba(255, 159, 64, 1)'
-                            ];
-                            let inputDatasets = [];
-                            let outputDatasets = [];
-                            let dockerContainers = data.docker || [];
-                            let dockerIndex = 0;
-                            for (let iface in detailedInterfaces) {
-                                const ifaceData = detailedInterfaces[iface];
-                                let label = iface;
-                                if (/^(veth|br-)/.test(iface)) {
-                                    if (dockerIndex < dockerContainers.length) {
-                                        label = dockerContainers[dockerIndex].name;
-                                        dockerIndex++;
-                                    }
-                                }
-                                const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
-                                const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
-                                let color = colorPalette[inputDatasets.length % colorPalette.length];
-                                inputDatasets.push({
-                                    label: label,
-                                    data: inputPoints,
-                                    borderColor: color,
-                                    tension: 0.4,
-                                    fill: false
-                                });
-                                outputDatasets.push({
-                                    label: label,
-                                    data: outputPoints,
-                                    borderColor: color,
-                                    tension: 0.4,
-                                    fill: false
-                                });
-                            }
-                            updateDetailedNetworkCharts(inputDatasets, outputDatasets);
-                            lastDetailedNetworkUpdate = now;
-                        }
-                    }
-
-                    // Update Docker containers table.
-                    dockerDataEl.innerHTML = (data.docker || []).map(container => {
-                        return `<tr>
-                            <td><div class="status-indicator status-${container.status}"></div></td>
-                            <td>${container.name}</td>
-                            <td>${Math.floor(container.uptime / 3600)}h ${Math.floor((container.uptime % 3600) / 60)}m</td>
-                            <td>${container.image}</td>
-                            <td>${container.up_to_date ? 'Up-to-date' : 'Update available'}</td>
-                            <td>${container.up_to_date ? '' : `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>`}</td>
-                        </tr>`;
-                    }).join('');
-                })
-                .catch(err => console.error("Error fetching stats:", err));
-        }
-
-        setInterval(updateStats, 500);
-        updateStats();
-
-        const modeToggle = document.getElementById('modeToggle');
-        modeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('light-mode');
-        });
-    </script>
+              }
+              updateDetailedNetworkCharts(inputDatasets, outputDatasets);
+              lastDetailedNetworkUpdate = now;
+            }
+          }
+          // Docker Containers Table – New status indicator logic and no "up-to-date" column.
+          const dockerDataEl = document.getElementById('docker-data');
+          dockerDataEl.innerHTML = (data.docker || []).map(container => {
+            let statusColorClass;
+            if (!container.up_to_date) {
+              statusColorClass = "status-blue";
+            } else if (container.status.toLowerCase().includes("running")) {
+              statusColorClass = "status-green";
+            } else if (container.status.toLowerCase().includes("starting") || container.status.toLowerCase().includes("created")) {
+              statusColorClass = "status-yellow";
+            } else {
+              statusColorClass = "status-red";
+            }
+            return `<tr>
+                      <td><div class="status-indicator ${statusColorClass}"></div></td>
+                      <td>${container.name}</td>
+                      <td>${Math.floor(container.uptime / 3600)}h ${Math.floor((container.uptime % 3600) / 60)}m</td>
+                      <td>${container.image}</td>
+                      <td>${!container.up_to_date ? `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>` : ''}</td>
+                    </tr>`;
+          }).join('');
+        })
+        .catch(err => console.error("Error fetching stats:", err));
+    }
+    setInterval(updateStats, 500);
+    updateStats();
+    const modeToggle = document.getElementById('modeToggle');
+    modeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('light-mode');
+    });
+  </script>
 </body>
 </html>
