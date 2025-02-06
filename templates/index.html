@@ -935,7 +935,7 @@
                             const interfaces = data.network.interfaces;
                             let mainInterface = null;
                             Object.keys(interfaces).forEach((key) => {
-                                if (/^e*/.test(key)) {
+                                if (/^e/.test(key)) {
                                     mainInterface = key;
                                 }
                             });
