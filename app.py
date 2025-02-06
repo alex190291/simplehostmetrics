@@ -191,14 +191,36 @@ cached_disk_details = {}
 
 image_update_info = {}
 
+def parse_docker_created(created_str):
+    """
+    Docker often returns a timestamp like: '2023-02-06T00:03:30.935146558Z'
+    Python's fromisoformat() won't parse if there are more than 6 fractional digits.
+    This helper manually truncates fractional seconds to 6 digits and parses.
+    """
+    if created_str.endswith('Z'):
+        created_str = created_str[:-1]  # remove trailing 'Z'
+    # If there's a '.', assume fractional seconds are present:
+    if '.' in created_str:
+        # Split into base time and fractional seconds
+        base, frac = created_str.split('.', 1)
+        # Truncate fractional part to 6 digits
+        frac = frac[:6]
+        created_str = base + '.' + frac
+        fmt = '%Y-%m-%dT%H:%M:%S.%f'
+    else:
+        fmt = '%Y-%m-%dT%H:%M:%S'
+    # If parsing fails for any reason, return current time so the uptime won't be zero forever.
+    try:
+        return datetime.strptime(created_str, fmt)
+    except:
+        return datetime.now()
+
 def get_docker_info():
     containers = []
     for container in client.containers.list(all=True):
         try:
             created = container.attrs.get('Created', '')
-            if created.endswith('Z'):
-                created = created[:-1] + '+00:00'
-            dt_created = datetime.fromisoformat(created) if created else datetime.now()
+            dt_created = parse_docker_created(created) if created else datetime.now()
             uptime = int(time.time() - dt_created.timestamp())
         except Exception:
             uptime = 0
@@ -258,7 +280,7 @@ def update_stats_cache():
                 cpu_history['time'].pop(0)
                 cpu_history['usage'].pop(0)
             cursor.execute("INSERT INTO cpu_history (timestamp, usage) VALUES (?, ?)", (now, cpu_percent))
-
+            
             # Update Memory basic history (in GB)
             total_mem_GB = mem.total / (1024 ** 3)
             free_GB = mem.free / (1024 ** 3)
@@ -278,7 +300,7 @@ def update_stats_cache():
                 "INSERT INTO memory_history (timestamp, free, used, cached) VALUES (?, ?, ?, ?)",
                 (now, round(free_GB, 2), round(used_no_cache_GB, 2), round(cached_GB, 2))
             )
-
+            
             # Update Disk basic history (in GiB)
             total_disk_GB = round(disk.total / (1024 ** 3), 2)
             used_disk_GB = round(disk.used / (1024 ** 3), 2)
@@ -296,7 +318,7 @@ def update_stats_cache():
                 "INSERT INTO disk_history_basic (timestamp, total, used, free) VALUES (?, ?, ?, ?)",
                 (now, total_disk_GB, used_disk_GB, free_disk_GB)
             )
-
+            
             # Update CPU 24h history every 10 seconds
             if now - last_cpu_24h_update >= 10:
                 cpu_history_24h.append({'time': now, 'usage': cpu_percent})
@@ -304,7 +326,7 @@ def update_stats_cache():
                 cpu_history_24h[:] = [entry for entry in cpu_history_24h if entry['time'] >= twenty_four_hours_ago]
                 last_cpu_24h_update = now
                 cursor.execute("INSERT INTO cpu_history_24h (timestamp, usage) VALUES (?, ?)", (now, cpu_percent))
-
+            
             # Update Memory 24h history every 10 seconds
             if now - last_memory_24h_update >= 10:
                 memory_usage_GB = round(mem.used / (1024 ** 3), 2)
@@ -313,12 +335,12 @@ def update_stats_cache():
                 memory_history_24h[:] = [entry for entry in memory_history_24h if entry['time'] >= twenty_four_hours_ago]
                 last_memory_24h_update = now
                 cursor.execute("INSERT INTO memory_history_24h (timestamp, usage) VALUES (?, ?)", (now, memory_usage_GB))
-
+            
             # Update Disk details every 10 seconds (extended view)
             if now - last_disk_update >= 10:
                 cached_disk_details = get_disk_details(cursor)
                 last_disk_update = now
-
+            
             # Format 24h histories for the extended CPU and Memory charts
             cpu_history_24h_formatted = [
                 {'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
@@ -327,7 +349,7 @@ def update_stats_cache():
             ]
             heavy_cpu_details = get_cpu_details()
             heavy_cpu_details['history24h'] = cpu_history_24h_formatted
-
+            
             memory_history_24h_formatted = [
                 {'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
                  'usage': entry['usage']}
@@ -335,14 +357,14 @@ def update_stats_cache():
             ]
             heavy_memory_details = get_memory_details()
             heavy_memory_details['history24h'] = memory_history_24h_formatted
-
+            
             cached_heavy = {
                 'cpu_details': heavy_cpu_details,
                 'memory_details': heavy_memory_details,
                 'docker': get_docker_info(),
                 'disk_details': cached_disk_details
             }
-
+            
             # Update network statistics
             current_net = psutil.net_io_counters(pernic=True)
             net_current_time = now
@@ -375,7 +397,7 @@ def update_stats_cache():
                         )
                 prev_net_io = current_net
                 prev_net_time = net_current_time
-
+            
             cached_stats = {
                 'system': {
                     'cpu': cpu_percent,

@@ -2,7 +2,10 @@
 <html>
     <head>
         <title>System Dashboard</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+            rel="stylesheet"
+        />
         <!-- Chart.js library -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <!-- Date adapter for time scales -->
@@ -34,7 +37,9 @@
                 min-height: 100vh;
                 position: relative;
                 overflow-x: hidden;
-                transition: background 0.3s, color 0.3s;
+                transition:
+                    background 0.3s,
+                    color 0.3s;
             }
             .hexagons {
                 position: fixed;
@@ -48,12 +53,20 @@
             .hexagon {
                 position: absolute;
                 background: var(--primary);
-                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+                clip-path: polygon(
+                    50% 0%,
+                    100% 25%,
+                    100% 75%,
+                    50% 100%,
+                    0% 75%,
+                    0% 25%
+                );
                 opacity: 0.1;
                 animation: pulse 10s infinite;
             }
             @keyframes pulse {
-                0%, 100% {
+                0%,
+                100% {
                     transform: scale(1);
                     opacity: 0.1;
                 }
@@ -82,7 +95,11 @@
                 padding: 1.5rem;
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 position: relative;
-                transition: background 0.3s, border 0.3s, transform 0.3s, box-shadow 0.3s;
+                transition:
+                    background 0.3s,
+                    border 0.3s,
+                    transform 0.3s,
+                    box-shadow 0.3s;
                 cursor: pointer;
                 overflow: hidden;
             }
@@ -193,17 +210,26 @@
                 font-size: 1.5rem;
                 cursor: pointer;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-                transition: background 0.3s, color 0.3s;
+                transition:
+                    background 0.3s,
+                    color 0.3s;
                 z-index: 1000;
             }
             .docker-card {
                 margin-top: 1.5rem;
             }
-            /* For netgr2 extended view, we now use single canvases for Input and Output */
-            #network-detail-view .network-chart {
-                width: 100%;
-                height: 180px;
-                padding: 10px;
+            .chart-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
+            .chart-row canvas {
+                flex: 1 1 calc(50% - 1rem);
+                height: 400px !important;
+            }
+            #network-detail-view .chart-row canvas {
+                height: 400px !important;
             }
             .detail-label {
                 font-weight: 600;
@@ -246,7 +272,11 @@
                             <div id="cpuOverlay" class="chart-overlay">0%</div>
                         </div>
                     </div>
-                    <div class="detail-view" id="cpu-detail-view" style="display: none">
+                    <div
+                        class="detail-view"
+                        id="cpu-detail-view"
+                        style="display: none"
+                    >
                         <div class="graph-label">24hr CPU Usage</div>
                         <canvas id="cpuDetailChart"></canvas>
                     </div>
@@ -268,10 +298,16 @@
                         </div>
                         <div class="chart-container">
                             <canvas id="memoryChart"></canvas>
-                            <div id="memoryOverlay" class="chart-overlay">0</div>
+                            <div id="memoryOverlay" class="chart-overlay">
+                                0
+                            </div>
                         </div>
                     </div>
-                    <div class="detail-view" id="memory-detail-view" style="display: none">
+                    <div
+                        class="detail-view"
+                        id="memory-detail-view"
+                        style="display: none"
+                    >
                         <div class="graph-label">24hr Memory Usage (GB)</div>
                         <canvas id="memoryDetailChart"></canvas>
                     </div>
@@ -294,7 +330,11 @@
                             <div id="diskOverlay" class="chart-overlay">0</div>
                         </div>
                     </div>
-                    <div class="detail-view" id="disk-detail-view" style="display: none">
+                    <div
+                        class="detail-view"
+                        id="disk-detail-view"
+                        style="display: none"
+                    >
                         <div class="graph-label">7-Day Disk Used (GB)</div>
                         <canvas id="diskHistoryChart"></canvas>
                     </div>
@@ -306,13 +346,20 @@
                 <div class="stat-container">
                     <canvas id="networkChart"></canvas>
                 </div>
-                <div class="detail-view" id="network-detail-view" style="display: none">
+                <div
+                    class="detail-view"
+                    id="network-detail-view"
+                    style="display: none"
+                >
                     <div class="detail-label">Input Throughput</div>
-                    <!-- Single canvas for netgr2 input -->
-                    <canvas id="networkDetailInputChart" class="network-chart"></canvas>
-                    <div class="detail-label" style="margin-top: 1rem">Output Throughput</div>
-                    <!-- Single canvas for netgr2 output -->
-                    <canvas id="networkDetailOutputChart" class="network-chart"></canvas>
+                    <div id="networkDetailInputCharts"></div>
+                    <div class="detail-label" style="margin-top: 1rem">
+                        Output Throughput
+                    </div>
+                    <div
+                        id="networkDetailOutputCharts"
+                        style="margin-top: 1rem"
+                    ></div>
                 </div>
             </div>
             <!-- Docker Containers Card -->
@@ -336,7 +383,13 @@
                 </div>
             </div>
         </div>
-        <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
+        <button
+            class="mode-toggle"
+            id="modeToggle"
+            title="Toggle light/dark mode"
+        >
+            💡
+        </button>
         <script>
             // Function to trigger container update via POST.
             function updateContainer(containerName) {
@@ -350,13 +403,27 @@
                     });
             }
 
-            // Generate hexagons in background.
+            // Global variables for detailed network charts.
+            let networkDetailInputCharts = [];
+            let networkDetailOutputCharts = [];
+            let lastDetailedNetworkUpdate = 0;
+
+            function chunkArray(array, n) {
+                let chunks = [];
+                for (let i = 0; i < array.length; i += n) {
+                    chunks.push(array.slice(i, i + n));
+                }
+                return chunks;
+            }
+
             function randomInt(min, max) {
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
+
             function randomFloat(min, max) {
                 return Math.random() * (max - min) + min;
             }
+
             function generateHexagons(count) {
                 const container = document.getElementById("hexagon-container");
                 for (let i = 0; i < count; i++) {
@@ -382,29 +449,31 @@
                     const detailView = this.querySelector(".detail-view");
                     if (detailView) {
                         detailView.style.display =
-                            detailView.style.display === "none" || detailView.style.display === ""
+                            detailView.style.display === "none" ||
+                            detailView.style.display === ""
                                 ? "block"
                                 : "none";
                     }
                 });
             });
 
-            // Create charts for the basic and extended views.
-            // CPU Basic Chart (cpugr1) with increased saturation.
+            // CPU Chart & Overlay (Basic View)
             const cpuCtx = document.getElementById("cpuChart").getContext("2d");
             const cpuChart = new Chart(cpuCtx, {
                 type: "line",
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: "CPU Usage",
-                        data: [],
-                        borderColor: "rgba(31,122,102,1)",
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: "rgba(31,122,102,0.2)",
-                        borderWidth: 2,
-                    }],
+                    datasets: [
+                        {
+                            label: "CPU Usage",
+                            data: [],
+                            borderColor: "rgba(5,112,85,1)",
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: "rgba(45,90,79,0.4)",
+                            borderWidth: 2,
+                        },
+                    ],
                 },
                 options: {
                     layout: { padding: { left: 10, right: 10 } },
@@ -412,39 +481,56 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { max: 100, grid: { color: "rgba(255,255,255,0.1)" } },
-                        x: { grid: { display: false }, ticks: { display: false } },
+                        y: {
+                            max: 100,
+                            grid: { color: "rgba(255,255,255,0.1)" },
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false },
+                        },
                     },
                 },
             });
             const cpuOverlay = document.getElementById("cpuOverlay");
-            // CPU Extended Chart (cpugr2) with increased saturation.
-            const cpuDetailCtx = document.getElementById("cpuDetailChart").getContext("2d");
+
+            const cpuDetailCtx = document
+                .getElementById("cpuDetailChart")
+                .getContext("2d");
             const cpuDetailChart = new Chart(cpuDetailCtx, {
                 type: "line",
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: "24hr CPU Usage (%)",
-                        data: [],
-                        borderColor: "rgba(31,122,102,1)",
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: "rgba(31,122,102,0.2)",
-                        borderWidth: 2,
-                    }],
+                    datasets: [
+                        {
+                            label: "24hr CPU Usage (%)",
+                            data: [],
+                            borderColor: "rgba(5,112,85,1)",
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: "rgba(45,90,79,0.2)",
+                            borderWidth: 2,
+                        },
+                    ],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { max: 100, grid: { color: "rgba(255,255,255,0.1)" } },
+                        y: {
+                            max: 100,
+                            grid: { color: "rgba(255,255,255,0.1)" },
+                        },
                         x: { grid: { display: false } },
                     },
                 },
             });
-            const memoryCtx = document.getElementById("memoryChart").getContext("2d");
+
+            // Memory Basic Chart – 3 datasets: Free, Used, Cached (in GB)
+            const memoryCtx = document
+                .getElementById("memoryChart")
+                .getContext("2d");
             const memoryBasicChart = new Chart(memoryCtx, {
                 type: "line",
                 data: {
@@ -453,7 +539,7 @@
                         {
                             label: "Free",
                             data: [],
-                            borderColor: "#145a32", // darker green
+                            borderColor: "#1e8449",
                             tension: 0.4,
                             fill: false,
                             borderWidth: 2,
@@ -461,7 +547,7 @@
                         {
                             label: "Used",
                             data: [],
-                            borderColor: "#7b241c", // darker red
+                            borderColor: "#922b21",
                             tension: 0.4,
                             fill: false,
                             borderWidth: 2,
@@ -469,7 +555,7 @@
                         {
                             label: "Cached",
                             data: [],
-                            borderColor: "#1b4f72", // darker blue
+                            borderColor: "#21618c",
                             tension: 0.4,
                             fill: false,
                             borderWidth: 2,
@@ -488,20 +574,24 @@
                 },
             });
             const memoryOverlay = document.getElementById("memoryOverlay");
-            const memoryDetailCtx = document.getElementById("memoryDetailChart").getContext("2d");
+            const memoryDetailCtx = document
+                .getElementById("memoryDetailChart")
+                .getContext("2d");
             const memoryDetailChart = new Chart(memoryDetailCtx, {
                 type: "line",
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: "24hr Memory Usage (GB)",
-                        data: [],
-                        borderColor: "#1b4f72", // darker blue
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: "rgba(27,75,114,0.2)", // darker blue background
-                        borderWidth: 2,
-                    }],
+                    datasets: [
+                        {
+                            label: "24hr Memory Usage (GB)",
+                            data: [],
+                            borderColor: "#21618c",
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: "rgba(33,97,140,0.2)",
+                            borderWidth: 2,
+                        },
+                    ],
                 },
                 options: {
                     responsive: true,
@@ -513,7 +603,11 @@
                     },
                 },
             });
-            const diskCtx = document.getElementById("diskChart").getContext("2d");
+
+            // Disk Basic Chart – 2 datasets: Used, Free (in GiB)
+            const diskCtx = document
+                .getElementById("diskChart")
+                .getContext("2d");
             const diskBasicChart = new Chart(diskCtx, {
                 type: "line",
                 data: {
@@ -522,7 +616,7 @@
                         {
                             label: "Used",
                             data: [],
-                            borderColor: "#7b241c", // darker red
+                            borderColor: "#922b21",
                             tension: 0.4,
                             fill: false,
                             borderWidth: 2,
@@ -530,7 +624,7 @@
                         {
                             label: "Free",
                             data: [],
-                            borderColor: "#145a32", // darker green
+                            borderColor: "#1e8449",
                             tension: 0.4,
                             fill: false,
                             borderWidth: 2,
@@ -549,53 +643,21 @@
                 },
             });
             const diskOverlay = document.getElementById("diskOverlay");
-            const diskDetailCtx = document.getElementById("diskHistoryChart").getContext("2d");
+            const diskDetailCtx = document
+                .getElementById("diskHistoryChart")
+                .getContext("2d");
             const diskHistoryChart = new Chart(diskDetailCtx, {
-                type: "line",
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: "7-Day Disk Used (GB)",
-                        data: [],
-                        borderColor: "#7b241c", // darker red
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: "rgba(123,36,28,0.2)", // darker red background
-                        borderWidth: 2,
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { grid: { color: "rgba(255,255,255,0.1)" } },
-                        x: { grid: { display: false } },
-                    },
-                },
-            });
-            const networkCtx = document.getElementById("networkChart").getContext("2d");
-            const networkChart = new Chart(networkCtx, {
                 type: "line",
                 data: {
                     labels: [],
                     datasets: [
                         {
-                            label: "Input (MiB/s)",
+                            label: "7-Day Disk Used (GB)",
                             data: [],
-                            borderColor: "rgba(30,40,38,1)", // darker shade for input
+                            borderColor: "#922b21",
                             tension: 0.4,
                             fill: true,
-                            backgroundColor: "rgba(30,40,38,0.2)", // darker background for input
-                            borderWidth: 2,
-                        },
-                        {
-                            label: "Output (MiB/s)",
-                            data: [],
-                            borderColor: "#7b241c", // darker red for output
-                            tension: 0.4,
-                            fill: true,
-                            backgroundColor: "rgba(123,36,28,0.2)", // darker red background for output
+                            backgroundColor: "rgba(146,43,33,0.2)",
                             borderWidth: 2,
                         },
                     ],
@@ -610,71 +672,104 @@
                     },
                 },
             });
-            // Global variables for the extended network charts.
-            // We now use a single chart for input and a single chart for output.
-            let networkDetailInputChart, networkDetailOutputChart;
-            function updateNetworkExtended(data) {
-                if (!(data.network && data.network.interfaces)) return;
-                // Build list of interfaces that pass the filter.
-                let detailedIfaces = [];
-                for (let iface in data.network.interfaces) {
-                    // Hide interfaces that start with "veth" if no docker container name is available.
-                    if (/^veth/.test(iface)) {
-                        // For simplicity, skip veth interfaces.
-                        continue;
-                    }
-                    detailedIfaces.push(iface);
-                }
-                // Limit to at most 6 interfaces.
-                detailedIfaces = detailedIfaces.slice(0, 6);
-                // Build datasets for input and output using a dark color palette.
-                const darkColorPalette = [
-                    "rgba(123,36,28,1)",    // dark red
-                    "rgba(21,101,192,1)",   // dark blue
-                    "rgba(189,147,0,1)",    // dark gold
-                    "rgba(20,110,110,1)",   // dark cyan
-                    "rgba(85,26,139,1)",    // dark purple
-                    "rgba(183,65,14,1)"     // dark orange
-                ];
-                let inputDatasets = [];
-                let outputDatasets = [];
-                detailedIfaces.forEach((iface, idx) => {
-                    const ifaceData = data.network.interfaces[iface];
-                    // Use the entire history (each entry has time, input, output)
-                    let inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
-                    let outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
-                    inputDatasets.push({
-                        label: iface,
-                        data: inputPoints,
-                        borderColor: darkColorPalette[idx % darkColorPalette.length],
-                        tension: 0.4,
-                        fill: false,
-                        borderWidth: 2,
+
+            // Network Aggregated Chart
+            const networkCtx = document
+                .getElementById("networkChart")
+                .getContext("2d");
+            const networkChart = new Chart(networkCtx, {
+                type: "line",
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Input (MiB/s)",
+                            data: [],
+                            borderColor: "rgba(5,112,85,1)",
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: "rgba(45,90,79,0.2)",
+                            borderWidth: 2,
+                        },
+                        {
+                            label: "Output (MiB/s)",
+                            data: [],
+                            borderColor: "#ff5555",
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: "rgba(255,85,85,0.2)",
+                            borderWidth: 2,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: "rgba(255,255,255,0.1)" } },
+                        x: { grid: { display: false } },
+                    },
+                },
+            });
+
+            // To reduce jump-to-top on updates, we’ll store and restore scroll position
+            // after re-creating the net detail charts.
+            function updateDetailedNetworkCharts(inputDatasets, outputDatasets) {
+                const scrollPos = window.scrollY;
+                const inputContainer = document.getElementById("networkDetailInputCharts");
+                const outputContainer = document.getElementById("networkDetailOutputCharts");
+
+                // Clear existing detail charts:
+                inputContainer.innerHTML = "";
+                outputContainer.innerHTML = "";
+                networkDetailInputCharts = [];
+                networkDetailOutputCharts = [];
+
+                const maxPerChart = 6;
+                const inputChunks = chunkArray(inputDatasets, maxPerChart);
+                const outputChunks = chunkArray(outputDatasets, maxPerChart);
+
+                inputChunks.forEach((chunk) => {
+                    const rowDiv = document.createElement("div");
+                    rowDiv.classList.add("chart-row");
+                    const canvas = document.createElement("canvas");
+                    rowDiv.appendChild(canvas);
+                    inputContainer.appendChild(rowDiv);
+                    const chart = new Chart(canvas.getContext("2d"), {
+                        type: "line",
+                        data: { datasets: chunk },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: true } },
+                            scales: {
+                                x: {
+                                    type: "time",
+                                    time: {
+                                        parser: "HH:mm:ss",
+                                        tooltipFormat: "HH:mm:ss",
+                                        unit: "second",
+                                        displayFormats: { second: "HH:mm:ss" },
+                                    },
+                                    grid: { display: false },
+                                },
+                                y: { grid: { color: "rgba(255,255,255,0.1)" } },
+                            },
+                        },
                     });
-                    outputDatasets.push({
-                        label: iface,
-                        data: outputPoints,
-                        borderColor: darkColorPalette[idx % darkColorPalette.length],
-                        tension: 0.4,
-                        fill: false,
-                        borderWidth: 2,
-                    });
+                    networkDetailInputCharts.push(chart);
                 });
-                // Use the labels from the first dataset (if exists)
-                let labels = (inputDatasets.length > 0) ? inputDatasets[0].data.map(p => p.x) : [];
-                // Update or create the input extended chart.
-                if (networkDetailInputChart) {
-                    networkDetailInputChart.data.datasets = inputDatasets;
-                    networkDetailInputChart.data.labels = labels;
-                    networkDetailInputChart.update();
-                } else {
-                    const ctxIn = document.getElementById("networkDetailInputChart").getContext("2d");
-                    networkDetailInputChart = new Chart(ctxIn, {
+
+                outputChunks.forEach((chunk) => {
+                    const rowDiv = document.createElement("div");
+                    rowDiv.classList.add("chart-row");
+                    const canvas = document.createElement("canvas");
+                    rowDiv.appendChild(canvas);
+                    outputContainer.appendChild(rowDiv);
+                    const chart = new Chart(canvas.getContext("2d"), {
                         type: "line",
-                        data: {
-                            labels: labels,
-                            datasets: inputDatasets
-                        },
+                        data: { datasets: chunk },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
@@ -686,50 +781,21 @@
                                         parser: "HH:mm:ss",
                                         tooltipFormat: "HH:mm:ss",
                                         unit: "second",
-                                        displayFormats: { second: "HH:mm:ss" }
+                                        displayFormats: { second: "HH:mm:ss" },
                                     },
-                                    grid: { display: false }
+                                    grid: { display: false },
                                 },
-                                y: { grid: { color: "rgba(255,255,255,0.1)" } }
-                            }
-                        }
-                    });
-                }
-                // Update or create the output extended chart.
-                if (networkDetailOutputChart) {
-                    networkDetailOutputChart.data.datasets = outputDatasets;
-                    networkDetailOutputChart.data.labels = labels;
-                    networkDetailOutputChart.update();
-                } else {
-                    const ctxOut = document.getElementById("networkDetailOutputChart").getContext("2d");
-                    networkDetailOutputChart = new Chart(ctxOut, {
-                        type: "line",
-                        data: {
-                            labels: labels,
-                            datasets: outputDatasets
+                                y: { grid: { color: "rgba(255,255,255,0.1)" } },
+                            },
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: true } },
-                            scales: {
-                                x: {
-                                    type: "time",
-                                    time: {
-                                        parser: "HH:mm:ss",
-                                        tooltipFormat: "HH:mm:ss",
-                                        unit: "second",
-                                        displayFormats: { second: "HH:mm:ss" }
-                                    },
-                                    grid: { display: false }
-                                },
-                                y: { grid: { color: "rgba(255,255,255,0.1)" } }
-                            }
-                        }
                     });
-                }
+                    networkDetailOutputCharts.push(chart);
+                });
+
+                // Restore scroll position to prevent jump to top
+                setTimeout(() => window.scrollTo(0, scrollPos), 0);
             }
-            // Update stats periodically.
+
             function updateStats() {
                 fetch("/stats")
                     .then((response) => response.json())
@@ -737,7 +803,13 @@
                         console.log("Received stats data:", data);
                         const system = data.system || {
                             cpu: 0,
-                            memory: { percent: 0, total: 0, used: 0, free: 0, cached: 0 },
+                            memory: {
+                                percent: 0,
+                                total: 0,
+                                used: 0,
+                                free: 0,
+                                cached: 0,
+                            },
                             disk: { percent: 0 },
                             cpu_history: { usage: [] },
                             disk_details: { history: [] },
@@ -747,6 +819,7 @@
                         cpuChart.data.labels = system.cpu_history.usage.map(() => "");
                         cpuChart.data.datasets[0].data = system.cpu_history.usage;
                         cpuChart.update();
+
                         if (system.cpu_details && system.cpu_details.history24h) {
                             const cpuDetailLabels = system.cpu_details.history24h.map(entry => entry.time);
                             const cpuDetailData = system.cpu_details.history24h.map(entry => entry.usage);
@@ -754,7 +827,8 @@
                             cpuDetailChart.data.datasets[0].data = cpuDetailData;
                             cpuDetailChart.update();
                         }
-                        // Memory Basic
+
+                        // Memory Basic – in GB; set y-axis max to total memory.
                         if (system.memory_history) {
                             memoryBasicChart.data.labels = system.memory_history.time;
                             memoryBasicChart.data.datasets[0].data = system.memory_history.free;
@@ -766,17 +840,23 @@
                             memoryBasicChart.update();
                         }
                         memoryOverlay.textContent = system.memory.used.toFixed(2);
-                        // Memory Extended
+
+                        // Memory Extended (if visible)
                         const memDetailView = document.getElementById("memory-detail-view");
-                        if (memDetailView && memDetailView.style.display !== "none" &&
-                            system.memory_details && system.memory_details.history24h) {
+                        if (
+                            memDetailView &&
+                            memDetailView.style.display !== "none" &&
+                            system.memory_details &&
+                            system.memory_details.history24h
+                        ) {
                             const memDetailLabels = system.memory_details.history24h.map(entry => entry.time);
                             const memDetailData = system.memory_details.history24h.map(entry => entry.usage);
                             memoryDetailChart.data.labels = memDetailLabels;
                             memoryDetailChart.data.datasets[0].data = memDetailData;
                             memoryDetailChart.update();
                         }
-                        // Disk Basic
+
+                        // Disk Basic – in GiB; set y-axis max to total disk capacity.
                         if (system.disk_history_basic) {
                             diskBasicChart.data.labels = system.disk_history_basic.time;
                             diskBasicChart.data.datasets[0].data = system.disk_history_basic.used;
@@ -787,22 +867,28 @@
                             diskBasicChart.update();
                         }
                         diskOverlay.textContent = system.disk.used.toFixed(2);
-                        // Disk Extended
+
+                        // Disk Extended (if visible)
                         const diskDetailView = document.getElementById("disk-detail-view");
-                        if (diskDetailView && diskDetailView.style.display !== "none" &&
-                            system.disk_details && system.disk_details.history) {
+                        if (
+                            diskDetailView &&
+                            diskDetailView.style.display !== "none" &&
+                            system.disk_details &&
+                            system.disk_details.history
+                        ) {
                             const diskDetailLabels = system.disk_details.history.map(entry => entry.time);
                             const diskDetailData = system.disk_details.history.map(entry => entry.used);
                             diskHistoryChart.data.labels = diskDetailLabels;
                             diskHistoryChart.data.datasets[0].data = diskDetailData;
                             diskHistoryChart.update();
                         }
-                        // Network Aggregated
+
+                        // Network Aggregated – select interface with prefix "en" if available.
                         if (data.network && data.network.interfaces) {
                             const interfaces = data.network.interfaces;
                             let mainInterface = null;
                             Object.keys(interfaces).forEach((key) => {
-                                if (/^enp/.test(key)) {
+                                if (/^en/.test(key)) {
                                     mainInterface = key;
                                 }
                             });
@@ -820,12 +906,83 @@
                                 networkChart.update();
                             }
                         }
-                        // Network Extended (netgr2)
+
+                        // Network Detailed (if visible)
                         const netDetailView = document.getElementById("network-detail-view");
-                        if (netDetailView && netDetailView.style.display !== "none") {
-                            updateNetworkExtended(data);
+                        if (
+                            netDetailView &&
+                            netDetailView.style.display !== "none" &&
+                            data.network &&
+                            data.network.interfaces
+                        ) {
+                            let now = Date.now();
+                            if (now - lastDetailedNetworkUpdate > 5000) {
+                                let detailedInterfaces = {};
+                                for (let iface in data.network.interfaces) {
+                                    if (/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
+                                        detailedInterfaces[iface] = data.network.interfaces[iface];
+                                    }
+                                }
+                                const colorPalette = [
+                                    "rgba(255, 99, 132, 1)",
+                                    "rgba(54, 162, 235, 1)",
+                                    "rgba(255, 206, 86, 1)",
+                                    "rgba(75, 192, 192, 1)",
+                                    "rgba(153, 102, 255, 1)",
+                                    "rgba(255, 159, 64, 1)",
+                                ];
+                                let inputDatasets = [];
+                                let outputDatasets = [];
+                                let dockerContainers = data.docker || [];
+                                let dockerIndex = 0;
+
+                                for (let iface in detailedInterfaces) {
+                                    const ifaceData = detailedInterfaces[iface];
+                                    let label = iface;
+
+                                    // For interfaces starting with "veth", try to map them to a container name if possible:
+                                    if (/^veth/.test(iface)) {
+                                        if (dockerIndex < dockerContainers.length) {
+                                            label = dockerContainers[dockerIndex].name;
+                                            dockerIndex++;
+                                        } else {
+                                            continue; // Skip veth interfaces without a container name mapping.
+                                        }
+                                    } else if (/^br-/.test(iface)) {
+                                        // For "br-" interfaces, assign a docker name if available but do not hide if not.
+                                        if (dockerIndex < dockerContainers.length) {
+                                            label = dockerContainers[dockerIndex].name;
+                                            dockerIndex++;
+                                        }
+                                    }
+
+                                    const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
+                                    const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
+                                    let color = colorPalette[inputDatasets.length % colorPalette.length];
+
+                                    inputDatasets.push({
+                                        label: label,
+                                        data: inputPoints,
+                                        borderColor: color,
+                                        tension: 0.4,
+                                        fill: false,
+                                        borderWidth: 2,
+                                    });
+                                    outputDatasets.push({
+                                        label: label,
+                                        data: outputPoints,
+                                        borderColor: color,
+                                        tension: 0.4,
+                                        fill: false,
+                                        borderWidth: 2,
+                                    });
+                                }
+                                updateDetailedNetworkCharts(inputDatasets, outputDatasets);
+                                lastDetailedNetworkUpdate = now;
+                            }
                         }
-                        // Docker Containers Table
+
+                        // Docker Containers Table – Status indicator logic.
                         const dockerDataEl = document.getElementById("docker-data");
                         dockerDataEl.innerHTML = (data.docker || [])
                             .map((container) => {
@@ -834,8 +991,10 @@
                                     statusColorClass = "status-blue";
                                 } else if (container.status.toLowerCase().includes("running")) {
                                     statusColorClass = "status-green";
-                                } else if (container.status.toLowerCase().includes("starting") ||
-                                           container.status.toLowerCase().includes("created")) {
+                                } else if (
+                                    container.status.toLowerCase().includes("starting") ||
+                                    container.status.toLowerCase().includes("created")
+                                ) {
                                     statusColorClass = "status-yellow";
                                 } else {
                                     statusColorClass = "status-red";
@@ -845,15 +1004,21 @@
                                             <td>${container.name}</td>
                                             <td>${Math.floor(container.uptime / 3600)}h ${Math.floor((container.uptime % 3600) / 60)}m</td>
                                             <td>${container.image}</td>
-                                            <td>${!container.up_to_date ? `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>` : ""}</td>
+                                            <td>${
+                                                !container.up_to_date
+                                                    ? `<button class="update-btn" onclick="updateContainer('${container.name}')">Update</button>`
+                                                    : ""
+                                            }</td>
                                         </tr>`;
                             })
                             .join("");
                     })
                     .catch((err) => console.error("Error fetching stats:", err));
             }
+
             setInterval(updateStats, 500);
             updateStats();
+
             const modeToggle = document.getElementById("modeToggle");
             modeToggle.addEventListener("click", () => {
                 document.body.classList.toggle("light-mode");
