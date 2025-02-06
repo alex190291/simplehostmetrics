@@ -17,7 +17,7 @@ The app will listen on Port 5000 (can be changed in the last line of app.py)
 I made a lightweight Docker Image based on Alpine Linux. To run it symply run:
 
 ```
-docker run -d --name simplemetrics --hostname simplemetrics -p 5000:5000 -v /proc:/proc -v /var/run/docker.sock:/var/run/docker.sock:ro attax/simplemetrics:latest python /app/app.py
+docker run -d --name simplemetrics --hostname simplemetrics --net host -v /proc:/proc -v /var/run/docker.sock:/var/run/docker.sock attax/simplemetrics:latest /init.sh
 ```
 ## Pictures
 ![image](https://github.com/user-attachments/assets/f9fd9a6d-5ffe-40d4-8f63-665517d3bf67)

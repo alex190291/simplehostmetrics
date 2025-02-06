@@ -293,7 +293,8 @@
                                 <span class="color-box used"></span>Used (GB)
                             </div>
                             <div class="color-label">
-                                <span class="color-box cached"></span>Cached (GB)
+                                <span class="color-box cached"></span>Cached
+                                (GB)
                             </div>
                         </div>
                         <div class="chart-container">
@@ -715,10 +716,17 @@
 
             // To reduce jump-to-top on updates, we’ll store and restore scroll position
             // after re-creating the net detail charts.
-            function updateDetailedNetworkCharts(inputDatasets, outputDatasets) {
+            function updateDetailedNetworkCharts(
+                inputDatasets,
+                outputDatasets,
+            ) {
                 const scrollPos = window.scrollY;
-                const inputContainer = document.getElementById("networkDetailInputCharts");
-                const outputContainer = document.getElementById("networkDetailOutputCharts");
+                const inputContainer = document.getElementById(
+                    "networkDetailInputCharts",
+                );
+                const outputContainer = document.getElementById(
+                    "networkDetailOutputCharts",
+                );
 
                 // Clear existing detail charts:
                 inputContainer.innerHTML = "";
@@ -816,70 +824,109 @@
                         };
                         // CPU Basic
                         cpuOverlay.textContent = Math.round(system.cpu) + "%";
-                        cpuChart.data.labels = system.cpu_history.usage.map(() => "");
-                        cpuChart.data.datasets[0].data = system.cpu_history.usage;
+                        cpuChart.data.labels = system.cpu_history.usage.map(
+                            () => "",
+                        );
+                        cpuChart.data.datasets[0].data =
+                            system.cpu_history.usage;
                         cpuChart.update();
 
-                        if (system.cpu_details && system.cpu_details.history24h) {
-                            const cpuDetailLabels = system.cpu_details.history24h.map(entry => entry.time);
-                            const cpuDetailData = system.cpu_details.history24h.map(entry => entry.usage);
+                        if (
+                            system.cpu_details &&
+                            system.cpu_details.history24h
+                        ) {
+                            const cpuDetailLabels =
+                                system.cpu_details.history24h.map(
+                                    (entry) => entry.time,
+                                );
+                            const cpuDetailData =
+                                system.cpu_details.history24h.map(
+                                    (entry) => entry.usage,
+                                );
                             cpuDetailChart.data.labels = cpuDetailLabels;
-                            cpuDetailChart.data.datasets[0].data = cpuDetailData;
+                            cpuDetailChart.data.datasets[0].data =
+                                cpuDetailData;
                             cpuDetailChart.update();
                         }
 
                         // Memory Basic – in GB; set y-axis max to total memory.
                         if (system.memory_history) {
-                            memoryBasicChart.data.labels = system.memory_history.time;
-                            memoryBasicChart.data.datasets[0].data = system.memory_history.free;
-                            memoryBasicChart.data.datasets[1].data = system.memory_history.used;
-                            memoryBasicChart.data.datasets[2].data = system.memory_history.cached;
+                            memoryBasicChart.data.labels =
+                                system.memory_history.time;
+                            memoryBasicChart.data.datasets[0].data =
+                                system.memory_history.free;
+                            memoryBasicChart.data.datasets[1].data =
+                                system.memory_history.used;
+                            memoryBasicChart.data.datasets[2].data =
+                                system.memory_history.cached;
                             if (system.memory.total) {
-                                memoryBasicChart.options.scales.y.max = system.memory.total;
+                                memoryBasicChart.options.scales.y.max =
+                                    system.memory.total;
                             }
                             memoryBasicChart.update();
                         }
-                        memoryOverlay.textContent = system.memory.used.toFixed(2);
+                        memoryOverlay.textContent =
+                            system.memory.used.toFixed(2);
 
                         // Memory Extended (if visible)
-                        const memDetailView = document.getElementById("memory-detail-view");
+                        const memDetailView =
+                            document.getElementById("memory-detail-view");
                         if (
                             memDetailView &&
                             memDetailView.style.display !== "none" &&
                             system.memory_details &&
                             system.memory_details.history24h
                         ) {
-                            const memDetailLabels = system.memory_details.history24h.map(entry => entry.time);
-                            const memDetailData = system.memory_details.history24h.map(entry => entry.usage);
+                            const memDetailLabels =
+                                system.memory_details.history24h.map(
+                                    (entry) => entry.time,
+                                );
+                            const memDetailData =
+                                system.memory_details.history24h.map(
+                                    (entry) => entry.usage,
+                                );
                             memoryDetailChart.data.labels = memDetailLabels;
-                            memoryDetailChart.data.datasets[0].data = memDetailData;
+                            memoryDetailChart.data.datasets[0].data =
+                                memDetailData;
                             memoryDetailChart.update();
                         }
 
                         // Disk Basic – in GiB; set y-axis max to total disk capacity.
                         if (system.disk_history_basic) {
-                            diskBasicChart.data.labels = system.disk_history_basic.time;
-                            diskBasicChart.data.datasets[0].data = system.disk_history_basic.used;
-                            diskBasicChart.data.datasets[1].data = system.disk_history_basic.free;
+                            diskBasicChart.data.labels =
+                                system.disk_history_basic.time;
+                            diskBasicChart.data.datasets[0].data =
+                                system.disk_history_basic.used;
+                            diskBasicChart.data.datasets[1].data =
+                                system.disk_history_basic.free;
                             if (system.disk.total) {
-                                diskBasicChart.options.scales.y.max = system.disk.total;
+                                diskBasicChart.options.scales.y.max =
+                                    system.disk.total;
                             }
                             diskBasicChart.update();
                         }
                         diskOverlay.textContent = system.disk.used.toFixed(2);
 
                         // Disk Extended (if visible)
-                        const diskDetailView = document.getElementById("disk-detail-view");
+                        const diskDetailView =
+                            document.getElementById("disk-detail-view");
                         if (
                             diskDetailView &&
                             diskDetailView.style.display !== "none" &&
                             system.disk_details &&
                             system.disk_details.history
                         ) {
-                            const diskDetailLabels = system.disk_details.history.map(entry => entry.time);
-                            const diskDetailData = system.disk_details.history.map(entry => entry.used);
+                            const diskDetailLabels =
+                                system.disk_details.history.map(
+                                    (entry) => entry.time,
+                                );
+                            const diskDetailData =
+                                system.disk_details.history.map(
+                                    (entry) => entry.used,
+                                );
                             diskHistoryChart.data.labels = diskDetailLabels;
-                            diskHistoryChart.data.datasets[0].data = diskDetailData;
+                            diskHistoryChart.data.datasets[0].data =
+                                diskDetailData;
                             diskHistoryChart.update();
                         }
 
@@ -888,18 +935,28 @@
                             const interfaces = data.network.interfaces;
                             let mainInterface = null;
                             Object.keys(interfaces).forEach((key) => {
-                                if (/^e/.test(key)) {
+                                if (/^e*/.test(key)) {
                                     mainInterface = key;
                                 }
                             });
                             if (!mainInterface) {
-                                mainInterface = Object.keys(interfaces)[0] || null;
+                                mainInterface =
+                                    Object.keys(interfaces)[0] || null;
                             }
-                            if (mainInterface && interfaces[mainInterface].length > 0) {
+                            if (
+                                mainInterface &&
+                                interfaces[mainInterface].length > 0
+                            ) {
                                 const ifaceData = interfaces[mainInterface];
-                                const labels = ifaceData.map(entry => entry.time);
-                                const inputData = ifaceData.map(entry => entry.input);
-                                const outputData = ifaceData.map(entry => entry.output);
+                                const labels = ifaceData.map(
+                                    (entry) => entry.time,
+                                );
+                                const inputData = ifaceData.map(
+                                    (entry) => entry.input,
+                                );
+                                const outputData = ifaceData.map(
+                                    (entry) => entry.output,
+                                );
                                 networkChart.data.labels = labels;
                                 networkChart.data.datasets[0].data = inputData;
                                 networkChart.data.datasets[1].data = outputData;
@@ -908,7 +965,9 @@
                         }
 
                         // Network Detailed (if visible)
-                        const netDetailView = document.getElementById("network-detail-view");
+                        const netDetailView = document.getElementById(
+                            "network-detail-view",
+                        );
                         if (
                             netDetailView &&
                             netDetailView.style.display !== "none" &&
@@ -919,8 +978,13 @@
                             if (now - lastDetailedNetworkUpdate > 5000) {
                                 let detailedInterfaces = {};
                                 for (let iface in data.network.interfaces) {
-                                    if (/^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(iface)) {
-                                        detailedInterfaces[iface] = data.network.interfaces[iface];
+                                    if (
+                                        /^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(
+                                            iface,
+                                        )
+                                    ) {
+                                        detailedInterfaces[iface] =
+                                            data.network.interfaces[iface];
                                     }
                                 }
                                 const colorPalette = [
@@ -942,23 +1006,43 @@
 
                                     // For interfaces starting with "veth", try to map them to a container name if possible:
                                     if (/^veth/.test(iface)) {
-                                        if (dockerIndex < dockerContainers.length) {
-                                            label = dockerContainers[dockerIndex].name;
+                                        if (
+                                            dockerIndex <
+                                            dockerContainers.length
+                                        ) {
+                                            label =
+                                                dockerContainers[dockerIndex]
+                                                    .name;
                                             dockerIndex++;
                                         } else {
                                             continue; // Skip veth interfaces without a container name mapping.
                                         }
                                     } else if (/^br-/.test(iface)) {
                                         // For "br-" interfaces, assign a docker name if available but do not hide if not.
-                                        if (dockerIndex < dockerContainers.length) {
-                                            label = dockerContainers[dockerIndex].name;
+                                        if (
+                                            dockerIndex <
+                                            dockerContainers.length
+                                        ) {
+                                            label =
+                                                dockerContainers[dockerIndex]
+                                                    .name;
                                             dockerIndex++;
                                         }
                                     }
 
-                                    const inputPoints = ifaceData.map(e => ({ x: e.time, y: e.input }));
-                                    const outputPoints = ifaceData.map(e => ({ x: e.time, y: e.output }));
-                                    let color = colorPalette[inputDatasets.length % colorPalette.length];
+                                    const inputPoints = ifaceData.map((e) => ({
+                                        x: e.time,
+                                        y: e.input,
+                                    }));
+                                    const outputPoints = ifaceData.map((e) => ({
+                                        x: e.time,
+                                        y: e.output,
+                                    }));
+                                    let color =
+                                        colorPalette[
+                                            inputDatasets.length %
+                                                colorPalette.length
+                                        ];
 
                                     inputDatasets.push({
                                         label: label,
@@ -977,23 +1061,35 @@
                                         borderWidth: 2,
                                     });
                                 }
-                                updateDetailedNetworkCharts(inputDatasets, outputDatasets);
+                                updateDetailedNetworkCharts(
+                                    inputDatasets,
+                                    outputDatasets,
+                                );
                                 lastDetailedNetworkUpdate = now;
                             }
                         }
 
                         // Docker Containers Table – Status indicator logic.
-                        const dockerDataEl = document.getElementById("docker-data");
+                        const dockerDataEl =
+                            document.getElementById("docker-data");
                         dockerDataEl.innerHTML = (data.docker || [])
                             .map((container) => {
                                 let statusColorClass;
                                 if (!container.up_to_date) {
                                     statusColorClass = "status-blue";
-                                } else if (container.status.toLowerCase().includes("running")) {
+                                } else if (
+                                    container.status
+                                        .toLowerCase()
+                                        .includes("running")
+                                ) {
                                     statusColorClass = "status-green";
                                 } else if (
-                                    container.status.toLowerCase().includes("starting") ||
-                                    container.status.toLowerCase().includes("created")
+                                    container.status
+                                        .toLowerCase()
+                                        .includes("starting") ||
+                                    container.status
+                                        .toLowerCase()
+                                        .includes("created")
                                 ) {
                                     statusColorClass = "status-yellow";
                                 } else {
@@ -1013,7 +1109,9 @@
                             })
                             .join("");
                     })
-                    .catch((err) => console.error("Error fetching stats:", err));
+                    .catch((err) =>
+                        console.error("Error fetching stats:", err),
+                    );
             }
 
             setInterval(updateStats, 500);
