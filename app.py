@@ -5,12 +5,100 @@ from datetime import datetime
 import time
 import threading
 import logging
+import sqlite3
 
 # Uncomment for debugging:
 # logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 client = docker.from_env()
+
+# --- Database helper functions ---
+
+def get_db_connection():
+    # Opens a new SQLite connection. Using check_same_thread=False so each thread may use its own connection.
+    conn = sqlite3.connect("stats.db", check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def initialize_database():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS cpu_history (timestamp REAL, usage REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS cpu_history_24h (timestamp REAL, usage REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS memory_history (timestamp REAL, free REAL, used REAL, cached REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS memory_history_24h (timestamp REAL, usage REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_basic (timestamp REAL, total REAL, used REAL, free REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_details (timestamp REAL, used REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
+    conn.commit()
+    conn.close()
+
+def load_history():
+    """
+    Load previously stored history data from the SQLite database into the global in-memory arrays.
+    For basic histories only the last MAX_HISTORY entries are loaded.
+    """
+    global cpu_history, memory_history_basic, disk_history_basic, cpu_history_24h, memory_history_24h, disk_history, network_history
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # CPU basic history – load last MAX_HISTORY entries and format time as HH:MM:SS.
+    cursor.execute("SELECT timestamp, usage FROM cpu_history ORDER BY timestamp DESC LIMIT ?", (MAX_HISTORY,))
+    rows = cursor.fetchall()[::-1]
+    cpu_history = {
+        'time': [datetime.fromtimestamp(row['timestamp']).strftime('%H:%M:%S') for row in rows],
+        'usage': [row['usage'] for row in rows]
+    }
+    # Memory basic history
+    cursor.execute("SELECT timestamp, free, used, cached FROM memory_history ORDER BY timestamp DESC LIMIT ?", (MAX_HISTORY,))
+    rows = cursor.fetchall()[::-1]
+    memory_history_basic = {
+        'time': [datetime.fromtimestamp(row['timestamp']).strftime('%H:%M:%S') for row in rows],
+        'free': [row['free'] for row in rows],
+        'used': [row['used'] for row in rows],
+        'cached': [row['cached'] for row in rows]
+    }
+    # Disk basic history
+    cursor.execute("SELECT timestamp, total, used, free FROM disk_history_basic ORDER BY timestamp DESC LIMIT ?", (MAX_HISTORY,))
+    rows = cursor.fetchall()[::-1]
+    disk_history_basic = {
+        'time': [datetime.fromtimestamp(row['timestamp']).strftime('%H:%M:%S') for row in rows],
+        'total': [row['total'] for row in rows],
+        'used': [row['used'] for row in rows],
+        'free': [row['free'] for row in rows]
+    }
+    # CPU 24h history – load all entries from the past 24 hours.
+    twenty_four_hours_ago = time.time() - 24 * 3600
+    cursor.execute("SELECT timestamp, usage FROM cpu_history_24h WHERE timestamp >= ? ORDER BY timestamp ASC", (twenty_four_hours_ago,))
+    rows = cursor.fetchall()
+    cpu_history_24h = [{'time': row['timestamp'], 'usage': row['usage']} for row in rows]
+    # Memory 24h history
+    cursor.execute("SELECT timestamp, usage FROM memory_history_24h WHERE timestamp >= ? ORDER BY timestamp ASC", (twenty_four_hours_ago,))
+    rows = cursor.fetchall()
+    memory_history_24h = [{'time': row['timestamp'], 'usage': row['usage']} for row in rows]
+    # Disk details history – load entries from the past 7 days.
+    seven_days_ago = time.time() - 7 * 24 * 3600
+    cursor.execute("SELECT timestamp, used FROM disk_history_details WHERE timestamp >= ? ORDER BY timestamp ASC", (seven_days_ago,))
+    rows = cursor.fetchall()
+    disk_history = [{'time': row['timestamp'], 'used': row['used']} for row in rows]
+    # Network history – group entries by interface and trim to last MAX_HISTORY per interface.
+    cursor.execute("SELECT interface, timestamp, input, output FROM net_history ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    network_history = {}
+    for row in rows:
+        iface = row['interface']
+        if iface not in network_history:
+            network_history[iface] = []
+        network_history[iface].append({
+            'time': datetime.fromtimestamp(row['timestamp']).strftime('%H:%M:%S'),
+            'input': row['input'],
+            'output': row['output']
+        })
+        if len(network_history[iface]) > MAX_HISTORY:
+            network_history[iface] = network_history[iface][-MAX_HISTORY:]
+    conn.close()
+
+# --- Global Variables and In-Memory Caches ---
 
 # Initialize cached_stats with default values so the dashboard isn’t empty.
 cached_stats = {
@@ -44,15 +132,13 @@ cached_stats = {
 }
 
 MAX_HISTORY = 30
-cpu_history = {'time': [], 'usage': []}  # Short-term CPU history
-memory_history_basic = {'time': [], 'free': [], 'used': [], 'cached': []}  # in GB
+cpu_history = {'time': [], 'usage': []}         # Short-term CPU history
+memory_history_basic = {'time': [], 'free': [], 'used': [], 'cached': []}  # Memory basic history (GB)
 cpu_history_24h = []         # 24hr CPU history
-# For extended memory view, record full used memory (in GB)
-memory_history_24h = []      
-# Disk basic history (in GiB)
-disk_history_basic = {'time': [], 'total': [], 'used': [], 'free': []}
-# For extended disk view, record raw disk.used values (will be converted to GB)
-disk_history = []
+memory_history_24h = []      # 24hr Memory history (GB)
+disk_history_basic = {'time': [], 'total': [], 'used': [], 'free': []}       # Disk basic history (GiB)
+disk_history = []            # For extended disk view (raw used bytes)
+network_history = {}         # Per-interface network stats
 
 last_cpu_24h_update = 0
 last_memory_24h_update = 0
@@ -69,17 +155,22 @@ def get_memory_details():
     # Detailed memory info can be added here if needed.
     return {}
 
-def get_disk_details():
+def get_disk_details(db_cursor=None):
+    """
+    Retrieves disk details and updates the extended disk history.
+    If a database cursor is provided, a record is inserted into the disk_history_details table.
+    """
     disk = psutil.disk_usage('/')
     now = time.time()
     global disk_history
     disk_history.append({'time': now, 'used': disk.used})
     seven_days_ago = now - 7 * 24 * 3600
     disk_history[:] = [entry for entry in disk_history if entry['time'] >= seven_days_ago]
+    if db_cursor is not None:
+        db_cursor.execute("INSERT INTO disk_history_details (timestamp, used) VALUES (?, ?)", (now, disk.used))
     history = [
         {
             'time': datetime.fromtimestamp(entry['time']).strftime('%Y-%m-%d %H:%M:%S'),
-            # Convert used bytes to GB (2 decimal places)
             'used': round(entry['used'] / (1024 ** 3), 2)
         }
         for entry in disk_history
@@ -96,7 +187,6 @@ def get_disk_details():
 
 cached_heavy = {}
 last_heavy_update = 0
-last_disk_update = 0
 cached_disk_details = {}
 
 image_update_info = {}
@@ -113,24 +203,20 @@ def get_docker_info():
         except Exception:
             uptime = 0
 
-        # Determine the image to display and to use for update checks.
         if container.image.tags:
             display_image = container.image.tags[0]
             used_image = display_image
             up_to_date = image_update_info.get(container.name, True)
         elif "RepoDigests" in container.image.attrs and container.image.attrs["RepoDigests"]:
-            # Extract the repository part (before '@')
             repo_digest = container.image.attrs["RepoDigests"][0]
             repo_name = repo_digest.split("@")[0]
-            # For pulling, we append ":latest"
             used_image = repo_name + ":latest"
-            # For display, we show only the repository name.
             display_image = repo_name
             up_to_date = image_update_info.get(container.name, True)
         else:
             display_image = "untagged"
             used_image = "untagged"
-            up_to_date = False  # Force update available if no tag/digest available.
+            up_to_date = False
 
         containers.append({
             'name': container.name,
@@ -148,30 +234,37 @@ prev_net_time = None
 network_history = {}  # Per-interface network stats
 
 def update_stats_cache():
+    """
+    This function continuously gathers system statistics, updates in-memory caches,
+    and writes the tracked data into the SQLite database.
+    """
     global cached_stats, cached_heavy, last_heavy_update, last_disk_update, cached_disk_details
     global cpu_history, cpu_history_24h, last_cpu_24h_update, memory_history_24h, last_memory_24h_update
     global memory_history_basic, disk_history_basic, disk_history
     global prev_net_io, prev_net_time, network_history
-
+    conn = get_db_connection()
+    cursor = conn.cursor()
     while True:
         try:
             cpu_percent = psutil.cpu_percent()
             mem = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
-            
+            now = time.time()
             now_str = datetime.now().strftime('%H:%M:%S')
-            # Update CPU short history
+            # Update CPU short history (basic view)
             cpu_history['time'].append(now_str)
             cpu_history['usage'].append(cpu_percent)
             if len(cpu_history['time']) > MAX_HISTORY:
                 cpu_history['time'].pop(0)
                 cpu_history['usage'].pop(0)
-            
-            # Update Memory basic history in GB
+            cursor.execute("INSERT INTO cpu_history (timestamp, usage) VALUES (?, ?)", (now, cpu_percent))
+
+            # Update Memory basic history (in GB)
             total_mem_GB = mem.total / (1024 ** 3)
             free_GB = mem.free / (1024 ** 3)
-            cached_GB = getattr(mem, 'cached', 0) / (1024 ** 3)
-            used_no_cache_GB = (mem.used - getattr(mem, 'cached', 0)) / (1024 ** 3)
+            cached_val = getattr(mem, 'cached', 0)
+            cached_GB = cached_val / (1024 ** 3)
+            used_no_cache_GB = (mem.used - cached_val) / (1024 ** 3)
             memory_history_basic['time'].append(now_str)
             memory_history_basic['free'].append(round(free_GB, 2))
             memory_history_basic['used'].append(round(used_no_cache_GB, 2))
@@ -181,12 +274,16 @@ def update_stats_cache():
                 memory_history_basic['free'].pop(0)
                 memory_history_basic['used'].pop(0)
                 memory_history_basic['cached'].pop(0)
-            
-            # Update Disk basic history in GiB
+            cursor.execute(
+                "INSERT INTO memory_history (timestamp, free, used, cached) VALUES (?, ?, ?, ?)",
+                (now, round(free_GB, 2), round(used_no_cache_GB, 2), round(cached_GB, 2))
+            )
+
+            # Update Disk basic history (in GiB)
             total_disk_GB = round(disk.total / (1024 ** 3), 2)
             used_disk_GB = round(disk.used / (1024 ** 3), 2)
             free_disk_GB = round(disk.free / (1024 ** 3), 2)
-            disk_history_basic['time'].append(now_str)
+            disk_history_basic.setdefault('time', []).append(now_str)
             disk_history_basic.setdefault('total', []).append(total_disk_GB)
             disk_history_basic.setdefault('used', []).append(used_disk_GB)
             disk_history_basic.setdefault('free', []).append(free_disk_GB)
@@ -195,57 +292,60 @@ def update_stats_cache():
                 disk_history_basic['total'].pop(0)
                 disk_history_basic['used'].pop(0)
                 disk_history_basic['free'].pop(0)
-            
-            current_time = time.time()
-            if current_time - last_cpu_24h_update >= 10:
-                cpu_history_24h.append({'time': current_time, 'usage': cpu_percent})
-                twenty_four_hours_ago = current_time - 24 * 3600
+            cursor.execute(
+                "INSERT INTO disk_history_basic (timestamp, total, used, free) VALUES (?, ?, ?, ?)",
+                (now, total_disk_GB, used_disk_GB, free_disk_GB)
+            )
+
+            # Update CPU 24h history every 10 seconds
+            if now - last_cpu_24h_update >= 10:
+                cpu_history_24h.append({'time': now, 'usage': cpu_percent})
+                twenty_four_hours_ago = now - 24 * 3600
                 cpu_history_24h[:] = [entry for entry in cpu_history_24h if entry['time'] >= twenty_four_hours_ago]
-                last_cpu_24h_update = current_time
-            
-            if current_time - last_memory_24h_update >= 10:
-                memory_history_24h.append({'time': current_time, 'usage': round(mem.used / (1024 ** 3), 2)})
-                twenty_four_hours_ago = current_time - 24 * 3600
+                last_cpu_24h_update = now
+                cursor.execute("INSERT INTO cpu_history_24h (timestamp, usage) VALUES (?, ?)", (now, cpu_percent))
+
+            # Update Memory 24h history every 10 seconds
+            if now - last_memory_24h_update >= 10:
+                memory_usage_GB = round(mem.used / (1024 ** 3), 2)
+                memory_history_24h.append({'time': now, 'usage': memory_usage_GB})
+                twenty_four_hours_ago = now - 24 * 3600
                 memory_history_24h[:] = [entry for entry in memory_history_24h if entry['time'] >= twenty_four_hours_ago]
-                last_memory_24h_update = current_time
-            
-            if current_time - last_heavy_update >= 5:
-                heavy_cpu_details = get_cpu_details()
-                heavy_memory_details = get_memory_details()
-                heavy_docker = get_docker_info()
-                last_heavy_update = current_time
-            else:
-                heavy_cpu_details = cached_heavy.get('cpu_details', {})
-                heavy_memory_details = cached_heavy.get('memory_details', {})
-                heavy_docker = cached_heavy.get('docker', [])
-            
-            if current_time - last_disk_update >= 10:
-                cached_disk_details = get_disk_details()
-                last_disk_update = current_time
-            
+                last_memory_24h_update = now
+                cursor.execute("INSERT INTO memory_history_24h (timestamp, usage) VALUES (?, ?)", (now, memory_usage_GB))
+
+            # Update Disk details every 10 seconds (extended view)
+            if now - last_disk_update >= 10:
+                cached_disk_details = get_disk_details(cursor)
+                last_disk_update = now
+
+            # Format 24h histories for the extended CPU and Memory charts
             cpu_history_24h_formatted = [
                 {'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
                  'usage': entry['usage']}
                 for entry in cpu_history_24h
             ]
+            heavy_cpu_details = get_cpu_details()
             heavy_cpu_details['history24h'] = cpu_history_24h_formatted
-            
+
             memory_history_24h_formatted = [
                 {'time': datetime.fromtimestamp(entry['time']).strftime('%H:%M'),
                  'usage': entry['usage']}
                 for entry in memory_history_24h
             ]
+            heavy_memory_details = get_memory_details()
             heavy_memory_details['history24h'] = memory_history_24h_formatted
-            
+
             cached_heavy = {
                 'cpu_details': heavy_cpu_details,
                 'memory_details': heavy_memory_details,
-                'docker': heavy_docker,
+                'docker': get_docker_info(),
                 'disk_details': cached_disk_details
             }
-            
+
+            # Update network statistics
             current_net = psutil.net_io_counters(pernic=True)
-            net_current_time = current_time
+            net_current_time = now
             if prev_net_io is None:
                 prev_net_io = current_net
                 prev_net_time = net_current_time
@@ -269,9 +369,13 @@ def update_stats_cache():
                         })
                         if len(network_history[iface]) > MAX_HISTORY:
                             network_history[iface].pop(0)
+                        cursor.execute(
+                            "INSERT INTO net_history (interface, timestamp, input, output) VALUES (?, ?, ?, ?)",
+                            (iface, net_current_time, input_speed, output_speed)
+                        )
                 prev_net_io = current_net
                 prev_net_time = net_current_time
-            
+
             cached_stats = {
                 'system': {
                     'cpu': cpu_percent,
@@ -280,13 +384,13 @@ def update_stats_cache():
                         'total': round(mem.total / (1024 ** 3), 2),
                         'used': round(mem.used / (1024 ** 3), 2),
                         'free': round(mem.free / (1024 ** 3), 2),
-                        'cached': round(getattr(mem, 'cached', 0) / (1024 ** 3), 2)
+                        'cached': round(cached_GB, 2)
                     },
                     'disk': {
                         'percent': disk.percent,
-                        'total': round(disk.total / (1024 ** 3), 2),
-                        'used': round(disk.used / (1024 ** 3), 2),
-                        'free': round(disk.free / (1024 ** 3), 2)
+                        'total': total_disk_GB,
+                        'used': used_disk_GB,
+                        'free': free_disk_GB
                     },
                     'cpu_history': cpu_history,
                     'memory_history': memory_history_basic,
@@ -301,15 +405,14 @@ def update_stats_cache():
             logging.debug("Updated cached_stats: %s", cached_stats)
         except Exception as e:
             logging.error("Error updating cache: %s", e)
-        time.sleep(0.25);
-    # End while loop
+        conn.commit()
+        time.sleep(0.25)
 
 def check_image_updates():
     global image_update_info
     while True:
         try:
             for container in client.containers.list(all=True):
-                # Determine the image to pull.
                 if container.image.tags:
                     image_tag = container.image.tags[0]
                 else:
@@ -328,7 +431,6 @@ def check_image_updates():
                 image_update_info[container.name] = up_to_date
         except Exception as e:
             logging.error("Error checking image updates: %s", e)
-        # For testing purposes, check every 60 seconds.
         time.sleep(60)
 
 @app.route('/')
@@ -350,7 +452,6 @@ def update_container(container_name):
     try:
         config = container.attrs.get('Config', {})
         host_config = container.attrs.get('HostConfig', {})
-        # Determine the image to use for update:
         if container.image.tags:
             image_tag = container.image.tags[0]
         else:
@@ -364,7 +465,12 @@ def update_container(container_name):
         cmd = config.get('Cmd')
         env = config.get('Env')
         ports = host_config.get('PortBindings')
-        volumes = list(config.get('Volumes', {}).keys()) if config.get('Volumes') else None
+        volumes_config = config.get('Volumes', {})
+        volumes = list(volumes_config.keys()) if volumes_config else None
+        if volumes:
+            volumes = [v for v in volumes if v not in ['/var/run/docker.sock', '/run/docker.sock']]
+            if len(volumes) == 0:
+                volumes = None
 
         try:
             container.stop(timeout=10)
@@ -393,6 +499,9 @@ def update_container(container_name):
         return jsonify({"status": "error", "message": f"Error updating container: {str(e)}"}), 500
 
 if __name__ == '__main__':
+    # Initialize the database and load stored history before starting background threads.
+    initialize_database()
+    load_history()
     threading.Thread(target=update_stats_cache, daemon=True).start()
     threading.Thread(target=check_image_updates, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=True)
