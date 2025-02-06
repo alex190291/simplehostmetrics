@@ -112,12 +112,31 @@ def get_docker_info():
             uptime = int(time.time() - dt_created.timestamp())
         except Exception:
             uptime = 0
-        image_tag = container.image.tags[0] if container.image.tags else 'N/A'
-        up_to_date = image_update_info.get(container.name, True)
+
+        # Determine the image to display and to use for update checks.
+        if container.image.tags:
+            display_image = container.image.tags[0]
+            used_image = display_image
+            up_to_date = image_update_info.get(container.name, True)
+        elif "RepoDigests" in container.image.attrs and container.image.attrs["RepoDigests"]:
+            # Extract the repository part (before '@')
+            repo_digest = container.image.attrs["RepoDigests"][0]
+            repo_name = repo_digest.split("@")[0]
+            # For pulling, we append ":latest"
+            used_image = repo_name + ":latest"
+            # For display, we show only the repository name.
+            display_image = repo_name
+            up_to_date = image_update_info.get(container.name, True)
+        else:
+            display_image = "untagged"
+            used_image = "untagged"
+            up_to_date = False  # Force update available if no tag/digest available.
+
         containers.append({
             'name': container.name,
             'status': container.status,
-            'image': image_tag,
+            'image': display_image,
+            'used_image': used_image,
             'created': container.attrs.get('Created', ''),
             'uptime': uptime,
             'up_to_date': up_to_date
@@ -185,7 +204,6 @@ def update_stats_cache():
                 last_cpu_24h_update = current_time
             
             if current_time - last_memory_24h_update >= 10:
-                # For extended view, record full used memory in GB
                 memory_history_24h.append({'time': current_time, 'usage': round(mem.used / (1024 ** 3), 2)})
                 twenty_four_hours_ago = current_time - 24 * 3600
                 memory_history_24h[:] = [entry for entry in memory_history_24h if entry['time'] >= twenty_four_hours_ago]
@@ -284,16 +302,23 @@ def update_stats_cache():
         except Exception as e:
             logging.error("Error updating cache: %s", e)
         time.sleep(0.25);
-
+    # End while loop
 
 def check_image_updates():
     global image_update_info
     while True:
         try:
             for container in client.containers.list(all=True):
-                if not container.image.tags:
-                    continue
-                image_tag = container.image.tags[0]
+                # Determine the image to pull.
+                if container.image.tags:
+                    image_tag = container.image.tags[0]
+                else:
+                    repo_digest = container.image.attrs.get("RepoDigests", [])
+                    if repo_digest:
+                        repo_name = repo_digest[0].split("@")[0]
+                        image_tag = repo_name + ":latest"
+                    else:
+                        continue
                 try:
                     latest_image = client.images.pull(image_tag)
                 except Exception as e:
@@ -303,7 +328,8 @@ def check_image_updates():
                 image_update_info[container.name] = up_to_date
         except Exception as e:
             logging.error("Error checking image updates: %s", e)
-        time.sleep(8 * 3600)
+        # For testing purposes, check every 60 seconds.
+        time.sleep(60)
 
 @app.route('/')
 def index():
@@ -324,9 +350,16 @@ def update_container(container_name):
     try:
         config = container.attrs.get('Config', {})
         host_config = container.attrs.get('HostConfig', {})
-        image_tag = container.image.tags[0] if container.image.tags else None
-        if image_tag is None:
-            return jsonify({"status": "error", "message": "Container has no image tag"}), 400
+        # Determine the image to use for update:
+        if container.image.tags:
+            image_tag = container.image.tags[0]
+        else:
+            repo_digest = container.image.attrs.get("RepoDigests", [])
+            if repo_digest:
+                repo_name = repo_digest[0].split("@")[0]
+                image_tag = repo_name + ":latest"
+            else:
+                return jsonify({"status": "error", "message": "Container has no image tag or digest"}), 400
 
         cmd = config.get('Cmd')
         env = config.get('Env')

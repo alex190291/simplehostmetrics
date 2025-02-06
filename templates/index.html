@@ -124,7 +124,7 @@
     .color-label {
       display: flex;
       align-items: center;
-      font-size: 0.8rem;  /* lowered from 0.9rem */
+      font-size: 0.8rem;
       margin-bottom: 4px;
     }
     .color-box {
@@ -139,19 +139,7 @@
     .color-box.free { background-color: #1e8449; }
     .color-box.used { background-color: #922b21; }
     .color-box.cached { background-color: #21618c; }
-    /* Disk legend: total (gray), used (dark red), free (dark green) */
-    .color-box.total { background-color: #7f8c8d; }
-    /* New CSS for docker status indicator */
-    .status-indicator {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    .status-green { background-color: #1e8449; }
-    .status-yellow { background-color: #f1c40f; }
-    .status-blue { background-color: #21618c; }
-    .status-red { background-color: #c0392b; }
+    /* Disk legend: used (dark red), free (dark green) */
     .detail-view .graph-label {
       font-size: 1rem;
       font-weight: 600;
@@ -205,6 +193,17 @@
       margin-bottom: 0.5rem;
       text-align: center;
     }
+    /* Docker status indicator styles */
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-green { background-color: #1e8449; }
+    .status-yellow { background-color: #f1c40f; }
+    .status-blue { background-color: #21618c; }
+    .status-red { background-color: #c0392b; }
   </style>
 </head>
 <body>
@@ -302,6 +301,14 @@
   </div>
   <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
   <script>
+    // Function to trigger container update via POST.
+    function updateContainer(containerName) {
+      fetch(`/update/${containerName}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => { alert(data.message); })
+        .catch(err => { alert("Error updating container: " + err); });
+    }
+
     // Global variables for detailed network charts.
     let networkDetailInputCharts = [];
     let networkDetailOutputCharts = [];
@@ -409,7 +416,7 @@
           {
             label: 'Free',
             data: [],
-            borderColor: '#1e8449', // dark green
+            borderColor: '#1e8449',
             tension: 0.4,
             fill: false,
             borderWidth: 2
@@ -417,7 +424,7 @@
           {
             label: 'Used',
             data: [],
-            borderColor: '#922b21', // dark red
+            borderColor: '#922b21',
             tension: 0.4,
             fill: false,
             borderWidth: 2
@@ -425,7 +432,7 @@
           {
             label: 'Cached',
             data: [],
-            borderColor: '#21618c', // dark blue
+            borderColor: '#21618c',
             tension: 0.4,
             fill: false,
             borderWidth: 2
@@ -479,7 +486,7 @@
           {
             label: 'Used',
             data: [],
-            borderColor: '#922b21', // dark red
+            borderColor: '#922b21',
             tension: 0.4,
             fill: false,
             borderWidth: 2
@@ -487,7 +494,7 @@
           {
             label: 'Free',
             data: [],
-            borderColor: '#1e8449', // dark green
+            borderColor: '#1e8449',
             tension: 0.4,
             fill: false,
             borderWidth: 2
@@ -666,7 +673,7 @@
             memoryBasicChart.update();
           }
           memoryOverlay.textContent = system.memory.used.toFixed(2);
-          // Memory Extended (update only if visible)
+          // Memory Extended (if visible)
           const memDetailView = document.getElementById('memory-detail-view');
           if(memDetailView && memDetailView.style.display !== 'none' &&
              system.memory_details && system.memory_details.history24h) {
@@ -687,7 +694,7 @@
             diskBasicChart.update();
           }
           diskOverlay.textContent = system.disk.used.toFixed(2);
-          // Disk Extended (update only if visible)
+          // Disk Extended (if visible)
           const diskDetailView = document.getElementById('disk-detail-view');
           if(diskDetailView && diskDetailView.style.display !== 'none' &&
              system.disk_details && system.disk_details.history) {
@@ -716,7 +723,7 @@
               networkChart.update();
             }
           }
-          // Network Detailed (update only if visible)
+          // Network Detailed (if visible)
           const netDetailView = document.getElementById('network-detail-view');
           if(netDetailView && netDetailView.style.display !== 'none' && data.network && data.network.interfaces) {
             let now = Date.now();
@@ -772,10 +779,11 @@
               lastDetailedNetworkUpdate = now;
             }
           }
-          // Docker Containers Table – New status indicator logic and no "up-to-date" column.
+          // Docker Containers Table – Status indicator logic.
           const dockerDataEl = document.getElementById('docker-data');
           dockerDataEl.innerHTML = (data.docker || []).map(container => {
             let statusColorClass;
+            // If container.up_to_date is False then a new image is available (blue).
             if (!container.up_to_date) {
               statusColorClass = "status-blue";
             } else if (container.status.toLowerCase().includes("running")) {
