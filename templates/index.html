@@ -883,12 +883,12 @@
                             diskHistoryChart.update();
                         }
 
-                        // Network Aggregated – select interface with prefix "en" if available.
+                        // Network Aggregated – select interface with prefix "e" if available.
                         if (data.network && data.network.interfaces) {
                             const interfaces = data.network.interfaces;
                             let mainInterface = null;
                             Object.keys(interfaces).forEach((key) => {
-                                if (/^en/.test(key)) {
+                                if (/^e/.test(key)) {
                                     mainInterface = key;
                                 }
                             });
