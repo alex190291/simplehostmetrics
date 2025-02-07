@@ -6,6 +6,7 @@ import time
 import threading
 import logging
 import sqlite3
+import subprocess
 
 # Uncomment for debugging in the console:
 # logging.basicConfig(level=logging.DEBUG)
@@ -28,6 +29,11 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_basic (timestamp REAL, total REAL, used REAL, free REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_details (timestamp REAL, used REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
+    # Updated network_settings table with display_name field:
+    cursor.execute("CREATE TABLE IF NOT EXISTS network_settings (interface TEXT PRIMARY KEY, display_order INTEGER, visible INTEGER, display_name TEXT)")
+    # New tables for veth mappings:
+    cursor.execute("CREATE TABLE IF NOT EXISTS docker_veth_mapping (veth_interface TEXT PRIMARY KEY, container_name TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS veth_network_names (veth_interface TEXT PRIMARY KEY, docker_network_name TEXT)")
     conn.commit()
     conn.close()
 
@@ -828,6 +834,114 @@ def get_all_status():
         'checked': check_all_status['checked'],
         'total': check_all_status['total']
     })
+
+# --- New endpoints for network settings and veth mappings ---
+
+@app.route('/network_settings', methods=['GET'])
+def get_network_settings():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT interface, display_order, visible, display_name FROM network_settings ORDER BY display_order ASC")
+    rows = cursor.fetchall()
+    settings = []
+    for row in rows:
+        settings.append({
+            "interface": row["interface"],
+            "display_order": row["display_order"],
+            "visible": bool(row["visible"]),
+            "display_name": row["display_name"] if row["display_name"] is not None else row["interface"]
+        })
+    conn.close()
+    return jsonify(settings)
+
+@app.route('/network_settings', methods=['POST'])
+def update_network_settings():
+    settings = request.json  # expecting a list of settings
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM network_settings")
+    for s in settings:
+        iface = s.get("interface")
+        display_order = s.get("display_order", 0)
+        visible = 1 if s.get("visible") else 0
+        display_name = s.get("display_name", iface)
+        cursor.execute("INSERT INTO network_settings (interface, display_order, visible, display_name) VALUES (?, ?, ?, ?)",
+                       (iface, display_order, visible, display_name))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+def update_docker_veth_mapping():
+    """
+    Checks which docker containers are connected to which veth interfaces on the host.
+    Uses a simple heuristic: it iterates over host interfaces (using psutil) filtering those starting with 'veth'
+    and checks if the container id (first 12 chars) appears in the interface name.
+    Saves the mapping in the docker_veth_mapping table.
+    """
+    import psutil
+    interfaces = psutil.net_if_addrs().keys()
+    veth_ifaces = [iface for iface in interfaces if iface.startswith("veth")]
+    mapping = {}
+    for container in client.containers.list(all=True):
+        for iface in veth_ifaces:
+            if container.id[:12] in iface:
+                mapping[iface] = container.name
+                break
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM docker_veth_mapping")
+    for iface, cname in mapping.items():
+        cursor.execute("INSERT INTO docker_veth_mapping (veth_interface, container_name) VALUES (?, ?)", (iface, cname))
+    conn.commit()
+    conn.close()
+
+def update_veth_network_names():
+    """
+    For each veth interface found in docker_veth_mapping, retrieves the docker network name (the key from the container's Networks dict)
+    from the container's network settings. Saves this information in the veth_network_names table.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT veth_interface, container_name FROM docker_veth_mapping")
+    rows = cursor.fetchall()
+    mapping = {}
+    for row in rows:
+        veth_iface = row["veth_interface"]
+        container_name = row["container_name"]
+        try:
+            container = client.containers.get(container_name)
+            networks = container.attrs.get("NetworkSettings", {}).get("Networks", {})
+            docker_net_name = next(iter(networks.keys())) if networks else ""
+            mapping[veth_iface] = docker_net_name
+        except Exception as e:
+            mapping[veth_iface] = ""
+    cursor.execute("DELETE FROM veth_network_names")
+    for iface, netname in mapping.items():
+        cursor.execute("INSERT INTO veth_network_names (veth_interface, docker_network_name) VALUES (?, ?)", (iface, netname))
+    conn.commit()
+    conn.close()
+
+@app.route('/update_veth_info', methods=['POST'])
+def update_veth_info():
+    update_docker_veth_mapping()
+    update_veth_network_names()
+    return jsonify({"status": "success"})
+
+@app.route('/get_veth_info', methods=['GET'])
+def get_veth_info():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT d.veth_interface, d.container_name, v.docker_network_name FROM docker_veth_mapping d LEFT JOIN veth_network_names v ON d.veth_interface = v.veth_interface")
+    rows = cursor.fetchall()
+    mappings = []
+    for row in rows:
+        mappings.append({
+            "veth_interface": row["veth_interface"],
+            "container_name": row["container_name"],
+            "docker_network_name": row["docker_network_name"]
+        })
+    conn.close()
+    return jsonify(mappings)
 
 if __name__ == '__main__':
     initialize_database()

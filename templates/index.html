@@ -84,6 +84,10 @@
                 gap: 1.5rem;
                 margin-bottom: 2rem;
             }
+            /* Force full–width cards in the grid (for network and docker) */
+            .grid .full-width {
+                grid-column: 1 / -1;
+            }
             .card {
                 background: var(--glass);
                 backdrop-filter: blur(10px);
@@ -276,13 +280,46 @@
             .status-red {
                 background-color: #c0392b;
             }
+            /* Gear/settings button for network card */
+            .settings-btn {
+                background: none;
+                border: none;
+                color: var(--text);
+                font-size: 1.2rem;
+                cursor: pointer;
+                position: absolute;
+                top: 10px;
+                right: 10px;
+            }
+            /* Popup overlay and card for network settings */
+            .popup-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                backdrop-filter: blur(15px);
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            }
+            .popup-card {
+                background: rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(20px);
+                border-radius: 10px;
+                padding: 20px;
+                min-width: 300px;
+                color: var(--text);
+            }
         </style>
     </head>
     <body>
         <div class="hexagons" id="hexagon-container"></div>
         <div class="container">
             <div class="grid">
-                <!-- Memory -->
+                <!-- CPU -->
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">CPU</h2>
@@ -308,7 +345,7 @@
                     </div>
                 </div>
 
-                <!-- Memory -->
+                <!-- RAM -->
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">RAM</h2>
@@ -370,56 +407,90 @@
                         <canvas id="diskHistoryChart"></canvas>
                     </div>
                 </div>
-            </div>
 
-            <!-- Network -->
-            <div class="card">
-                <h2 class="card-title">Network Throughput</h2>
-                <div class="stat-container">
-                    <canvas id="networkChart"></canvas>
-                </div>
-                <div
-                    class="detail-view"
-                    id="network-detail-view"
-                    style="display: none"
-                >
-                    <div class="detail-label">Input Throughput</div>
-                    <div id="networkDetailInputCharts"></div>
-                    <div class="detail-label" style="margin-top: 1rem">
-                        Output Throughput
+                <!-- Network -->
+                <div class="card full-width">
+                    <h2 class="card-title">Network Throughput</h2>
+                    <button
+                        class="settings-btn"
+                        id="network-settings-btn"
+                        title="Network Settings"
+                    >
+                        ⚙
+                    </button>
+                    <div class="stat-container">
+                        <canvas id="networkChart"></canvas>
                     </div>
                     <div
-                        id="networkDetailOutputCharts"
-                        style="margin-top: 1rem"
-                    ></div>
+                        class="detail-view"
+                        id="network-detail-view"
+                        style="display: none"
+                    >
+                        <div class="detail-label">Input Throughput</div>
+                        <div id="networkDetailInputCharts"></div>
+                        <div class="detail-label" style="margin-top: 1rem">
+                            Output Throughput
+                        </div>
+                        <div
+                            id="networkDetailOutputCharts"
+                            style="margin-top: 1rem"
+                        ></div>
+                    </div>
+                </div>
+
+                <!-- Docker -->
+                <div class="card docker-card full-width">
+                    <h2 class="card-title">Docker Containers</h2>
+                    <button
+                        class="update-btn"
+                        id="checkAllBtn"
+                        style="margin-bottom: 1rem"
+                        onclick="checkAllUpdates()"
+                    >
+                        ↻ Check for updates
+                    </button>
+                    <div class="docker-container">
+                        <table class="docker-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Name</th>
+                                    <th>Uptime</th>
+                                    <th>Image</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="docker-data"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-
-            <!-- Docker -->
-            <div class="card docker-card">
-                <h2 class="card-title">Docker Containers</h2>
-                <!-- "Check all updates" button -->
-                <button
-                    class="update-btn"
-                    id="checkAllBtn"
-                    style="margin-bottom: 1rem"
-                    onclick="checkAllUpdates()"
-                >
-                    ↻ Check for updates
-                </button>
-                <div class="docker-container">
-                    <table class="docker-table">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Name</th>
-                                <th>Uptime</th>
-                                <th>Image</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="docker-data"></tbody>
-                    </table>
+        </div>
+        <!-- Popup for network settings -->
+        <div
+            id="network-settings-popup"
+            class="popup-overlay"
+            style="display: none"
+        >
+            <div class="popup-card">
+                <h3>Network Interface Settings</h3>
+                <form id="network-settings-form">
+                    <div id="network-settings-list">
+                        <!-- Dynamically populated list -->
+                    </div>
+                    <div style="margin-top: 10px; text-align: right">
+                        <button type="button" id="cancel-settings-btn">
+                            Cancel
+                        </button>
+                        <button type="submit" id="save-settings-btn">
+                            Save
+                        </button>
+                    </div>
+                </form>
+                <!-- New section for Docker Veth Mappings -->
+                <div id="veth-mappings-section" style="margin-top: 20px">
+                    <h4>Docker Veth Mappings</h4>
+                    <div id="veth-mappings-list"></div>
                 </div>
             </div>
         </div>
@@ -451,7 +522,6 @@
                                 return;
                             }
                             clearInterval(pollInt);
-
                             if (st.error) {
                                 setButtonColor(button, "red");
                                 button.innerHTML = "Update failed";
@@ -482,7 +552,6 @@
                 }
                 btn.innerHTML = `initializing... <div class="spinner"></div>`;
                 btn.disabled = true;
-
                 fetch(`/update/${containerName}`, { method: "POST" })
                     .then((r) => r.json())
                     .then(() => {
@@ -498,7 +567,6 @@
                 const btn = document.getElementById("checkAllBtn");
                 btn.disabled = true;
                 btn.innerHTML = `↻ Check for updates <div class="spinner"></div>`;
-
                 fetch("/check_all", { method: "POST" })
                     .then((r) => r.json())
                     .then((d) => {
@@ -542,6 +610,10 @@
             let networkDetailInputCharts = [];
             let networkDetailOutputCharts = [];
             let lastDetailedNetworkUpdate = 0;
+            // Global variable for network settings (to filter, order, and name interfaces)
+            let networkSettings = [];
+            // Global variable for available network interfaces (updated from stats)
+            let allNetworkInterfaces = [];
 
             function chunkArray(arr, n) {
                 let chunks = [];
@@ -550,7 +622,6 @@
                 }
                 return chunks;
             }
-
             function randomInt(min, max) {
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             }
@@ -599,9 +670,7 @@
                     tickLength: 5,
                     color: "rgba(255,255,255,0.1)",
                 },
-                ticks: {
-                    display: true,
-                },
+                ticks: { display: true },
             };
 
             // CPU charts
@@ -636,7 +705,6 @@
                 },
             });
             const cpuOverlay = document.getElementById("cpuOverlay");
-
             const cpuDetailCtx = document
                 .getElementById("cpuDetailChart")
                 .getContext("2d");
@@ -716,7 +784,6 @@
                 },
             });
             const memoryOverlay = document.getElementById("memoryOverlay");
-
             const memoryDetailCtx = document
                 .getElementById("memoryDetailChart")
                 .getContext("2d");
@@ -785,7 +852,6 @@
                 },
             });
             const diskOverlay = document.getElementById("diskOverlay");
-
             const diskDetailCtx = document
                 .getElementById("diskHistoryChart")
                 .getContext("2d");
@@ -816,7 +882,7 @@
                 },
             });
 
-            // Network
+            // Network chart
             const netCtx = document
                 .getElementById("networkChart")
                 .getContext("2d");
@@ -871,18 +937,15 @@
                 outputContainer.innerHTML = "";
                 networkDetailInputCharts = [];
                 networkDetailOutputCharts = [];
-
                 const maxPerChart = 6;
                 const inChunks = chunkArray(inputDatasets, maxPerChart);
                 const outChunks = chunkArray(outputDatasets, maxPerChart);
-
                 inChunks.forEach((chunk) => {
                     const rowDiv = document.createElement("div");
                     rowDiv.classList.add("chart-row");
                     const canvas = document.createElement("canvas");
                     rowDiv.appendChild(canvas);
                     inputContainer.appendChild(rowDiv);
-
                     const chart = new Chart(canvas.getContext("2d"), {
                         type: "line",
                         data: { datasets: chunk },
@@ -905,28 +968,20 @@
                                         tickLength: 5,
                                         color: "rgba(255,255,255,0.1)",
                                     },
-                                    ticks: {
-                                        display: true,
-                                    },
+                                    ticks: { display: true },
                                 },
-                                y: {
-                                    grid: {
-                                        color: "rgba(255,255,255,0.1)",
-                                    },
-                                },
+                                y: { grid: { color: "rgba(255,255,255,0.1)" } },
                             },
                         },
                     });
                     networkDetailInputCharts.push(chart);
                 });
-
                 outChunks.forEach((chunk) => {
                     const rowDiv = document.createElement("div");
                     rowDiv.classList.add("chart-row");
                     const canvas = document.createElement("canvas");
                     rowDiv.appendChild(canvas);
                     outputContainer.appendChild(rowDiv);
-
                     const chart = new Chart(canvas.getContext("2d"), {
                         type: "line",
                         data: { datasets: chunk },
@@ -949,15 +1004,9 @@
                                         tickLength: 5,
                                         color: "rgba(255,255,255,0.1)",
                                     },
-                                    ticks: {
-                                        display: true,
-                                    },
+                                    ticks: { display: true },
                                 },
-                                y: {
-                                    grid: {
-                                        color: "rgba(255,255,255,0.1)",
-                                    },
-                                },
+                                y: { grid: { color: "rgba(255,255,255,0.1)" } },
                             },
                         },
                     });
@@ -970,8 +1019,8 @@
                 fetch("/stats")
                     .then((r) => r.json())
                     .then((data) => {
+                        window.cachedStats = data;
                         const system = data.system || {};
-
                         // CPU
                         cpuOverlay.textContent =
                             Math.round(system.cpu || 0) + "%";
@@ -995,7 +1044,6 @@
                                 );
                             cpuDetailChart.update();
                         }
-
                         // Memory
                         if (system.memory_history) {
                             memoryBasicChart.data.labels =
@@ -1035,7 +1083,6 @@
                                 );
                             memoryDetailChart.update();
                         }
-
                         // Disk
                         if (system.disk_history_basic) {
                             diskBasicChart.data.labels =
@@ -1069,8 +1116,7 @@
                                 system.disk_details.history.map((e) => e.used);
                             diskHistoryChart.update();
                         }
-
-                        // Network
+                        // Network (basic view)
                         if (data.network && data.network.interfaces) {
                             const interfaces = data.network.interfaces;
                             let mainInterface = null;
@@ -1096,6 +1142,7 @@
                                 networkChart.data.datasets[1].data = outputData;
                                 networkChart.update();
                             }
+                            allNetworkInterfaces = Object.keys(interfaces);
                         }
                         const netDetailView = document.getElementById(
                             "network-detail-view",
@@ -1109,14 +1156,34 @@
                             let now = Date.now();
                             if (now - lastDetailedNetworkUpdate > 5000) {
                                 let detailedInterfaces = {};
-                                for (let iface in data.network.interfaces) {
-                                    if (
-                                        /^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(
-                                            iface,
-                                        )
-                                    ) {
-                                        detailedInterfaces[iface] =
-                                            data.network.interfaces[iface];
+                                if (
+                                    networkSettings &&
+                                    networkSettings.length > 0
+                                ) {
+                                    let orderedSettings = networkSettings
+                                        .filter((s) => s.visible)
+                                        .sort(
+                                            (a, b) =>
+                                                a.display_order -
+                                                b.display_order,
+                                        );
+                                    orderedSettings.forEach((s) => {
+                                        let iface = s.interface;
+                                        if (data.network.interfaces[iface]) {
+                                            detailedInterfaces[iface] =
+                                                data.network.interfaces[iface];
+                                        }
+                                    });
+                                } else {
+                                    for (let iface in data.network.interfaces) {
+                                        if (
+                                            /^(enp|ens|eth|tun|wg|vpn|docker|veth|br-)/.test(
+                                                iface,
+                                            )
+                                        ) {
+                                            detailedInterfaces[iface] =
+                                                data.network.interfaces[iface];
+                                        }
                                     }
                                 }
                                 const colorPalette = [
@@ -1129,32 +1196,15 @@
                                 ];
                                 let inputDatasets = [];
                                 let outputDatasets = [];
-                                let dockerContainers = data.docker || [];
-                                let dockerIndex = 0;
-
                                 for (let iface in detailedInterfaces) {
                                     const arr = detailedInterfaces[iface];
                                     let label = iface;
-                                    if (/^veth/.test(iface)) {
-                                        if (
-                                            dockerIndex <
-                                            dockerContainers.length
-                                        ) {
-                                            label =
-                                                dockerContainers[dockerIndex]
-                                                    .name;
-                                            dockerIndex++;
-                                        }
-                                    } else if (/^br-/.test(iface)) {
-                                        if (
-                                            dockerIndex <
-                                            dockerContainers.length
-                                        ) {
-                                            label =
-                                                dockerContainers[dockerIndex]
-                                                    .name;
-                                            dockerIndex++;
-                                        }
+                                    // Use user-defined display name from networkSettings if available
+                                    let setting = networkSettings.find(
+                                        (s) => s.interface === iface,
+                                    );
+                                    if (setting && setting.display_name) {
+                                        label = setting.display_name;
                                     }
                                     const inputPts = arr.map((e) => ({
                                         x: e.time,
@@ -1193,7 +1243,6 @@
                                 lastDetailedNetworkUpdate = now;
                             }
                         }
-
                         // Docker table
                         const dockerDataEl =
                             document.getElementById("docker-data");
@@ -1203,7 +1252,6 @@
                                 const lowerStatus = cont.status
                                     ? cont.status.toLowerCase()
                                     : "";
-
                                 if (lowerStatus.includes("update success")) {
                                     statusClass = "status-green";
                                 } else if (/^updat/i.test(lowerStatus)) {
@@ -1223,12 +1271,10 @@
                                 } else {
                                     statusClass = "status-red";
                                 }
-
                                 const hrs = Math.floor(cont.uptime / 3600);
                                 const mins = Math.floor(
                                     (cont.uptime % 3600) / 60,
                                 );
-
                                 let updateBtn = "";
                                 if (
                                     !cont.up_to_date &&
@@ -1236,14 +1282,13 @@
                                 ) {
                                     updateBtn = `<button class="update-btn" onclick="updateContainer('${cont.name}')">↑ Update</button>`;
                                 }
-
                                 return `<tr>
-                                    <td><div class="status-indicator ${statusClass}"></div></td>
-                                    <td>${cont.name}</td>
-                                    <td>${hrs}h ${mins}m</td>
-                                    <td>${cont.image}</td>
-                                    <td>${updateBtn}</td>
-                                </tr>`;
+                                <td><div class="status-indicator ${statusClass}"></div></td>
+                                <td>${cont.name}</td>
+                                <td>${hrs}h ${mins}m</td>
+                                <td>${cont.image}</td>
+                                <td>${updateBtn}</td>
+                            </tr>`;
                             })
                             .join("");
                     })
@@ -1251,15 +1296,194 @@
                         console.error("Error fetching stats:", err),
                     );
             }
-
-            // 500ms front-end polling
             setInterval(updateStats, 500);
             updateStats();
-
             const modeToggle = document.getElementById("modeToggle");
             modeToggle.addEventListener("click", () => {
                 document.body.classList.toggle("light-mode");
             });
+            // --- Network Settings Popup Functionality ---
+            document
+                .getElementById("network-settings-btn")
+                .addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    // Call the new endpoint to update veth info when settings are opened
+                    fetch("/update_veth_info", { method: "POST" })
+                        .then((response) => response.json())
+                        .then((data) => {
+                            loadNetworkSettings();
+                        })
+                        .catch((err) => {
+                            console.error("Error updating veth info:", err);
+                            loadNetworkSettings();
+                        });
+                    document.getElementById(
+                        "network-settings-popup",
+                    ).style.display = "flex";
+                });
+            document
+                .getElementById("cancel-settings-btn")
+                .addEventListener("click", function (e) {
+                    document.getElementById(
+                        "network-settings-popup",
+                    ).style.display = "none";
+                });
+            // Handle form submission – now also collecting display name
+            document
+                .getElementById("network-settings-form")
+                .addEventListener("submit", function (e) {
+                    e.preventDefault();
+                    let settingsListDiv = document.getElementById(
+                        "network-settings-list",
+                    );
+                    let settings = [];
+                    settingsListDiv
+                        .querySelectorAll("div[data-interface]")
+                        .forEach(function (div) {
+                            let iface = div.getAttribute("data-interface");
+                            let checkbox = div.querySelector(
+                                "input[type='checkbox']",
+                            );
+                            let orderInput = div.querySelector(
+                                "input[type='number']",
+                            );
+                            let displayNameInput =
+                                div.querySelector("input[type='text']");
+                            settings.push({
+                                interface: iface,
+                                visible: checkbox.checked,
+                                display_order: parseInt(orderInput.value) || 0,
+                                display_name: displayNameInput.value,
+                            });
+                        });
+                    fetch("/network_settings", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(settings),
+                    })
+                        .then((response) => response.json())
+                        .then((data) => {
+                            if (data.status === "success") {
+                                networkSettings = settings;
+                                document.getElementById(
+                                    "network-settings-popup",
+                                ).style.display = "none";
+                            }
+                        })
+                        .catch((err) => {
+                            console.error(
+                                "Error saving network settings:",
+                                err,
+                            );
+                        });
+                });
+            // Load network settings from the backend and merge with available interfaces.
+            function loadNetworkSettings() {
+                fetch("/network_settings")
+                    .then((response) => response.json())
+                    .then((settings) => {
+                        let settingsMap = {};
+                        settings.forEach((s) => {
+                            settingsMap[s.interface] = s;
+                        });
+                        let interfaces = allNetworkInterfaces;
+                        if (!interfaces || interfaces.length === 0) {
+                            interfaces = Object.keys(
+                                (window.cachedStats &&
+                                    window.cachedStats.network &&
+                                    window.cachedStats.network.interfaces) ||
+                                    {},
+                            );
+                        }
+                        // Fallback: if still empty, use a default interface (e.g., loopback "lo")
+                        if (!interfaces || interfaces.length === 0) {
+                            interfaces = ["lo"];
+                        }
+                        let merged = interfaces.map((iface) => {
+                            if (settingsMap[iface]) {
+                                return settingsMap[iface];
+                            } else {
+                                return {
+                                    interface: iface,
+                                    display_order: 999,
+                                    visible: true,
+                                    display_name: iface,
+                                };
+                            }
+                        });
+                        merged.sort(
+                            (a, b) => a.display_order - b.display_order,
+                        );
+                        networkSettings = merged;
+                        let container = document.getElementById(
+                            "network-settings-list",
+                        );
+                        container.innerHTML = "";
+                        merged.forEach((s) => {
+                            let div = document.createElement("div");
+                            div.setAttribute("data-interface", s.interface);
+                            div.style.marginBottom = "8px";
+                            let checkbox = document.createElement("input");
+                            checkbox.type = "checkbox";
+                            checkbox.checked = s.visible;
+                            checkbox.style.marginRight = "8px";
+                            let label = document.createElement("span");
+                            label.textContent = s.interface;
+                            label.style.marginRight = "8px";
+                            let orderInput = document.createElement("input");
+                            orderInput.type = "number";
+                            orderInput.value = s.display_order;
+                            orderInput.style.width = "50px";
+                            orderInput.style.marginRight = "8px";
+                            let displayNameLabel =
+                                document.createElement("span");
+                            displayNameLabel.textContent = "Display Name:";
+                            displayNameLabel.style.marginRight = "4px";
+                            let displayNameInput =
+                                document.createElement("input");
+                            displayNameInput.type = "text";
+                            displayNameInput.value =
+                                s.display_name || s.interface;
+                            displayNameInput.style.width = "150px";
+                            displayNameInput.style.marginRight = "8px";
+                            div.appendChild(checkbox);
+                            div.appendChild(label);
+                            div.appendChild(document.createTextNode("Order: "));
+                            div.appendChild(orderInput);
+                            div.appendChild(displayNameLabel);
+                            div.appendChild(displayNameInput);
+                            container.appendChild(div);
+                        });
+                        loadVethMappings();
+                    })
+                    .catch((err) => {
+                        console.error("Error fetching network settings:", err);
+                    });
+            }
+            // New function to load Docker veth mappings and display them in the popup
+            function loadVethMappings() {
+                fetch("/get_veth_info")
+                    .then((response) => response.json())
+                    .then((mappings) => {
+                        let container =
+                            document.getElementById("veth-mappings-list");
+                        if (mappings.length === 0) {
+                            container.innerHTML =
+                                "<p>No veth mappings found.</p>";
+                        } else {
+                            let html =
+                                "<table style='width:100%; color: var(--text);'><tr><th>Veth Interface</th><th>Container Name</th><th>Docker Network Name</th></tr>";
+                            mappings.forEach((m) => {
+                                html += `<tr><td>${m.veth_interface}</td><td>${m.container_name}</td><td>${m.docker_network_name}</td></tr>`;
+                            });
+                            html += "</table>";
+                            container.innerHTML = html;
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Error loading veth mappings:", err);
+                    });
+            }
         </script>
     </body>
 </html>
