@@ -164,8 +164,8 @@ def parse_docker_created(created_str):
 
 def get_docker_info():
     """
-    Returns a list of container info. If a container is in updating_containers
-    but not in the real Docker list, we create a "virtual" container object with status "Updating...".
+    Returns a list of container info.
+    If a container is in updating_containers but not in the real Docker list, we create a "virtual" container object.
     Also, if it *is* found, we override the status with the current "phase" if in progress.
     """
     containers = []
@@ -251,7 +251,6 @@ def get_disk_details():
     """
     Return immediate disk info (for current usage),
     plus the in-memory 'disk_history' which is loaded on startup.
-    We no longer append new data here for the 4h aggregator (done in update_stats_cache).
     """
     disk = psutil.disk_usage('/')
     history = [{
@@ -278,28 +277,23 @@ def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
     now = int(time.time())
 
     # --- CPU aggregator (1-hour) ---
-    current_hour = now - (now % 3600)  # floor to hour boundary
+    current_hour = now - (now % 3600)
     if cpu_24h_aggregator['current_hour'] is None:
-        # first run
         cpu_24h_aggregator['current_hour'] = current_hour
         cpu_24h_aggregator['sum'] = cpu_percent
         cpu_24h_aggregator['count'] = 1
     else:
         if current_hour == cpu_24h_aggregator['current_hour']:
-            # same hour bucket
             cpu_24h_aggregator['sum'] += cpu_percent
             cpu_24h_aggregator['count'] += 1
         else:
-            # rolled into next hour => store the old hour's average
-            avg_usage = cpu_24h_aggregator['sum'] / cpu_24h_aggregator['count'] if cpu_24h_aggregator['count'] else 0
-            # Insert at the hour boundary
+            avg_usage = (cpu_24h_aggregator['sum'] /
+                         cpu_24h_aggregator['count']) if cpu_24h_aggregator['count'] else 0
             cursor.execute("INSERT INTO cpu_history_24h (timestamp, usage) VALUES (?, ?)",
                            (float(cpu_24h_aggregator['current_hour']), avg_usage))
-            # Remove data older than 24 hours
             cutoff = time.time() - 86400
             cursor.execute("DELETE FROM cpu_history_24h WHERE timestamp < ?", (cutoff,))
 
-            # Reset aggregator for new hour
             cpu_24h_aggregator['current_hour'] = current_hour
             cpu_24h_aggregator['sum'] = cpu_percent
             cpu_24h_aggregator['count'] = 1
@@ -314,7 +308,8 @@ def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
             mem_24h_aggregator['sum'] += mem_used_gb
             mem_24h_aggregator['count'] += 1
         else:
-            avg_mem_usage = mem_24h_aggregator['sum'] / mem_24h_aggregator['count'] if mem_24h_aggregator['count'] else 0
+            avg_mem_usage = (mem_24h_aggregator['sum'] /
+                             mem_24h_aggregator['count']) if mem_24h_aggregator['count'] else 0
             cursor.execute("INSERT INTO memory_history_24h (timestamp, usage) VALUES (?, ?)",
                            (float(mem_24h_aggregator['current_hour']), avg_mem_usage))
             cutoff = time.time() - 86400
@@ -331,27 +326,26 @@ def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
         disk_7d_aggregator['max'] = disk_used
     else:
         if current_4hour == disk_7d_aggregator['current_4hour']:
-            # same 4h bucket
             if disk_used > disk_7d_aggregator['max']:
                 disk_7d_aggregator['max'] = disk_used
         else:
-            # store the old 4h bucket
-            # We'll timestamp it at the start-of-bucket in epoch seconds
             old_4h_timestamp = float(disk_7d_aggregator['current_4hour'] * 14400)
             cursor.execute("INSERT INTO disk_history_details (timestamp, used) VALUES (?, ?)",
                            (old_4h_timestamp, disk_7d_aggregator['max']))
-            # remove data older than 7 days
             cutoff_7d = time.time() - (7 * 24 * 3600)
             cursor.execute("DELETE FROM disk_history_details WHERE timestamp < ?", (cutoff_7d,))
 
-            # reset aggregator for new 4h bucket
             disk_7d_aggregator['current_4hour'] = current_4hour
             disk_7d_aggregator['max'] = disk_used
 
+last_network_update = 0
+# Change here to update Net stats every 1 second
+NETWORK_UPDATE_INTERVAL = 1.0  # seconds
+
 def update_stats_cache():
-    global cached_stats, cached_heavy, cached_disk_details
-    global cpu_history, memory_history_basic, disk_history_basic
+    global cached_stats, cpu_history, memory_history_basic, disk_history_basic
     global prev_net_io, prev_net_time, network_history
+    global last_network_update
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -440,10 +434,7 @@ def update_stats_cache():
                    )""", (MAX_HISTORY,)
             )
 
-            # Update the extended aggregators:
-            #  - CPU & Memory: 1-hour average
-            #  - Disk: 4-hour max
-            #    We store them and clean up old entries
+            # Extended aggregators (CPU, Mem, Disk)
             mem_used_gb = round(mem.used / (1024 ** 3), 2)
             update_aggregators(cursor, cpu_percent, mem_used_gb, disk.used)
 
@@ -468,56 +459,51 @@ def update_stats_cache():
             heavy_mem_details = get_memory_details()
             heavy_mem_details['history24h'] = mem_24h_formatted
 
-            # Docker info
-            docker_data = get_docker_info()
-
-            # Disk extended details
-            # (We simply read from the in-memory disk_history loaded at startup + aggregator)
+            # Disk extended details (cached in memory)
             cached_disk_details = get_disk_details()
 
-            # Network
-            global prev_net_io, prev_net_time
-            net_current = psutil.net_io_counters(pernic=True)
-            if prev_net_io is None:
+            # Update network stats every 1 second now
+            if (now - last_network_update) >= NETWORK_UPDATE_INTERVAL:
+                net_current = psutil.net_io_counters(pernic=True)
+                if prev_net_io is not None and prev_net_time is not None:
+                    dt = now - prev_net_time
+                    if dt > 0:
+                        for iface, stats in net_current.items():
+                            prev_stats = prev_net_io.get(iface)
+                            if prev_stats:
+                                input_speed = (stats.bytes_recv - prev_stats.bytes_recv)/(dt*(1024*1024))
+                                output_speed = (stats.bytes_sent - prev_stats.bytes_sent)/(dt*(1024*1024))
+                                if input_speed < 0.0001:
+                                    input_speed = 0
+                                if output_speed < 0.0001:
+                                    output_speed = 0
+                                if iface not in network_history:
+                                    network_history[iface] = []
+                                network_history[iface].append({
+                                    'time': datetime.fromtimestamp(now).strftime('%H:%M:%S'),
+                                    'input': input_speed,
+                                    'output': output_speed
+                                })
+                                if len(network_history[iface]) > MAX_HISTORY:
+                                    network_history[iface] = network_history[iface][-MAX_HISTORY:]
+                                cursor.execute(
+                                    "INSERT INTO net_history (interface, timestamp, input, output) VALUES (?, ?, ?, ?)",
+                                    (iface, now, input_speed, output_speed)
+                                )
+                                cursor.execute(
+                                    """DELETE FROM net_history
+                                       WHERE rowid NOT IN (
+                                         SELECT rowid FROM net_history
+                                         WHERE interface=?
+                                         ORDER BY timestamp DESC
+                                         LIMIT ?
+                                       )""", (iface, MAX_HISTORY)
+                                )
                 prev_net_io = net_current
                 prev_net_time = now
-            else:
-                dt = now - prev_net_time
-                if dt > 0:
-                    for iface, stats in net_current.items():
-                        prev_stats = prev_net_io.get(iface)
-                        if prev_stats:
-                            input_speed = (stats.bytes_recv - prev_stats.bytes_recv)/(dt*(1024*1024))
-                            output_speed = (stats.bytes_sent - prev_stats.bytes_sent)/(dt*(1024*1024))
-                            if input_speed < 0.0001:
-                                input_speed = 0
-                            if output_speed < 0.0001:
-                                output_speed = 0
-                            if iface not in network_history:
-                                network_history[iface] = []
-                            network_history[iface].append({
-                                'time': datetime.fromtimestamp(now).strftime('%H:%M:%S'),
-                                'input': input_speed,
-                                'output': output_speed
-                            })
-                            if len(network_history[iface]) > MAX_HISTORY:
-                                network_history[iface] = network_history[iface][-MAX_HISTORY:]
-                            cursor.execute(
-                                "INSERT INTO net_history (interface, timestamp, input, output) VALUES (?, ?, ?, ?)",
-                                (iface, now, input_speed, output_speed)
-                            )
-                            cursor.execute(
-                                """DELETE FROM net_history
-                                   WHERE rowid NOT IN (
-                                     SELECT rowid FROM net_history
-                                     WHERE interface=?
-                                     ORDER BY timestamp DESC
-                                     LIMIT ?
-                                   )""", (iface, MAX_HISTORY)
-                            )
-                    prev_net_io = net_current
-                    prev_net_time = now
+                last_network_update = now
 
+            # Build final system stats
             cached_stats['system'] = {
                 'cpu': cpu_percent,
                 'memory': {
@@ -540,13 +526,29 @@ def update_stats_cache():
                 'memory_details': heavy_mem_details,
                 'disk_details': cached_disk_details
             }
-            cached_stats['docker'] = docker_data
+
+            # The "network" portion references our in-memory data
             cached_stats['network'] = {'interfaces': network_history}
 
         except Exception as e:
             logging.error("Error updating cache: %s", e)
+
         conn.commit()
         time.sleep(0.5)
+
+def docker_info_updater():
+    """
+    Runs in its own thread, updates the 'cached_stats["docker"]' every N seconds
+    to reduce overhead from frequent calls to `get_docker_info()`.
+    """
+    UPDATE_INTERVAL = 5  # seconds
+    while True:
+        try:
+            docker_data = get_docker_info()
+            cached_stats['docker'] = docker_data
+        except Exception as e:
+            logging.error("Error in docker_info_updater: %s", e)
+        time.sleep(UPDATE_INTERVAL)
 
 def check_image_updates():
     global image_update_info
@@ -830,6 +832,12 @@ def get_all_status():
 if __name__ == '__main__':
     initialize_database()
     load_history()
+
+    # Start the stats thread
     threading.Thread(target=update_stats_cache, daemon=True).start()
+    # Start the separate Docker-info thread
+    threading.Thread(target=docker_info_updater, daemon=True).start()
+    # Start the image-update checker (every 60s)
     threading.Thread(target=check_image_updates, daemon=True).start()
+
     app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=True)
