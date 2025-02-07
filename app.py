@@ -7,6 +7,9 @@ import threading
 import logging
 import sqlite3
 import subprocess
+import re
+import glob
+import os
 
 # Uncomment for debugging in the console:
 # logging.basicConfig(level=logging.DEBUG)
@@ -114,7 +117,6 @@ def load_history():
         })
         if len(network_history[iface]) > MAX_HISTORY:
             network_history[iface] = network_history[iface][-MAX_HISTORY:]
-
     conn.close()
 
 # Global caches
@@ -490,8 +492,6 @@ def update_stats_cache():
                                     'input': input_speed,
                                     'output': output_speed
                                 })
-                                if len(network_history[iface]) > MAX_HISTORY:
-                                    network_history[iface] = network_history[iface][-MAX_HISTORY:]
                                 cursor.execute(
                                     "INSERT INTO net_history (interface, timestamp, input, output) VALUES (?, ?, ?, ?)",
                                     (iface, now, input_speed, output_speed)
@@ -873,32 +873,56 @@ def update_network_settings():
 
 def update_docker_veth_mapping():
     """
-    Checks which docker containers are connected to which veth interfaces on the host.
-    Uses a simple heuristic: it iterates over host interfaces (using psutil) filtering those starting with 'veth'
-    and checks if the container id (first 12 chars) appears in the interface name.
-    Saves the mapping in the docker_veth_mapping table.
+    For each container, retrieve the iflink value from /sys/class/net/eth0/iflink
+    (using a docker exec command) and then find a host veth interface whose ifindex
+    (from /sys/class/net/veth*/ifindex) matches that value.
+    The found veth interface is then mapped to the container.
     """
-    import psutil
-    interfaces = psutil.net_if_addrs().keys()
-    veth_ifaces = [iface for iface in interfaces if iface.startswith("veth")]
-    mapping = {}
+    container_mapping = {}
     for container in client.containers.list(all=True):
-        for iface in veth_ifaces:
-            if container.id[:12] in iface:
-                mapping[iface] = container.name
-                break
+        try:
+            # Execute the command inside the container to get the iflink value.
+            result = container.exec_run("bash -c 'cat /sys/class/net/eth0/iflink'")
+            if result.exit_code != 0:
+                logging.error(f"Failed to get iflink for container {container.name}")
+                continue
+            container_iflink_str = result.output.decode("utf-8").strip()
+            if not container_iflink_str.isdigit():
+                logging.error(f"Non-numeric iflink for container {container.name}: {container_iflink_str}")
+                continue
+            container_iflink = int(container_iflink_str)
+            # Search through all host veth interfaces.
+            veth_files = glob.glob("/sys/class/net/veth*/ifindex")
+            for file in veth_files:
+                try:
+                    with open(file, "r") as f:
+                        ifindex_str = f.read().strip()
+                        if not ifindex_str.isdigit():
+                            continue
+                        host_ifindex = int(ifindex_str)
+                        if host_ifindex == container_iflink:
+                            iface_name = os.path.basename(os.path.dirname(file))
+                            container_mapping[iface_name] = container.name
+                            break  # found a matching veth for this container
+                except Exception as e:
+                    logging.error(f"Error reading {file}: {e}")
+                    continue
+        except Exception as e:
+            logging.error(f"Error processing container {container.name}: {e}")
+            continue
+    # Save the mapping in the database.
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM docker_veth_mapping")
-    for iface, cname in mapping.items():
+    for iface, cname in container_mapping.items():
         cursor.execute("INSERT INTO docker_veth_mapping (veth_interface, container_name) VALUES (?, ?)", (iface, cname))
     conn.commit()
     conn.close()
 
 def update_veth_network_names():
     """
-    For each veth interface found in docker_veth_mapping, retrieves the docker network name (the key from the container's Networks dict)
-    from the container's network settings. Saves this information in the veth_network_names table.
+    For each veth interface found in docker_veth_mapping, retrieves the docker network name
+    from the container's NetworkSettings and saves this information in the veth_network_names table.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
