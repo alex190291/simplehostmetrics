@@ -1,1712 +1,571 @@
+<!-- simplehostmetrics.refac/templates/index.html -->
 <!doctype html>
 <html>
-  <head>
-    <title>System Dashboard</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <style>
-      :root {
-        --bg-color: #0a0a0a;
-        --glass: rgba(18, 18, 18, 0.7);
-        --primary: #2d5a4f;
-        --text: #aaaaaa;
-      }
-      body.light-mode {
-        --bg-color: #f0f0f0;
-        --glass: rgba(5, 112, 85, 0.4);
-        --primary: #8bbabb;
-        --text: #000000;
-      }
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        font-family: "Inter", sans-serif;
-        background: var(--bg-color);
-        color: var(--text);
-        min-height: 100vh;
-        position: relative;
-        overflow-x: hidden;
-        transition: background 0.3s, color 0.3s;
-      }
-      .hexagons {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-        z-index: -1;
-      }
-      .hexagon {
-        position: absolute;
-        background: var(--primary);
-        clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-        opacity: 0.1;
-        animation: pulse 10s infinite;
-      }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 0.1; }
-        50% { transform: scale(1.2); opacity: 0.15; }
-      }
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-        position: relative;
-        z-index: 1;
-      }
-      .grid {
-        display: grid;
-        /* three cards side by side if wide enough */
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-      }
-      .full-width {
-        grid-column: 1 / -1;
-      }
-      .card {
-        background: var(--glass);
-        backdrop-filter: blur(10px);
-        border-radius: 1rem;
-        padding: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        position: relative;
-        transition: background 0.3s, border 0.3s, transform 0.3s, box-shadow 0.3s;
-        cursor: pointer;
-        overflow: hidden;
-      }
-      .card:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      }
-      .card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-      }
-      .card-title {
-        font-size: 1rem;
-        color: #7d7d7d;
-        margin-right: 0.5rem;
-      }
-      .stat-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        padding: 10px;
-      }
-      .chart-container {
-        position: relative;
-        width: 100%;
-        max-width: 300px;
-        height: 200px;
-        padding: 10px;
-      }
-      .chart-overlay {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 3rem;
-        color: rgba(255, 255, 255, 0.2);
-        pointer-events: none;
-      }
-      .color-labels {
-        display: flex;
-        flex-direction: row;
-        gap: 1rem;
-      }
-      .color-label {
-        display: flex;
-        align-items: center;
-        font-size: 0.8rem;
-      }
-      .color-box {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        margin-right: 5px;
-        border-radius: 3px;
-        border: 1px solid #000;
-      }
-      .color-box.free   { background-color: #1e8449; }
-      .color-box.usage  { background-color: #057055; }
-      .color-box.used   { background-color: #922b21; }
-      .color-box.cached { background-color: #21618c; }
-      .detail-view {
-        margin-top: 1rem;
-        display: none; /* collapsed by default */
-      }
-      .detail-view .graph-label {
-        font-size: 1rem;
-        font-weight: 600;
-        text-align: center;
-        margin-bottom: 0.5rem;
-      }
-      table {
-        color: var(--text);
-        width: 100%;
-        border-collapse: collapse;
-      }
-      table th,
-      table td {
-        padding: 0.5rem;
-        text-align: left;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      button.update-btn {
-        background: var(--primary);
-        color: var(--text);
-        border: none;
-        padding: 0.3rem 0.5rem;
-        border-radius: 0.3rem;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        transition: background-color 0.6s ease;
-      }
-      .spinner {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.4);
-        border-top: 2px solid rgba(255, 255, 255, 1);
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
-        margin-left: 4px;
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      .mode-toggle {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        background: var(--primary);
-        color: var(--text);
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-        transition: background 0.3s, color 0.3s;
-        z-index: 1000;
-      }
-      .docker-card {
-        margin-top: 1.5rem;
-      }
-      .status-indicator {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-      }
-      .status-green  { background-color: #1e8449; }
-      .status-yellow { background-color: #f1c40f; }
-      .status-blue   { background-color: #21618c; }
-      .status-red    { background-color: #c0392b; }
-      .settings-btn {
-        background: none;
-        border: none;
-        color: var(--text);
-        font-size: 1.2rem;
-        cursor: pointer;
-        margin-left: 0.5rem;
-      }
-      .popup-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        backdrop-filter: blur(15px);
-        background: rgba(0, 0, 0, 0.5);
-        display: none; /* hidden by default */
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-      }
-      .popup-card {
-        background: var(--glass);
-        backdrop-filter: blur(10px);
-        border-radius: 1rem;
-        padding: 1.5rem;
-        max-height: 80vh;
-        overflow-y: auto;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--text);
-        width: 80%;
-        max-width: 1000px;
-      }
-      .settings-item {
-        margin-bottom: 1rem;
-        cursor: move;
-      }
-      .settings-row {
-        display: grid;
-        grid-template-columns: 30px auto auto;
-        gap: 0.5rem;
-        align-items: center;
-        margin-bottom: 0.5rem;
-      }
-      .drag-handle {
-        font-size: 1.2rem;
-        user-select: none;
-        cursor: move;
-        text-align: center;
-      }
-      .interface-name {
-        display: inline-block;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-      .popup-card input[type="text"] {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 0.3rem;
-        padding: 0.4rem;
-        color: var(--text);
-      }
-      .popup-card input[type="checkbox"] {
-        accent-color: var(--primary);
-      }
-      .popup-card button {
-        background: var(--primary);
-        color: var(--text);
-        border: none;
-        padding: 0.4rem 0.8rem;
-        border-radius: 0.3rem;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-      .popup-card h3, .popup-card h4 {
-        text-align: center;
-        margin-bottom: 1rem;
-      }
-      .color-row {
-        display: flex;
-        justify-content: flex-end;
-      }
-      .color-cycle-btn {
-        width: 120px;
-        padding: 0.4rem;
-        border: none;
-        border-radius: 0.3rem;
-        cursor: pointer;
-        color: #fff;
-        font-weight: bold;
-        transition: background-color 0.3s ease;
-      }
-      .custom-graphs-plus-button {
-        display: flex;
-        justify-content: center;
-        margin-top: 1rem;
-      }
-      .custom-graphs-plus-button button {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        font-size: 1.5rem;
-        line-height: 1;
-        background-color: var(--primary);
-        color: var(--text);
-        border: none;
-        cursor: pointer;
-      }
-
-      /* New CSS for custom network graph header and legend */
-      .custom-graph-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-      }
-      .custom-graph-legend {
-        display: flex;
-        gap: 0.5rem;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        font-size: 0.8rem;
-      }
-      .legend-color-box {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        margin-right: 4px;
-        border-radius: 3px;
-        border: 1px solid #000;
-      }
-
-      /* For the new Add Graph menu rework */
-      .add-graph-menu-content {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-      .add-graph-input-row {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-      }
-      .add-graph-input-row input[type="text"] {
-        flex: 1;
-      }
-      .interfaces-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-      }
-      .interfaces-table th,
-      .interfaces-table td {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 0.5rem;
-      }
-      .interfaces-table-container {
-        max-height: 300px;
-        overflow-y: auto;
-        margin-top: 0.5rem;
-      }
-      .assign-checkbox {
-        transform: scale(1.2);
-        cursor: pointer;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="hexagons" id="hexagon-container"></div>
-    <div class="container">
-      <div class="grid">
-        <!-- CPU -->
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">CPU</h2>
-            <div class="color-labels">
-              <div class="color-label">
-                <span class="color-box usage"></span>Usage
-              </div>
-            </div>
-          </div>
-          <div class="stat-container">
-            <div class="chart-container">
-              <canvas id="cpuChart"></canvas>
-              <div id="cpuOverlay" class="chart-overlay">0%</div>
-            </div>
-          </div>
-          <div class="detail-view" id="cpu-detail-view">
-            <div class="graph-label">24hr CPU Usage</div>
-            <canvas id="cpuDetailChart"></canvas>
-          </div>
-        </div>
-
-        <!-- RAM -->
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">RAM</h2>
-            <div class="color-labels">
-              <div class="color-label">
-                <span class="color-box free"></span>Free
-              </div>
-              <div class="color-label">
-                <span class="color-box used"></span>Used
-              </div>
-              <div class="color-label">
-                <span class="color-box cached"></span>Cached
-              </div>
-            </div>
-          </div>
-          <div class="stat-container">
-            <div class="chart-container">
-              <canvas id="memoryChart"></canvas>
-              <div id="memoryOverlay" class="chart-overlay">0</div>
-            </div>
-          </div>
-          <div class="detail-view" id="memory-detail-view">
-            <div class="graph-label">24hr RAM Usage</div>
-            <canvas id="memoryDetailChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Disk -->
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">Disk</h2>
-            <div class="color-labels">
-              <div class="color-label">
-                <span class="color-box used"></span>Used
-              </div>
-              <div class="color-label">
-                <span class="color-box free"></span>Free
-              </div>
-            </div>
-          </div>
-          <div class="stat-container">
-            <div class="chart-container">
-              <canvas id="diskChart"></canvas>
-              <div id="diskOverlay" class="chart-overlay">0</div>
-            </div>
-          </div>
-          <div class="detail-view" id="disk-detail-view">
-            <div class="graph-label">7-Day Disk Used</div>
-            <canvas id="diskHistoryChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Network -->
-        <div class="card full-width">
-          <div class="card-header">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <h2 class="card-title">Network Throughput</h2>
-              <!-- Move the color labels to the right side of the title -->
-              <div class="color-labels">
-                <div class="color-label">
-                  <span class="color-box usage"></span>Input
+    <head>
+        <title>System Dashboard</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+        <style>
+            :root {
+                --bg-color: #0a0a0a;
+                --glass: rgba(18, 18, 18, 0.7);
+                --primary: #2d5a4f;
+                --text: #aaaaaa;
+            }
+            body.light-mode {
+                --bg-color: #f0f0f0;
+                --glass: rgba(5, 112, 85, 0.4);
+                --primary: #8bbabb;
+                --text: #000000;
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family: "Inter", sans-serif;
+                background: var(--bg-color);
+                color: var(--text);
+                min-height: 100vh;
+                position: relative;
+                overflow-x: hidden;
+                transition:
+                    background 0.3s,
+                    color 0.3s;
+            }
+            .hexagons {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+                z-index: -1;
+            }
+            .hexagon {
+                position: absolute;
+                background: var(--primary);
+                clip-path: polygon(
+                    50% 0%,
+                    100% 25%,
+                    100% 75%,
+                    50% 100%,
+                    0% 75%,
+                    0% 25%
+                );
+                opacity: 0.1;
+                animation: pulse 10s infinite;
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    transform: scale(1);
+                    opacity: 0.1;
+                }
+                50% {
+                    transform: scale(1.2);
+                    opacity: 0.15;
+                }
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                position: relative;
+                z-index: 1;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .full-width {
+                grid-column: 1 / -1;
+            }
+            .card {
+                background: var(--glass);
+                backdrop-filter: blur(10px);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                position: relative;
+                transition:
+                    background 0.3s,
+                    border 0.3s,
+                    transform 0.3s,
+                    box-shadow 0.3s;
+                cursor: pointer;
+                overflow: hidden;
+            }
+            .card:hover {
+                transform: scale(1.02);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            }
+            .card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .card-title {
+                font-size: 1rem;
+                color: #7d7d7d;
+                margin-right: 0.5rem;
+            }
+            .stat-container {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 10px;
+            }
+            .chart-container {
+                position: relative;
+                width: 100%;
+                max-width: 300px;
+                height: 200px;
+                padding: 10px;
+            }
+            .chart-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 3rem;
+                color: rgba(255, 255, 255, 0.2);
+                pointer-events: none;
+            }
+            .color-labels {
+                display: flex;
+                flex-direction: row;
+                gap: 1rem;
+            }
+            .color-label {
+                display: flex;
+                align-items: center;
+                font-size: 0.8rem;
+            }
+            .color-box {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                margin-right: 5px;
+                border-radius: 3px;
+                border: 1px solid #000;
+            }
+            .color-box.free {
+                background-color: #1e8449;
+            }
+            .color-box.usage {
+                background-color: #057055;
+            }
+            .color-box.used {
+                background-color: #922b21;
+            }
+            .color-box.cached {
+                background-color: #21618c;
+            }
+            .detail-view {
+                margin-top: 1rem;
+                display: none;
+                max-height: 300px;
+                min-height: 200px;
+                overflow: auto;
+            }
+            .detail-view .graph-label {
+                font-size: 1rem;
+                font-weight: 600;
+                text-align: center;
+                margin-bottom: 0.5rem;
+            }
+            table {
+                color: var(--text);
+                width: 100%;
+                border-collapse: collapse;
+            }
+            table th,
+            table td {
+                padding: 0.5rem;
+                text-align: left;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            button.update-btn {
+                background: var(--primary);
+                color: var(--text);
+                border: none;
+                padding: 0.3rem 0.5rem;
+                border-radius: 0.3rem;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                transition: background-color 0.6s ease;
+            }
+            .spinner {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                border-top: 2px solid rgba(255, 255, 255, 1);
+                border-radius: 50%;
+                animation: spin 0.6s linear infinite;
+                margin-left: 4px;
+            }
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+            .mode-toggle {
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                background: var(--primary);
+                color: var(--text);
+                border: none;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+                cursor: pointer;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+                transition:
+                    background 0.3s,
+                    color 0.3s;
+                z-index: 1000;
+            }
+            .docker-card {
+                margin-top: 1.5rem;
+            }
+            .status-indicator {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .status-green {
+                background-color: #1e8449;
+            }
+            .status-yellow {
+                background-color: #f1c40f;
+            }
+            .status-blue {
+                background-color: #21618c;
+            }
+            .status-red {
+                background-color: #c0392b;
+            }
+            .settings-btn {
+                background: none;
+                border: none;
+                color: var(--text);
+                font-size: 1.2rem;
+                cursor: pointer;
+                margin-left: 0.5rem;
+            }
+            .popup-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                backdrop-filter: blur(15px);
+                background: rgba(0, 0, 0, 0.5);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            }
+            .popup-card {
+                background: var(--glass);
+                backdrop-filter: blur(10px);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                max-height: 80vh;
+                overflow-y: auto;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: var(--text);
+                width: 80%;
+                max-width: 1000px;
+            }
+            .settings-item {
+                margin-bottom: 1rem;
+                cursor: move;
+            }
+            .settings-row {
+                display: grid;
+                grid-template-columns: 30px auto auto auto;
+                gap: 0.5rem;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            .drag-handle {
+                font-size: 1.2rem;
+                user-select: none;
+                cursor: move;
+                text-align: center;
+            }
+            .interface-name {
+                display: inline-block;
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+            .popup-card input[type="text"] {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 0.3rem;
+                padding: 0.4rem;
+                color: var(--text);
+            }
+            .popup-card input[type="checkbox"] {
+                accent-color: var(--primary);
+            }
+            .popup-card button {
+                background: var(--primary);
+                color: var(--text);
+                border: none;
+                padding: 0.4rem 0.8rem;
+                border-radius: 0.3rem;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+            .popup-card h3,
+            .popup-card h4 {
+                text-align: center;
+                margin-bottom: 1rem;
+            }
+            .color-row {
+                display: flex;
+                justify-content: flex-end;
+            }
+            /* Der Button zur Zuweisung von Docker-Containernamen wurde entfernt */
+            .custom-graphs-plus-button {
+                display: flex;
+                justify-content: center;
+                margin-top: 1rem;
+            }
+            .custom-graphs-plus-button button {
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                font-size: 1.5rem;
+                line-height: 1;
+                background-color: var(--primary);
+                color: var(--text);
+                border: none;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="hexagons" id="hexagon-container"></div>
+        <div class="container">
+            <div class="grid">
+                <!-- CPU -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">CPU</h2>
+                        <div class="color-labels">
+                            <div class="color-label">
+                                <span class="color-box usage"></span>Usage
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-container">
+                        <div class="chart-container">
+                            <canvas id="cpuChart"></canvas>
+                            <div id="cpuOverlay" class="chart-overlay">0%</div>
+                        </div>
+                    </div>
+                    <div class="detail-view" id="cpu-detail-view">
+                        <div class="graph-label">24hr CPU Usage</div>
+                        <canvas id="cpuDetailChart"></canvas>
+                    </div>
                 </div>
-                <div class="color-label">
-                  <span class="color-box used"></span>Output
+
+                <!-- RAM -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">RAM</h2>
+                        <div class="color-labels">
+                            <div class="color-label">
+                                <span class="color-box free"></span>Free
+                            </div>
+                            <div class="color-label">
+                                <span class="color-box used"></span>Used
+                            </div>
+                            <div class="color-label">
+                                <span class="color-box cached"></span>Cached
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-container">
+                        <div class="chart-container">
+                            <canvas id="memoryChart"></canvas>
+                            <div id="memoryOverlay" class="chart-overlay">
+                                0
+                            </div>
+                        </div>
+                    </div>
+                    <div class="detail-view" id="memory-detail-view">
+                        <div class="graph-label">24hr RAM Usage</div>
+                        <canvas id="memoryDetailChart"></canvas>
+                    </div>
                 </div>
-              </div>
+
+                <!-- Disk -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Disk</h2>
+                        <div class="color-labels">
+                            <div class="color-label">
+                                <span class="color-box used"></span>Used
+                            </div>
+                            <div class="color-label">
+                                <span class="color-box free"></span>Free
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-container">
+                        <div class="chart-container">
+                            <canvas id="diskChart"></canvas>
+                            <div id="diskOverlay" class="chart-overlay">0</div>
+                        </div>
+                    </div>
+                    <div class="detail-view" id="disk-detail-view">
+                        <div class="graph-label">7-Day Disk Used</div>
+                        <canvas id="diskHistoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Network -->
+                <div class="card full-width">
+                    <div
+                        class="card-header"
+                        style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        "
+                    >
+                        <div
+                            style="
+                                display: flex;
+                                align-items: center;
+                                gap: 1rem;
+                            "
+                        >
+                            <h2 class="card-title">Network Throughput</h2>
+                            <div class="color-labels">
+                                <div class="color-label">
+                                    <span class="color-box usage"></span>Input
+                                </div>
+                                <div class="color-label">
+                                    <span class="color-box used"></span>Output
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            class="settings-btn"
+                            id="customGraphSettingsBtn"
+                            title="Custom Network Graph Settings"
+                        >
+                            ⚙️
+                        </button>
+                    </div>
+                    <div class="stat-container">
+                        <canvas id="networkChart"></canvas>
+                    </div>
+                    <!-- Container to display custom network graphs -->
+                    <div id="customGraphsContainer"></div>
+                    <div class="detail-view" id="network-detail-view"></div>
+                </div>
+
+                <!-- Docker -->
+                <div class="card docker-card full-width">
+                    <h2 class="card-title">Docker Containers</h2>
+                    <button
+                        class="update-btn"
+                        id="checkAllBtn"
+                        style="margin-bottom: 1rem"
+                        onclick="checkAllUpdates()"
+                    >
+                        ↻ Check for updates
+                    </button>
+                    <div class="docker-container">
+                        <table class="docker-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Name</th>
+                                    <th>Uptime</th>
+                                    <th>Image</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="docker-data"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <!-- Gear button for net settings -->
-            <button class="settings-btn" id="network-settings-btn" title="Network Settings">⚙</button>
-          </div>
-          <div class="stat-container">
-            <canvas id="networkChart"></canvas>
-          </div>
-          <div class="detail-view" id="network-detail-view">
-            <div id="customNetworkGraphsContainer"></div>
-            <div class="custom-graphs-plus-button">
-              <button id="openAddGraphMenuBtn" title="Open Add Graph Menu">+</button>
+        </div>
+
+        <button
+            class="mode-toggle"
+            id="modeToggle"
+            title="Toggle light/dark mode"
+        >
+            💡
+        </button>
+
+        <!-- Custom Network Graph Configuration Modal -->
+        <div class="popup-overlay" id="customGraphModal">
+            <div class="popup-card">
+                <h3>Custom Network Graph Configuration</h3>
+                <div class="add-graph-menu-content">
+                    <div class="add-graph-input-row">
+                        <label for="graphName">Graph Name:</label>
+                        <input
+                            type="text"
+                            id="graphName"
+                            placeholder="Enter graph name"
+                        />
+                    </div>
+                    <div class="add-graph-input-row">
+                        <label>Interfaces:</label>
+                        <button id="addInterfaceBtn">Add Interface</button>
+                    </div>
+                    <div id="interfacesContainer">
+                        <!-- Interface rows will be added here dynamically -->
+                    </div>
+                    <!-- Der Button zur Zuweisung von Docker-Containernamen wurde entfernt -->
+                    <div
+                        style="
+                            margin-top: 1rem;
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 1rem;
+                        "
+                    >
+                        <button id="cancelGraphConfigBtn">Cancel</button>
+                        <button id="saveGraphConfigBtn">
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
 
-        <!-- Docker -->
-        <div class="card docker-card full-width">
-          <h2 class="card-title">Docker Containers</h2>
-          <button class="update-btn" id="checkAllBtn" style="margin-bottom: 1rem" onclick="checkAllUpdates()">↻ Check for updates</button>
-          <div class="docker-container">
-            <table class="docker-table">
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Name</th>
-                  <th>Uptime</th>
-                  <th>Image</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="docker-data"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Popup for network settings -->
-    <div id="network-settings-popup" class="popup-overlay">
-      <div class="popup-card">
-        <h3>Network Interface Settings</h3>
-        <form id="network-settings-form">
-          <div id="network-settings-list"></div>
-          <div style="margin-top: 10px; text-align: right">
-            <button type="button" id="cancel-settings-btn">Cancel</button>
-            <button type="submit" id="save-settings-btn">Save</button>
-          </div>
-        </form>
-        <!-- Veth Mappings Info -->
-        <div id="veth-mappings-section" style="margin-top: 20px;">
-          <h4>Docker Veth Mappings</h4>
-          <button id="auto-map-btn">Auto Map</button>
-          <div id="veth-mappings-list"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- The new "Add Graph Menu" popup -->
-    <div id="add-graph-popup" class="popup-overlay">
-      <div class="popup-card">
-        <h3>Add Graph Menu</h3>
-        <div class="add-graph-menu-content" id="addGraphMenuContent">
-          <!-- Dynamically built in JS -->
-        </div>
-        <div style="margin-top: 1rem; text-align: right;">
-          <button type="button" id="closeAddGraphMenuBtn">Close</button>
-        </div>
-      </div>
-    </div>
-
-    <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">💡</button>
-
-    <script>
-      // ------------------------------------------------
-      //  Background Hex Animation
-      // ------------------------------------------------
-      function randomInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      }
-      function randomFloat(min, max) {
-        return Math.random() * (max - min) + min;
-      }
-      function generateHexagons(count) {
-        const container = document.getElementById("hexagon-container");
-        for (let i = 0; i < count; i++) {
-          const hex = document.createElement("div");
-          hex.classList.add("hexagon");
-          const top = randomInt(0, 100);
-          const left = randomInt(0, 100);
-          const size = randomInt(80, 250);
-          const delay = randomFloat(0, 10).toFixed(1);
-          hex.style.top = top + "%";
-          hex.style.left = left + "%";
-          hex.style.width = size + "px";
-          hex.style.height = size + "px";
-          hex.style.animationDelay = delay + "s";
-          container.appendChild(hex);
-        }
-      }
-      generateHexagons(40);
-
-      // ------------------------------------------------
-      //  Card Expand/Collapse
-      // ------------------------------------------------
-      document.querySelectorAll(".card").forEach((card) => {
-        card.addEventListener("click", (e) => {
-          // Don’t toggle if clicked on a button (like the gear)
-          if (e.target.tagName.toLowerCase() === "button") return;
-          const detailView = card.querySelector(".detail-view");
-          if (!detailView) return;
-          const currentlyHidden =
-            detailView.style.display === "" || detailView.style.display === "none";
-          detailView.style.display = currentlyHidden ? "block" : "none";
-          // If we are showing the network detail, reload custom graphs
-          if (
-            card.querySelector(".card-title")?.innerText.includes("Network") &&
-            currentlyHidden
-          ) {
-            loadCustomNetworkGraphs();
-          }
-        });
-      });
-
-      // ------------------------------------------------
-      //  Light/Dark Mode
-      // ------------------------------------------------
-      const modeToggle = document.getElementById("modeToggle");
-      modeToggle.addEventListener("click", () => {
-        document.body.classList.toggle("light-mode");
-      });
-
-      // ------------------------------------------------
-      //  Charts Setup
-      // ------------------------------------------------
-      const sharedXAxisConfig = {
-        grid: { display: true, drawTicks: true, tickLength: 5, color: "rgba(255,255,255,0.1)" },
-        ticks: { display: true },
-      };
-
-      // CPU
-      const cpuCtx = document.getElementById("cpuChart").getContext("2d");
-      const cpuChart = new Chart(cpuCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [{
-            label: "CPU",
-            data: [],
-            borderColor: "rgba(5,112,85,1)",
-            backgroundColor: "rgba(45,90,79,0.4)",
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: {
-              max: 100,
-              grid: { color: "rgba(255,255,255,0.1)" }
-            }
-          },
-        },
-      });
-      const cpuOverlay = document.getElementById("cpuOverlay");
-      const cpuDetailCtx = document.getElementById("cpuDetailChart").getContext("2d");
-      const cpuDetailChart = new Chart(cpuDetailCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [{
-            label: "24hr CPU Usage (%)",
-            data: [],
-            borderColor: "rgba(5,112,85,1)",
-            backgroundColor: "rgba(45,90,79,0.2)",
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: {
-              max: 100,
-              grid: { color: "rgba(255,255,255,0.1)" }
-            }
-          },
-        },
-      });
-
-      // Memory
-      const memCtx = document.getElementById("memoryChart").getContext("2d");
-      const memoryBasicChart = new Chart(memCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            { label: "Free",   data: [], borderColor: "#1e8449", tension: 0.4, fill: false, borderWidth: 2 },
-            { label: "Used",   data: [], borderColor: "#922b21", tension: 0.4, fill: false, borderWidth: 2 },
-            { label: "Cached", data: [], borderColor: "#21618c", tension: 0.4, fill: false, borderWidth: 2 },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: {
-              grid: { color: "rgba(255,255,255,0.1)" }
-            }
-          },
-        },
-      });
-      const memoryOverlay = document.getElementById("memoryOverlay");
-      const memoryDetailCtx = document.getElementById("memoryDetailChart").getContext("2d");
-      const memoryDetailChart = new Chart(memoryDetailCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [{
-            label: "24hr RAM Usage",
-            data: [],
-            borderColor: "#21618c",
-            backgroundColor: "rgba(33,97,140,0.2)",
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: {
-              grid: { color: "rgba(255,255,255,0.1)" }
-            }
-          },
-        },
-      });
-
-      // Disk
-      const diskCtx = document.getElementById("diskChart").getContext("2d");
-      const diskBasicChart = new Chart(diskCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            { label: "Used", data: [], borderColor: "#922b21", tension: 0.4, fill: false, borderWidth: 2 },
-            { label: "Free", data: [], borderColor: "#1e8449", tension: 0.4, fill: false, borderWidth: 2 },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: {
-              grid: { color: "rgba(255,255,255,0.1)" }
-            }
-          },
-        },
-      });
-      const diskOverlay = document.getElementById("diskOverlay");
-      const diskDetailCtx = document.getElementById("diskHistoryChart").getContext("2d");
-      const diskHistoryChart = new Chart(diskDetailCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [{
-            label: "7-Day Disk Used (GB)",
-            data: [],
-            borderColor: "#922b21",
-            backgroundColor: "rgba(146,43,33,0.2)",
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: {
-              grid: { color: "rgba(255,255,255,0.1)" }
-            }
-          },
-        },
-      });
-
-      // Network (netgr1)
-      const netCtx = document.getElementById("networkChart").getContext("2d");
-      const networkChart = new Chart(netCtx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "Input (MiB/s)",
-              data: [],
-              borderColor: "rgba(5,112,85,1)",
-              backgroundColor: "rgba(45,90,79,0.2)",
-              fill: true,
-              tension: 0.4,
-              borderWidth: 2,
-            },
-            {
-              label: "Output (MiB/s)",
-              data: [],
-              borderColor: "#ff5555",
-              backgroundColor: "rgba(255,85,85,0.2)",
-              fill: true,
-              tension: 0.4,
-              borderWidth: 2,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: sharedXAxisConfig,
-            y: { grid: { color: "rgba(255,255,255,0.1)" } },
-          },
-        },
-      });
-
-      // ------------------------------------------------
-      //  Stats Polling & Update
-      // ------------------------------------------------
-      function updateStats() {
-        fetch("/stats")
-          .then(r => r.json())
-          .then(data => {
-            window.cachedStats = data;
-            const system = data.system || {};
-
-            // CPU
-            cpuOverlay.textContent = Math.round(system.cpu || 0) + "%";
-            if (system.cpu_history && system.cpu_history.usage) {
-              cpuChart.data.labels = system.cpu_history.time;
-              cpuChart.data.datasets[0].data = system.cpu_history.usage;
-              cpuChart.update();
-            }
-            if (system.cpu_details && system.cpu_details.history24h) {
-              cpuDetailChart.data.labels = system.cpu_details.history24h.map(e => e.time);
-              cpuDetailChart.data.datasets[0].data = system.cpu_details.history24h.map(e => e.usage);
-              cpuDetailChart.update();
-            }
-
-            // Memory
-            if (system.memory_history) {
-              memoryBasicChart.data.labels = system.memory_history.time;
-              memoryBasicChart.data.datasets[0].data = system.memory_history.free;
-              memoryBasicChart.data.datasets[1].data = system.memory_history.used;
-              memoryBasicChart.data.datasets[2].data = system.memory_history.cached;
-              if (system.memory && system.memory.total) {
-                memoryBasicChart.options.scales.y.max = system.memory.total;
-              }
-              memoryBasicChart.update();
-            }
-            if (system.memory) {
-              memoryOverlay.textContent = (system.memory.used || 0).toFixed(2);
-            }
-            if (system.memory_details && system.memory_details.history24h) {
-              const memDV = document.getElementById("memory-detail-view");
-              if (memDV.style.display !== "none") {
-                memoryDetailChart.data.labels = system.memory_details.history24h.map(e => e.time);
-                memoryDetailChart.data.datasets[0].data = system.memory_details.history24h.map(e => e.usage);
-                memoryDetailChart.update();
-              }
-            }
-
-            // Disk
-            if (system.disk_history_basic) {
-              diskBasicChart.data.labels = system.disk_history_basic.time;
-              diskBasicChart.data.datasets[0].data = system.disk_history_basic.used;
-              diskBasicChart.data.datasets[1].data = system.disk_history_basic.free;
-              if (system.disk && system.disk.total) {
-                diskBasicChart.options.scales.y.max = system.disk.total;
-              }
-              diskBasicChart.update();
-            }
-            if (system.disk) {
-              diskOverlay.textContent = (system.disk.used || 0).toFixed(2);
-            }
-            if (system.disk_details && system.disk_details.history) {
-              const diskDV = document.getElementById("disk-detail-view");
-              if (diskDV.style.display !== "none") {
-                diskHistoryChart.data.labels = system.disk_details.history.map(e => e.time);
-                diskHistoryChart.data.datasets[0].data = system.disk_details.history.map(e => e.used);
-                diskHistoryChart.update();
-              }
-            }
-
-            // Network (netgr1)
-            if (data.network && data.network.interfaces) {
-              const interfaces = data.network.interfaces;
-              let mainIface = null;
-              Object.keys(interfaces).forEach(k => {
-                if (/^e/.test(k) && !mainIface) mainIface = k;
-              });
-              if (!mainIface) {
-                mainIface = Object.keys(interfaces)[0] || null;
-              }
-              if (mainIface && interfaces[mainIface] && interfaces[mainIface].length) {
-                const arr = interfaces[mainIface];
-                networkChart.data.labels = arr.map(e => e.time);
-                networkChart.data.datasets[0].data = arr.map(e => e.input);
-                networkChart.data.datasets[1].data = arr.map(e => e.output);
-                networkChart.update();
-              }
-            }
-
-            // Docker
-            const dockerDataEl = document.getElementById("docker-data");
-            dockerDataEl.innerHTML = (data.docker || []).map(cont => {
-              let statusClass;
-              const lowerStatus = (cont.status || "").toLowerCase();
-              if (lowerStatus.includes("update success")) {
-                statusClass = "status-green";
-              } else if (/^updat/i.test(lowerStatus)) {
-                statusClass = "status-yellow";
-                if (lowerStatus.includes("failed")) {
-                  statusClass = "status-red";
-                }
-              } else if (!cont.up_to_date) {
-                statusClass = "status-blue";
-              } else if (lowerStatus.includes("running")) {
-                statusClass = "status-green";
-              } else if (lowerStatus.includes("starting") || lowerStatus.includes("created")) {
-                statusClass = "status-yellow";
-              } else {
-                statusClass = "status-red";
-              }
-              const hrs = Math.floor(cont.uptime / 3600);
-              const mins = Math.floor((cont.uptime % 3600) / 60);
-              let updateBtn = "";
-              if (!cont.up_to_date && !/updating/i.test(cont.status)) {
-                updateBtn = `<button class="update-btn" onclick="updateContainer('${cont.name}')">↑ Update</button>`;
-              }
-              return `
-                <tr>
-                  <td><div class="status-indicator ${statusClass}"></div></td>
-                  <td>${cont.name}</td>
-                  <td>${hrs}h ${mins}m</td>
-                  <td>${cont.image}</td>
-                  <td>${updateBtn}</td>
-                </tr>
-              `;
-            }).join("");
-          })
-          .catch(err => console.error("Error fetching stats:", err));
-      }
-      setInterval(updateStats, 500);
-      updateStats();
-
-      // ------------------------------------------------
-      //  Docker “Check All” Updates
-      // ------------------------------------------------
-      let checkAllInterval = null;
-      function checkAllUpdates() {
-        const btn = document.getElementById("checkAllBtn");
-        btn.disabled = true;
-        btn.innerHTML = `↻ Check for updates <div class="spinner"></div>`;
-        fetch("/check_all", { method: "POST" })
-          .then(r => r.json())
-          .then(d => {
-            if (d.status !== "already_in_progress") {
-              checkAllInterval = setInterval(pollCheckAllStatus, 500);
-            } else {
-              btn.innerHTML = "↻ Check for updates";
-              btn.disabled = false;
-            }
-          })
-          .catch(err => {
-            console.error("Error starting check_all:", err);
-            btn.disabled = false;
-            btn.innerHTML = "↻ Check for updates";
-          });
-      }
-      function pollCheckAllStatus() {
-        const btn = document.getElementById("checkAllBtn");
-        fetch("/check_all_status")
-          .then(r => r.json())
-          .then(st => {
-            if (st.in_progress) {
-              btn.innerHTML = `Checking... (${st.checked}/${st.total})`;
-            } else {
-              btn.innerHTML = "↻ Check for updates";
-              btn.disabled = false;
-              clearInterval(checkAllInterval);
-              checkAllInterval = null;
-              updateStats();
-            }
-          })
-          .catch(err => console.error("Error polling check_all status:", err));
-      }
-      function updateContainer(containerName) {
-        const btn = event.target;
-        if (btn.innerHTML.toLowerCase().includes("failed")) {
-          btn.style.backgroundColor = "var(--primary)";
-        }
-        btn.innerHTML = `initializing... <div class="spinner"></div>`;
-        btn.disabled = true;
-        fetch(`/update/${containerName}`, { method: "POST" })
-          .then(r => r.json())
-          .then(() => pollContainerUpdate(containerName, btn))
-          .catch(err => console.error("Error updating container:", err));
-      }
-      function pollContainerUpdate(containerName, button) {
-        const pollInt = setInterval(() => {
-          fetch(`/update_status/${containerName}`)
-            .then(r => r.json())
-            .then(st => {
-              if (st.in_progress && !st.error) {
-                if (!button.dataset.startedUpdate) {
-                  button.style.backgroundColor = "yellow";
-                  button.dataset.startedUpdate = "true";
-                }
-                button.innerHTML = `${st.phase} <div class="spinner"></div>`;
-                return;
-              }
-              clearInterval(pollInt);
-              if (st.error) {
-                button.style.backgroundColor = "red";
-                button.innerHTML = "Update failed";
-                button.disabled = false;
-              } else if (st.success) {
-                button.style.backgroundColor = "#33cc33";
-                button.innerHTML = "Updated successfully";
-                button.disabled = true;
-                setTimeout(() => {
-                  button.style.backgroundColor = "var(--primary)";
-                  button.style.display = "none";
-                  button.disabled = false;
-                }, 10000);
-              }
-              updateStats();
-            })
-            .catch(err => {
-              console.error("Error polling update status:", err);
-              clearInterval(pollInt);
-            });
-        }, 1000);
-      }
-
-      // ------------------------------------------------
-      //  Network Settings Popup
-      // ------------------------------------------------
-      const netSettingsPopup = document.getElementById("network-settings-popup");
-      const networkSettingsBtn = document.getElementById("network-settings-btn");
-      const cancelSettingsBtn = document.getElementById("cancel-settings-btn");
-      networkSettingsBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        fetch("/update_veth_info", { method: "POST" })
-          .then(() => loadNetworkSettings())
-          .catch(err => {
-            console.error("Error updating veth info:", err);
-            loadNetworkSettings();
-          });
-        netSettingsPopup.style.display = "flex";
-      });
-      cancelSettingsBtn.addEventListener("click", () => {
-        netSettingsPopup.style.display = "none";
-      });
-
-      function loadNetworkSettings() {
-        fetch("/network_settings")
-          .then(r => r.json())
-          .then(settings => {
-            // Merge with any interfaces from stats that might not be in DB yet
-            const netIfaces = (window.cachedStats?.network?.interfaces) || {};
-            const statsIfaces = Object.keys(netIfaces);
-            // Build a map of known DB settings
-            let dbMap = {};
-            settings.forEach(s => { dbMap[s.interface] = s; });
-            // Merge
-            statsIfaces.forEach(i => {
-              if (!dbMap[i]) {
-                dbMap[i] = {
-                  interface: i,
-                  display_order: 999,
-                  visible: true,
-                  display_name: i,
-                  color: "rgba(255,99,132,1)",
-                  assigned_graph: null
-                };
-              }
-            });
-            // Rebuild settings array from merged map
-            let merged = Object.values(dbMap);
-            merged.sort((a, b) => a.display_order - b.display_order);
-
-            let container = document.getElementById("network-settings-list");
-            container.innerHTML = "";
-            merged.forEach(s => {
-              let item = document.createElement("div");
-              item.classList.add("settings-item");
-              item.setAttribute("data-interface", s.interface);
-              item.draggable = true;
-
-              let row = document.createElement("div");
-              row.classList.add("settings-row");
-
-              let dragHandle = document.createElement("div");
-              dragHandle.classList.add("drag-handle");
-              dragHandle.textContent = "⋮⋮";
-
-              let checkbox = document.createElement("input");
-              checkbox.type = "checkbox";
-              checkbox.checked = !!s.visible;
-
-              let nameSpan = document.createElement("span");
-              nameSpan.classList.add("interface-name");
-              nameSpan.textContent = s.interface;
-
-              let displayInput = document.createElement("input");
-              displayInput.type = "text";
-              displayInput.value = s.display_name || s.interface;
-              displayInput.style.width = "200px";
-
-              row.appendChild(dragHandle);
-              row.appendChild(checkbox);
-              let colWrap = document.createElement("div");
-              colWrap.style.display = "flex";
-              colWrap.style.flexDirection = "column";
-              colWrap.appendChild(nameSpan);
-              colWrap.appendChild(displayInput);
-              row.appendChild(colWrap);
-              item.appendChild(row);
-
-              // color row
-              let colorRow = document.createElement("div");
-              colorRow.classList.add("color-row");
-
-              // 12 distinct colors
-              let netColorPalette = [
-                "rgba(255,99,132,1)",
-                "rgba(54,162,235,1)",
-                "rgba(255,206,86,1)",
-                "rgba(75,192,192,1)",
-                "rgba(153,102,255,1)",
-                "rgba(255,159,64,1)",
-                "rgba(201,203,207,1)",
-                "rgba(140,86,75,1)",
-                "rgba(0,128,128,1)",
-                "rgba(220,20,60,1)",
-                "rgba(0,255,127,1)",
-                "rgba(173,255,47,1)"
-              ];
-              let currentIndex = netColorPalette.indexOf(s.color);
-              if (currentIndex < 0) currentIndex = 0;
-
-              let colorBtn = document.createElement("button");
-              colorBtn.type = "button";
-              colorBtn.classList.add("color-cycle-btn");
-              colorBtn.dataset.colorIndex = currentIndex;
-              colorBtn.dataset.colorValue = netColorPalette[currentIndex];
-              colorBtn.style.backgroundColor = netColorPalette[currentIndex];
-              colorBtn.textContent = "Cycle Color";
-
-              colorBtn.addEventListener("click", function() {
-                let idx = parseInt(this.dataset.colorIndex);
-                idx = (idx + 1) % netColorPalette.length;
-                this.dataset.colorIndex = idx;
-                this.dataset.colorValue = netColorPalette[idx];
-                this.style.backgroundColor = netColorPalette[idx];
-              });
-
-              colorRow.appendChild(colorBtn);
-              item.appendChild(colorRow);
-
-              container.appendChild(item);
-            });
-            addDragAndDropHandlers();
-            loadVethMappings();
-          })
-          .catch(err => console.error("Error loading network settings:", err));
-      }
-      function addDragAndDropHandlers() {
-        const items = document.querySelectorAll(".settings-item");
-        let dragSrcEl = null;
-
-        function handleDragStart(e) {
-          dragSrcEl = this;
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/html", this.outerHTML);
-          this.style.opacity = "0.4";
-        }
-        function handleDragOver(e) {
-          if (e.preventDefault) e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          return false;
-        }
-        function handleDragEnter() {
-          this.classList.add("over");
-        }
-        function handleDragLeave() {
-          this.classList.remove("over");
-        }
-        function handleDrop(e) {
-          if (e.stopPropagation) e.stopPropagation();
-          if (dragSrcEl != this) {
-            this.parentNode.removeChild(dragSrcEl);
-            const dropHTML = e.dataTransfer.getData("text/html");
-            this.insertAdjacentHTML("beforebegin", dropHTML);
-            addDragAndDropHandlers();
-          }
-          return false;
-        }
-        function handleDragEnd() {
-          this.style.opacity = "1";
-          items.forEach(i => i.classList.remove("over"));
-        }
-        items.forEach(item => {
-          item.addEventListener("dragstart", handleDragStart, false);
-          item.addEventListener("dragenter", handleDragEnter, false);
-          item.addEventListener("dragover", handleDragOver, false);
-          item.addEventListener("dragleave", handleDragLeave, false);
-          item.addEventListener("drop", handleDrop, false);
-          item.addEventListener("dragend", handleDragEnd, false);
-        });
-      }
-      document.getElementById("network-settings-form").addEventListener("submit", e => {
-        e.preventDefault();
-        let items = [...document.querySelectorAll(".settings-item")];
-        let settings = items.map((item, idx) => {
-          let iface = item.getAttribute("data-interface");
-          let checkbox = item.querySelector("input[type='checkbox']");
-          let displayInput = item.querySelector("input[type='text']");
-          let colorBtn = item.querySelector(".color-cycle-btn");
-          return {
-            interface: iface,
-            visible: checkbox.checked,
-            display_order: idx,
-            display_name: displayInput.value,
-            color: colorBtn.dataset.colorValue || "rgba(255,99,132,1)"
-          };
-        });
-        fetch("/network_settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(settings)
-        })
-        .then(r => r.json())
-        .then(d => {
-          if (d.status === "success") {
-            netSettingsPopup.style.display = "none";
-          }
-        })
-        .catch(err => console.error("Error saving network settings:", err));
-      });
-      function loadVethMappings() {
-        fetch("/get_veth_info")
-          .then(r => r.json())
-          .then(mappings => {
-            let container = document.getElementById("veth-mappings-list");
-            if (!mappings.length) {
-              container.innerHTML = "<p>No veth mappings found.</p>";
-            } else {
-              let html = "<table style='width:100%; color: var(--text);'><tr><th>Veth Interface</th><th>Container Name</th><th>Docker Network Name</th></tr>";
-              mappings.forEach(m => {
-                html += `<tr><td>${m.veth_interface}</td><td>${m.container_name}</td><td>${m.docker_network_name}</td></tr>`;
-              });
-              html += "</table>";
-              container.innerHTML = html;
-            }
-          })
-          .catch(err => console.error("Error loading veth mappings:", err));
-      }
-      document.getElementById("auto-map-btn").addEventListener("click", () => {
-        fetch("/get_veth_info")
-          .then(r => r.json())
-          .then(mappings => {
-            mappings.forEach(mp => {
-              let row = document.querySelector(`.settings-item[data-interface="${mp.veth_interface}"]`);
-              if (row) {
-                let input = row.querySelector("input[type='text']");
-                if (input) input.value = mp.container_name;
-              }
-            });
-          })
-          .catch(err => console.error("Error in auto mapping:", err));
-      });
-
-      // ------------------------------------------------
-      //  Custom Graphs in netgr2
-      // ------------------------------------------------
-      function loadCustomNetworkGraphs() {
-        fetch("/custom_network_stats")
-          .then(r => r.json())
-          .then(stats => {
-            let container = document.getElementById("customNetworkGraphsContainer");
-            container.innerHTML = "";
-            // stats is { graphId: { name, time[], input[], output[] } }
-            Object.keys(stats).forEach(gid => {
-              const g = stats[gid];
-              const cardDiv = document.createElement("div");
-              cardDiv.style.marginBottom = "2rem";
-
-              // Build header with left-aligned title and right-aligned color legend
-              const headerDiv = document.createElement("div");
-              headerDiv.classList.add("custom-graph-header");
-
-              const titleDiv = document.createElement("div");
-              titleDiv.textContent = g.name;
-
-              const legendDiv = document.createElement("div");
-              legendDiv.classList.add("custom-graph-legend");
-              // Determine which interfaces are assigned to this custom graph
-              let assignedIfaces = [];
-              if (window.cachedStats && window.cachedStats.network_settings) {
-                for (let iface in window.cachedStats.network_settings) {
-                  let setting = window.cachedStats.network_settings[iface];
-                  if (parseInt(setting.assigned_graph) === parseInt(gid)) {
-                    assignedIfaces.push(setting);
-                  }
-                }
-                assignedIfaces.sort((a, b) => a.display_order - b.display_order);
-              }
-              assignedIfaces.forEach(s => {
-                let legendItem = document.createElement("div");
-                legendItem.classList.add("legend-item");
-                let colorBox = document.createElement("span");
-                colorBox.classList.add("legend-color-box");
-                colorBox.style.backgroundColor = s.color;
-                let labelSpan = document.createElement("span");
-                labelSpan.textContent = s.display_name;
-                legendItem.appendChild(colorBox);
-                legendItem.appendChild(labelSpan);
-                legendDiv.appendChild(legendItem);
-              });
-              headerDiv.appendChild(titleDiv);
-              headerDiv.appendChild(legendDiv);
-              cardDiv.appendChild(headerDiv);
-
-              let row = document.createElement("div");
-              row.style.display = "flex";
-              row.style.gap = "1rem";
-
-              let inCanvas = document.createElement("canvas");
-              row.appendChild(inCanvas);
-              let outCanvas = document.createElement("canvas");
-              row.appendChild(outCanvas);
-              cardDiv.appendChild(row);
-
-              container.appendChild(cardDiv);
-
-              // Determine chart colors based on assigned interfaces (if any)
-              let inputColor, outputColor;
-              if (assignedIfaces.length >= 2) {
-                inputColor = assignedIfaces[0].color;
-                outputColor = assignedIfaces[1].color;
-              } else if (assignedIfaces.length === 1) {
-                inputColor = assignedIfaces[0].color;
-                outputColor = assignedIfaces[0].color;
-              } else {
-                inputColor = "rgba(5,112,85,1)";
-                outputColor = "#ff5555";
-              }
-              // Compute background colors (with lower alpha if in rgba format)
-              let inputBgColor = inputColor;
-              let outputBgColor = outputColor;
-              if (inputColor.startsWith("rgba")) {
-                inputBgColor = inputColor.replace(/,\s*1\)/, ', 0.2)');
-              }
-              if (outputColor.startsWith("rgba")) {
-                outputBgColor = outputColor.replace(/,\s*1\)/, ', 0.2)');
-              }
-
-              // Input chart
-              new Chart(inCanvas.getContext("2d"), {
-                type: "line",
-                data: {
-                  labels: g.time,
-                  datasets: [{
-                    label: "Input (MiB/s)",
-                    data: g.input,
-                    borderColor: inputColor,
-                    backgroundColor: inputBgColor,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: {
-                      type: "time",
-                      time: {
-                        parser: "HH:mm:ss",
-                        tooltipFormat: "HH:mm:ss",
-                        unit: "second",
-                        displayFormats: { second: "HH:mm:ss" },
-                      },
-                      grid: { color: "rgba(255,255,255,0.1)" }
-                    },
-                    y: { grid: { color: "rgba(255,255,255,0.1)" } }
-                  }
-                }
-              });
-
-              // Output chart
-              new Chart(outCanvas.getContext("2d"), {
-                type: "line",
-                data: {
-                  labels: g.time,
-                  datasets: [{
-                    label: "Output (MiB/s)",
-                    data: g.output,
-                    borderColor: outputColor,
-                    backgroundColor: outputBgColor,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: {
-                      type: "time",
-                      time: {
-                        parser: "HH:mm:ss",
-                        tooltipFormat: "HH:mm:ss",
-                        unit: "second",
-                        displayFormats: { second: "HH:mm:ss" },
-                      },
-                      grid: { color: "rgba(255,255,255,0.1)" }
-                    },
-                    y: { grid: { color: "rgba(255,255,255,0.1)" } }
-                  }
-                }
-              });
-            });
-          })
-          .catch(err => console.error("Error loading custom network stats:", err));
-      }
-
-      // Set custom network graphs to update every 5 seconds when the network detail view is open.
-      setInterval(() => {
-        const networkDetailView = document.getElementById("network-detail-view");
-        if (networkDetailView && networkDetailView.style.display !== "none") {
-          loadCustomNetworkGraphs();
-        }
-      }, 5000);
-
-      // ------------------------------------------------
-      //  “Add Graph Menu” Popup
-      // ------------------------------------------------
-      const addGraphPopup = document.getElementById("add-graph-popup");
-      const openAddGraphMenuBtn = document.getElementById("openAddGraphMenuBtn");
-      const closeAddGraphMenuBtn = document.getElementById("closeAddGraphMenuBtn");
-      openAddGraphMenuBtn.addEventListener("click", e => {
-        e.stopPropagation();
-        buildAddGraphMenu();
-        addGraphPopup.style.display = "flex";
-      });
-      closeAddGraphMenuBtn.addEventListener("click", () => {
-        addGraphPopup.style.display = "none";
-      });
-
-      function buildAddGraphMenu() {
-        // We want all interfaces (from stats) + their DB settings, plus existing custom graphs
-        Promise.all([
-          fetch("/stats").then(r => r.json()),
-          fetch("/network_settings").then(r => r.json()),
-          fetch("/custom_network_graphs").then(r => r.json())
-        ])
-        .then(([statsResp, dbSettings, graphs]) => {
-          let netIfaces = statsResp.network.interfaces || {};
-          let statsIfaces = Object.keys(netIfaces);
-
-          // Build map from DB
-          let dbMap = {};
-          dbSettings.forEach(s => { dbMap[s.interface] = s; });
-          // Merge in stats if not in DB
-          statsIfaces.forEach(i => {
-            if (!dbMap[i]) {
-              dbMap[i] = {
-                interface: i,
-                display_order: 999,
-                visible: true,
-                display_name: i,
-                color: "rgba(255,99,132,1)",
-                assigned_graph: null
-              };
-            }
-          });
-          let mergedIfaces = Object.values(dbMap);
-          // Sort by interface name to list them nicely
-          mergedIfaces.sort((a, b) => a.interface.localeCompare(b.interface));
-
-          const container = document.getElementById("addGraphMenuContent");
-          container.innerHTML = "";
-
-          // 1) A row with textfield for new graph name
-          let inputRow = document.createElement("div");
-          inputRow.classList.add("add-graph-input-row");
-          let nameInput = document.createElement("input");
-          nameInput.type = "text";
-          nameInput.placeholder = "Enter new graph name...";
-          inputRow.appendChild(nameInput);
-
-          // 2) A button to create
-          let createBtn = document.createElement("button");
-          createBtn.textContent = "Create Graph";
-          createBtn.addEventListener("click", () => {
-            let graphName = nameInput.value.trim();
-            if (!graphName) {
-              alert("Please enter a graph name.");
-              return;
-            }
-            // Gather which ifaces are checked
-            let checkboxes = document.querySelectorAll(".iface-assign-checkbox");
-            let toAssign = [];
-            checkboxes.forEach(chk => {
-              if (chk.checked) {
-                toAssign.push(chk.getAttribute("data-interface"));
-              }
-            });
-            // 1) create the graph
-            fetch("/custom_network_graphs", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: graphName })
-            })
-            .then(r => r.json())
-            .then(d => {
-              if (d.status === "success") {
-                const newGraphId = d.graph_id;
-                // 2) assign all checked
-                let promises = [];
-                toAssign.forEach(iface => {
-                  promises.push(fetch("/assign_interface_to_graph", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ interface: iface, graph_id: newGraphId })
-                  }));
-                });
-                return Promise.all(promises);
-              } else {
-                throw new Error(d.message || "Error creating graph");
-              }
-            })
-            .then(() => {
-              alert("Graph created and interfaces assigned!");
-              nameInput.value = "";
-              buildAddGraphMenu(); // refresh
-              loadCustomNetworkGraphs(); // refresh the netgr2 view
-            })
-            .catch(err => {
-              console.error("Error in create graph flow:", err);
-              alert("Error: " + err.message);
-            });
-          });
-          inputRow.appendChild(createBtn);
-          container.appendChild(inputRow);
-
-          // 3) The table of interfaces
-          let tableContainer = document.createElement("div");
-          tableContainer.classList.add("interfaces-table-container");
-          let ifaceTable = document.createElement("table");
-          ifaceTable.classList.add("interfaces-table");
-          let thead = document.createElement("thead");
-          thead.innerHTML = `
-            <tr>
-              <th>Real Name</th>
-              <th>Display Name</th>
-              <th>Color</th>
-              <th>Add?</th>
-            </tr>
-          `;
-          ifaceTable.appendChild(thead);
-
-          let tbody = document.createElement("tbody");
-          mergedIfaces.forEach(ifc => {
-            let row = document.createElement("tr");
-
-            // Real name
-            let tdReal = document.createElement("td");
-            tdReal.textContent = ifc.interface;
-            row.appendChild(tdReal);
-
-            // Display name
-            let tdDisp = document.createElement("td");
-            let dispInput = document.createElement("input");
-            dispInput.type = "text";
-            dispInput.value = ifc.display_name || ifc.interface;
-            dispInput.style.width = "120px";
-            dispInput.addEventListener("change", () => {
-              fetch("/update_interface_displayname", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ interface: ifc.interface, display_name: dispInput.value })
-              })
-              .catch(err => console.error("Error updating display name:", err));
-            });
-            tdDisp.appendChild(dispInput);
-            row.appendChild(tdDisp);
-
-            // Color
-            let tdColor = document.createElement("td");
-            let colorPalette = [
-              "rgba(255,99,132,1)",
-              "rgba(54,162,235,1)",
-              "rgba(255,206,86,1)",
-              "rgba(75,192,192,1)",
-              "rgba(153,102,255,1)",
-              "rgba(255,159,64,1)",
-              "rgba(201,203,207,1)",
-              "rgba(140,86,75,1)",
-              "rgba(0,128,128,1)",
-              "rgba(220,20,60,1)",
-              "rgba(0,255,127,1)",
-              "rgba(173,255,47,1)"
-            ];
-            let idx = colorPalette.indexOf(ifc.color);
-            if (idx < 0) idx = 0;
-            let colorBtn = document.createElement("button");
-            colorBtn.type = "button";
-            colorBtn.classList.add("color-cycle-btn");
-            colorBtn.dataset.colorIndex = idx;
-            colorBtn.dataset.colorValue = colorPalette[idx];
-            colorBtn.style.backgroundColor = colorPalette[idx];
-            colorBtn.textContent = "Cycle";
-            colorBtn.addEventListener("click", function() {
-              let i = parseInt(this.dataset.colorIndex);
-              i = (i + 1) % colorPalette.length;
-              this.dataset.colorIndex = i;
-              this.dataset.colorValue = colorPalette[i];
-              this.style.backgroundColor = colorPalette[i];
-              // Immediately update DB
-              fetch("/update_interface_color", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ interface: ifc.interface, color: colorPalette[i] })
-              }).catch(err => console.error("Error updating interface color:", err));
-            });
-            tdColor.appendChild(colorBtn);
-            row.appendChild(tdColor);
-
-            // Add? checkbox
-            let tdCheck = document.createElement("td");
-            let cbox = document.createElement("input");
-            cbox.type = "checkbox";
-            cbox.classList.add("iface-assign-checkbox");
-            cbox.setAttribute("data-interface", ifc.interface);
-            tdCheck.appendChild(cbox);
-            row.appendChild(tdCheck);
-
-            tbody.appendChild(row);
-          });
-          ifaceTable.appendChild(tbody);
-          tableContainer.appendChild(ifaceTable);
-
-          container.appendChild(tableContainer);
-
-          // 4) Another small section to remove existing graphs
-          let removeSection = document.createElement("div");
-          removeSection.style.marginTop = "1rem";
-          let sel = document.createElement("select");
-          let placeholderOpt = document.createElement("option");
-          placeholderOpt.value = "";
-          placeholderOpt.textContent = "(Select a graph to remove)";
-          sel.appendChild(placeholderOpt);
-          graphs.forEach(g => {
-            let opt = document.createElement("option");
-            opt.value = g.id;
-            opt.textContent = g.name;
-            sel.appendChild(opt);
-          });
-          removeSection.appendChild(sel);
-
-          let removeBtn = document.createElement("button");
-          removeBtn.textContent = "Remove Graph";
-          removeBtn.style.marginLeft = "0.5rem";
-          removeBtn.addEventListener("click", () => {
-            let val = sel.value;
-            if (!val) {
-              alert("No graph selected.");
-              return;
-            }
-            if (!confirm("Really delete this graph?")) return;
-            fetch(`/custom_network_graphs/${val}`, { method: "DELETE" })
-              .then(r => r.json())
-              .then(res => {
-                if (res.status === "success") {
-                  alert("Graph removed.");
-                  buildAddGraphMenu();
-                  loadCustomNetworkGraphs();
-                } else {
-                  alert("Error removing graph.");
-                }
-              })
-              .catch(err => console.error("Error removing graph:", err));
-          });
-          removeSection.appendChild(removeBtn);
-
-          container.appendChild(removeSection);
-        })
-        .catch(err => console.error("Error building Add Graph Menu:", err));
-      }
-    </script>
-  </body>
+        <script src="{{ url_for('static', filename='app.js') }}"></script>
+    </body>
 </html>
