@@ -548,7 +548,6 @@
                     <div id="interfacesContainer">
                         <!-- Interface rows will be added here dynamically -->
                     </div>
-                    <!-- Der Button zur Zuweisung von Docker-Containernamen wurde entfernt -->
                     <div
                         style="
                             margin-top: 1rem;
@@ -563,9 +562,21 @@
                         </button>
                     </div>
                 </div>
+                <!-- New section: List of current custom graphs with delete buttons -->
+                <div class="custom-graph-list" style="margin-top: 1rem">
+                    <h4>Current Custom Graphs</h4>
+                    <ul
+                        id="customGraphList"
+                        style="list-style: none; padding: 0"
+                    ></ul>
+                </div>
             </div>
         </div>
-
-        <script src="{{ url_for('static', filename='app.js') }}"></script>
+        <script src="{{ url_for('static', filename='animations.js') }}"></script>
+        <script src="{{ url_for('static', filename='theme.js') }}"></script>
+        <script src="{{ url_for('static', filename='charts.js') }}"></script>
+        <script src="{{ url_for('static', filename='stats.js') }}"></script>
+        <script src="{{ url_for('static', filename='dockerControls.js') }}"></script>
+        <script src="{{ url_for('static', filename='customNetwork.js') }}"></script>
     </body>
 </html>

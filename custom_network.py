@@ -30,8 +30,10 @@ def add_custom_network_graphs(new_graphs):
     cursor = conn.cursor()
     for graph in new_graphs:
         interfaces_json = json.dumps(graph.get("interfaces", []))
-        cursor.execute("INSERT OR REPLACE INTO custom_network_graphs (id, graph_name, interfaces) VALUES (?, ?, ?)",
-                       (graph.get("id"), graph.get("graph_name"), interfaces_json))
+        cursor.execute(
+            "INSERT OR REPLACE INTO custom_network_graphs (id, graph_name, interfaces) VALUES (?, ?, ?)",
+            (graph.get("id"), graph.get("graph_name"), interfaces_json)
+        )
     conn.commit()
     conn.close()
 
@@ -69,3 +71,15 @@ def available_interfaces():
     """
     interfaces = list(psutil.net_if_addrs().keys())
     return jsonify(interfaces)
+
+@custom_network_bp.route('/delete/<int:graph_id>', methods=['DELETE'])
+def delete_custom_network_graph(graph_id):
+    """
+    Delete a custom network graph by its ID.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM custom_network_graphs WHERE id = ?", (graph_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'success', 'deleted': graph_id})

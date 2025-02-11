@@ -568,6 +568,8 @@ document
       .catch((err) =>
         console.error("Error fetching available interfaces:", err),
       );
+    // Load current custom graphs list.
+    updateCustomGraphList();
   });
 
 document
@@ -667,6 +669,58 @@ document
       })
       .catch((err) => console.error("Error saving configuration:", err));
   });
+
+// ------------------------------------------------
+//  Functions for Custom Graph List and Delete
+// ------------------------------------------------
+function updateCustomGraphList() {
+  fetch("/custom_network/config")
+    .then((r) => r.json())
+    .then((graphs) => {
+      const listEl = document.getElementById("customGraphList");
+      listEl.innerHTML = ""; // Clear previous list
+      graphs.forEach((graph) => {
+        const li = document.createElement("li");
+        li.style.display = "flex";
+        li.style.justifyContent = "space-between";
+        li.style.alignItems = "center";
+        li.style.marginBottom = "0.5rem";
+
+        // Display the graph name
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = graph.graph_name;
+        li.appendChild(nameSpan);
+
+        // Create a delete button for this graph
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Delete";
+        deleteBtn.style.marginLeft = "1rem";
+        deleteBtn.addEventListener("click", function () {
+          if (confirm("Are you sure you want to delete this graph?")) {
+            deleteCustomGraph(graph.id);
+          }
+        });
+        li.appendChild(deleteBtn);
+
+        listEl.appendChild(li);
+      });
+    })
+    .catch((err) => console.error("Error fetching custom graphs:", err));
+}
+
+function deleteCustomGraph(graphId) {
+  fetch("/custom_network/config/" + graphId, { method: "DELETE" })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.status === "success") {
+        updateCustomGraphList();
+        updateCustomGraphs();
+      } else {
+        alert("Failed to delete custom graph: " + data.error);
+      }
+    })
+    .catch((err) => console.error("Error deleting custom graph:", err));
+}
 
 // ------------------------------------------------
 //  Custom Graphs Display in Network Card
