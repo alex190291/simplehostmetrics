@@ -20,5 +20,6 @@ I made a lightweight Docker Image based on Alpine Linux. To run it symply run:
 docker run -d --name simplemetrics --hostname simplemetrics --net host -v /proc:/proc -v /var/run/docker.sock:/var/run/docker.sock attax/simplemetrics:latest /init.sh
 ```
 ## Pictures
-![image](https://github.com/user-attachments/assets/f9fd9a6d-5ffe-40d4-8f63-665517d3bf67)
+![grafik](https://github.com/user-attachments/assets/6c9ed8d7-0f61-4480-97ed-c944fba68d98)
+
 
