@@ -1,6 +1,10 @@
 # simplehostmetrics
+WARNING: This is a heavily in development Alpha... Updates can break the sqlite database... Absolutely NOT production ready... Don't bother to report bugs, I am aware of most of them anyways. 
+
 A Simple Dashboard written in Flask and Javascript that shows CPU, RAM and Disk usage as well as running Docker Containers.
 It does not provide any form of authentication so make sure it is deployed in a safe way behind a firewall, oauth2 proxy or at least a reverse proxy with http basic authentication.
+
+If you want to help with this Project, contact me via mail. simplehostmetrics@nosinu-records.com
 
 ## Usage
 First install the dependencies with:
