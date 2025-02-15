@@ -156,20 +156,11 @@ def check_all_status_route():
 @app.route('/rtad')
 @login_required
 def rtad_view():
-    """
-    Renders the RTAD page with the stylized world map, animated lines,
-    and security info.
-    """
     return render_template('rtad.html')
 
 @app.route('/rtad/data')
 @login_required
 def rtad_data():
-    """
-    Returns JSON data for the RTAD view:
-    - Attack events with IP, port/service, geolocation
-    - Security summary (e.g., blocked IPs, fail2ban counts, etc.)
-    """
     events = rtad_manager.get_attack_events()
     summary = rtad_manager.get_security_summary()
     return jsonify({

@@ -1,7 +1,3 @@
-// simplehostmetrics.refac/static/rtad.js
-// Angepasst für das neue SVG-Koordinatensystem (494.7 x 265.7).
-// Holt RTAD-Daten aus /rtad/data und zeichnet animierte Linien.
-
 (function () {
   const mapSvg = document.getElementById("rtad-map");
   const linesGroup = document.getElementById("rtad-lines");
@@ -24,6 +20,8 @@
     if (portNum === 22) return "rgba(255,0,0,0.7)";
     if (portNum === 80 || portNum === 443) return "rgba(0,255,0,0.7)";
     if (portNum === 3306) return "rgba(255,255,0,0.7)";
+    if (portNum === 403) return "rgba(255,165,0,0.7)"; // Forbidden
+    if (portNum === 404) return "rgba(0,0,255,0.7)"; // Not Found
     return "rgba(255,255,255,0.6)";
   }
 
@@ -93,7 +91,7 @@
       .catch((err) => console.error("Error fetching RTAD data:", err));
   }
 
-  // Alle 3 Sekunden Daten abrufen
-  setInterval(fetchRTADData, 3000);
+  // Fetch every second to ensure fast updates
+  setInterval(fetchRTADData, 1000); // 1000 ms for quicker updates
   fetchRTADData();
 })();

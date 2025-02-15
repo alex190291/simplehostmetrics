@@ -1,6 +1,3 @@
-# simplehostmetrics.refac/rtad_manager.py
-# Enthält die Log-Auswertung, IP-Caching und Geolocation via ip-api.com.
-
 import logging
 import time
 import requests
@@ -55,15 +52,21 @@ def get_attack_events(limit=50):
     """
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Calculate the timestamp for 24 hours ago
+    twenty_four_hours_ago = int(time.time()) - 86400  # 24 hours in seconds
+
     cursor.execute("""
         SELECT
-          ip, port, action, timestamp
+            ip, port, action, timestamp
         FROM
-          security_log
+            security_log
+        WHERE
+            timestamp > ?
         ORDER BY
-          timestamp DESC
+            timestamp DESC
         LIMIT ?
-    """, (limit,))
+    """, (twenty_four_hours_ago, limit))
     rows = cursor.fetchall()
     conn.close()
 
