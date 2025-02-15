@@ -1,0 +1,35 @@
+<div class="card full-width">
+    <div
+        class="card-header"
+        style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        "
+    >
+        <div style="display: flex; align-items: center; gap: 1rem">
+            <h2 class="card-title">Network Throughput</h2>
+            <div class="color-labels">
+                <div class="color-label">
+                    <span class="color-box usage"></span>Input
+                </div>
+                <div class="color-label">
+                    <span class="color-box used"></span>Output
+                </div>
+            </div>
+        </div>
+        <button
+            class="settings-btn"
+            id="customGraphSettingsBtn"
+            title="Custom Network Graph Settings"
+        >
+            ⚙️
+        </button>
+    </div>
+    <div class="stat-container">
+        <canvas id="networkChart"></canvas>
+    </div>
+    <div class="detail-view" id="network-detail-view">
+        <div id="customGraphDisplay" class="custom-graph-container"></div>
+    </div>
+</div>

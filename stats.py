@@ -5,16 +5,60 @@ import logging
 import psutil
 import datetime
 from database import get_db_connection
+from queue import Queue, Empty
 
 MAX_HISTORY = 30
 MAX_HISTORY_EXT_CPU = 24   # 24h CPU-Graph
 MAX_HISTORY_EXT_DISK = 28  # 7d Disk-Graph (6h-Intervall)
-NETWORK_UPDATE_INTERVAL = 1.0  # Sekunden
+NETWORK_UPDATE_INTERVAL = 1.0  # seconds
 
-# Globale Cache-Strukturen für Systemmetriken
+# Global DB queue for offloading operations
+db_queue = Queue()
+
+def queue_query(sql, params):
+    db_queue.put((sql, params))
+
+def db_worker():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    BATCH_SIZE = 20  # Number of queries to batch together
+    while True:
+        batch = []
+        try:
+            # Wait for at least one query; timeout after 10 seconds if none are queued
+            item = db_queue.get(timeout=10)
+            batch.append(item)
+        except Empty:
+            # If no query appears within timeout, commit any accumulated batch (if any) and continue
+            if batch:
+                for sql, params in batch:
+                    cursor.execute(sql, params)
+                conn.commit()
+            continue
+
+        # Try to get additional items without waiting
+        while len(batch) < BATCH_SIZE:
+            try:
+                item = db_queue.get_nowait()
+                batch.append(item)
+            except Empty:
+                break
+
+        for sql, params in batch:
+            try:
+                cursor.execute(sql, params)
+            except Exception as e:
+                logging.error("DB operation failed: %s; SQL: %s; Params: %s", e, sql, params)
+        conn.commit()
+
+# Start the DB worker thread
+db_worker_thread = threading.Thread(target=db_worker, daemon=True)
+db_worker_thread.start()
+
+# Global in-memory caches and histories for system metrics
 cached_stats = {
     'system': {},
-    'docker': [],  # Docker-Daten werden von docker_manager aktualisiert
+    'docker': [],
     'network': {'interfaces': {}}
 }
 
@@ -26,10 +70,9 @@ memory_history_24h = []
 disk_history = []
 network_history = {}
 
-# Aggregatoren für erweiterte Views
+# Aggregators for extended views
 cpu_24h_aggregator = {'current_hour': None, 'sum': 0.0, 'count': 0}
 mem_24h_aggregator = {'current_hour': None, 'sum': 0.0, 'count': 0}
-# Updated Disk aggregator: now collects sum and count to calculate the average per 6h interval.
 disk_7d_aggregator = {'current_6hour': None, 'sum': 0.0, 'count': 0}
 
 prev_net_io = None
@@ -44,7 +87,6 @@ def get_cpu_details():
     if not cpu_history_24h:
         current_usage = psutil.cpu_percent()
         cpu_history_24h.insert(0, {'time': time.time(), 'usage': current_usage})
-    # Format the timestamps for display
     history_formatted = [{
         'time': datetime.datetime.fromtimestamp(e['time']).strftime('%H:%M'),
         'usage': e['usage']
@@ -81,10 +123,10 @@ def get_disk_details():
         'history': history
     }
 
-def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
+def update_aggregators(cpu_percent, mem_used_gb, disk_used):
     now = int(time.time())
-    # CPU-Aggregator (1-Stunden)
     current_hour = now - (now % 3600)
+    # CPU aggregator
     if cpu_24h_aggregator['current_hour'] is None:
         cpu_24h_aggregator['current_hour'] = current_hour
         cpu_24h_aggregator['sum'] = cpu_percent
@@ -95,15 +137,15 @@ def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
             cpu_24h_aggregator['count'] += 1
         else:
             avg_usage = (cpu_24h_aggregator['sum'] / cpu_24h_aggregator['count']) if cpu_24h_aggregator['count'] else 0
-            cursor.execute("INSERT INTO cpu_history_24h (timestamp, usage) VALUES (?, ?)",
-                           (float(cpu_24h_aggregator['current_hour']), avg_usage))
+            queue_query("INSERT INTO cpu_history_24h (timestamp, usage) VALUES (?, ?)",
+                        (float(cpu_24h_aggregator['current_hour']), avg_usage))
             cutoff = time.time() - (24 * 3600)
-            cursor.execute("DELETE FROM cpu_history_24h WHERE timestamp < ?", (cutoff,))
+            queue_query("DELETE FROM cpu_history_24h WHERE timestamp < ?", (cutoff,))
             cpu_24h_aggregator['current_hour'] = current_hour
             cpu_24h_aggregator['sum'] = cpu_percent
             cpu_24h_aggregator['count'] = 1
 
-    # Memory-Aggregator (1-Stunden)
+    # Memory aggregator
     if mem_24h_aggregator['current_hour'] is None:
         mem_24h_aggregator['current_hour'] = current_hour
         mem_24h_aggregator['sum'] = mem_used_gb
@@ -114,16 +156,16 @@ def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
             mem_24h_aggregator['count'] += 1
         else:
             avg_mem_usage = (mem_24h_aggregator['sum'] / mem_24h_aggregator['count']) if mem_24h_aggregator['count'] else 0
-            cursor.execute("INSERT INTO memory_history_24h (timestamp, usage) VALUES (?, ?)",
-                           (float(mem_24h_aggregator['current_hour']), avg_mem_usage))
+            queue_query("INSERT INTO memory_history_24h (timestamp, usage) VALUES (?, ?)",
+                        (float(mem_24h_aggregator['current_hour']), avg_mem_usage))
             cutoff = time.time() - (24 * 3600)
-            cursor.execute("DELETE FROM memory_history_24h WHERE timestamp < ?", (cutoff,))
+            queue_query("DELETE FROM memory_history_24h WHERE timestamp < ?", (cutoff,))
             mem_24h_aggregator['current_hour'] = current_hour
             mem_24h_aggregator['sum'] = mem_used_gb
             mem_24h_aggregator['count'] = 1
 
-    # Disk-Aggregator (6-Stunden) using average instead of max
-    current_6hour = now // 21600  # 21600 Sekunden = 6h
+    # Disk aggregator (6-hour intervals)
+    current_6hour = now // 21600
     if disk_7d_aggregator['current_6hour'] is None:
         disk_7d_aggregator['current_6hour'] = current_6hour
         disk_7d_aggregator['sum'] = disk_used
@@ -135,19 +177,17 @@ def update_aggregators(cursor, cpu_percent, mem_used_gb, disk_used):
         else:
             avg_used = disk_7d_aggregator['sum'] / disk_7d_aggregator['count'] if disk_7d_aggregator['count'] > 0 else disk_used
             old_6h_timestamp = float(disk_7d_aggregator['current_6hour'] * 21600)
-            cursor.execute("INSERT INTO disk_history_details (timestamp, used) VALUES (?, ?)",
-                           (old_6h_timestamp, avg_used))
+            queue_query("INSERT INTO disk_history_details (timestamp, used) VALUES (?, ?)",
+                        (old_6h_timestamp, avg_used))
             cutoff_7d = time.time() - (7 * 24 * 3600)
-            cursor.execute("DELETE FROM disk_history_details WHERE timestamp < ?", (cutoff_7d,))
+            queue_query("DELETE FROM disk_history_details WHERE timestamp < ?", (cutoff_7d,))
             disk_7d_aggregator['current_6hour'] = current_6hour
             disk_7d_aggregator['sum'] = disk_used
             disk_7d_aggregator['count'] = 1
 
 def update_stats_cache():
-    global cached_stats, cpu_history, memory_history_basic, disk_history_basic
-    global prev_net_io, prev_net_time, network_history, last_network_update
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    SLEEP_INTERVAL = 1.0  # 1 second between in-memory updates
+    global prev_net_io, prev_net_time, last_network_update
     while True:
         try:
             now = time.time()
@@ -156,24 +196,23 @@ def update_stats_cache():
             mem = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
 
-            # CPU short (Sofortwerte)
+            # CPU immediate updates
             cpu_history['time'].append(now_str)
             cpu_history['usage'].append(cpu_percent)
             if len(cpu_history['time']) > MAX_HISTORY:
                 cpu_history['time'].pop(0)
                 cpu_history['usage'].pop(0)
-            cursor.execute("INSERT INTO cpu_history (timestamp, usage) VALUES (?, ?)", (now, cpu_percent))
-            cursor.execute(
+            queue_query("INSERT INTO cpu_history (timestamp, usage) VALUES (?, ?)", (now, cpu_percent))
+            queue_query(
                 """DELETE FROM cpu_history
                    WHERE rowid NOT IN (
                      SELECT rowid FROM cpu_history
                      ORDER BY timestamp DESC
                      LIMIT ?
-                   )
-                """, (MAX_HISTORY,)
+                   )""", (MAX_HISTORY,)
             )
 
-            # Memory short
+            # Memory immediate updates
             cached_val = getattr(mem, 'cached', 0)
             cached_GB = cached_val / (1024 ** 3)
             used_no_cache_GB = (mem.used - cached_val) / (1024 ** 3)
@@ -186,9 +225,9 @@ def update_stats_cache():
                 memory_history_basic['free'].pop(0)
                 memory_history_basic['used'].pop(0)
                 memory_history_basic['cached'].pop(0)
-            cursor.execute("INSERT INTO memory_history (timestamp, free, used, cached) VALUES (?, ?, ?, ?)",
-                           (now, round(mem.free/(1024**3), 2), round(used_no_cache_GB, 2), round(cached_GB, 2)))
-            cursor.execute(
+            queue_query("INSERT INTO memory_history (timestamp, free, used, cached) VALUES (?, ?, ?, ?)",
+                        (now, round(mem.free/(1024**3), 2), round(used_no_cache_GB, 2), round(cached_GB, 2)))
+            queue_query(
                 """DELETE FROM memory_history
                    WHERE rowid NOT IN (
                      SELECT rowid FROM memory_history
@@ -197,7 +236,7 @@ def update_stats_cache():
                    )""", (MAX_HISTORY,)
             )
 
-            # Disk short
+            # Disk immediate updates
             total_disk_GB = round(disk.total/(1024**3), 2)
             used_disk_GB = round(disk.used/(1024**3), 2)
             free_disk_GB = round(disk.free/(1024**3), 2)
@@ -210,9 +249,9 @@ def update_stats_cache():
                 disk_history_basic['total'].pop(0)
                 disk_history_basic['used'].pop(0)
                 disk_history_basic['free'].pop(0)
-            cursor.execute("INSERT INTO disk_history_basic (timestamp, total, used, free) VALUES (?, ?, ?, ?)",
-                           (now, total_disk_GB, used_disk_GB, free_disk_GB))
-            cursor.execute(
+            queue_query("INSERT INTO disk_history_basic (timestamp, total, used, free) VALUES (?, ?, ?, ?)",
+                        (now, total_disk_GB, used_disk_GB, free_disk_GB))
+            queue_query(
                 """DELETE FROM disk_history_basic
                    WHERE rowid NOT IN (
                      SELECT rowid FROM disk_history_basic
@@ -221,11 +260,11 @@ def update_stats_cache():
                    )""", (MAX_HISTORY,)
             )
 
-            # Extended aggregatoren (CPU, Memory, Disk)
+            # Update aggregators for extended views
             mem_used_gb = round(mem.used/(1024**3), 2)
-            update_aggregators(cursor, cpu_percent, mem_used_gb, disk.used)
+            update_aggregators(cpu_percent, mem_used_gb, disk.used)
 
-            # Formatierung für UI (24h-Daten)
+            # Format 24h data for UI
             cpu_24h_formatted = [{
                 'time': datetime.datetime.fromtimestamp(e['time']).strftime('%H:%M'),
                 'usage': e['usage']
@@ -242,7 +281,7 @@ def update_stats_cache():
 
             cached_disk_details = get_disk_details()
 
-            # Netzwerk-Statistiken (basic graph)
+            # Network stats update
             if (now - last_network_update) >= NETWORK_UPDATE_INTERVAL:
                 net_current = psutil.net_io_counters(pernic=True)
                 if prev_net_io is not None and prev_net_time is not None:
@@ -264,12 +303,11 @@ def update_stats_cache():
                                     'input': input_speed,
                                     'output': output_speed
                                 })
-                                # Trim the in-memory network history for this interface to MAX_HISTORY datapoints
                                 if len(network_history[iface]) > MAX_HISTORY:
                                     network_history[iface] = network_history[iface][-MAX_HISTORY:]
-                                cursor.execute("INSERT INTO net_history (interface, timestamp, input, output) VALUES (?, ?, ?, ?)",
-                                               (iface, now, input_speed, output_speed))
-                                cursor.execute(
+                                queue_query("INSERT INTO net_history (interface, timestamp, input, output) VALUES (?, ?, ?, ?)",
+                                            (iface, now, input_speed, output_speed))
+                                queue_query(
                                     """DELETE FROM net_history
                                        WHERE rowid NOT IN (
                                          SELECT rowid FROM net_history
@@ -282,6 +320,7 @@ def update_stats_cache():
                 prev_net_time = now
                 last_network_update = now
 
+            # Update the in-memory cache structure for API responses
             cached_stats['system'] = {
                 'cpu': cpu_percent,
                 'memory': {
@@ -289,7 +328,7 @@ def update_stats_cache():
                     'total': round(mem.total/(1024**3), 2),
                     'used': round(mem.used/(1024**3), 2),
                     'free': round(mem.free/(1024**3), 2),
-                    'cached': round(cached_val/(1024**3), 2)
+                    'cached': round(getattr(mem, 'cached', 0)/(1024**3), 2)
                 },
                 'disk': {
                     'percent': disk.percent,
@@ -307,5 +346,4 @@ def update_stats_cache():
             cached_stats['network'] = {'interfaces': network_history}
         except Exception as e:
             logging.error("Error updating stats cache: %s", e)
-        conn.commit()
-        time.sleep(0.5)
+        time.sleep(SLEEP_INTERVAL)

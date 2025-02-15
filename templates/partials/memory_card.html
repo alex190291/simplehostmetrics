@@ -1,0 +1,26 @@
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">RAM</h2>
+        <div class="color-labels">
+            <div class="color-label">
+                <span class="color-box free"></span>Free
+            </div>
+            <div class="color-label">
+                <span class="color-box used"></span>Used
+            </div>
+            <div class="color-label">
+                <span class="color-box cached"></span>Cached
+            </div>
+        </div>
+    </div>
+    <div class="stat-container">
+        <div class="chart-container">
+            <canvas id="memoryChart"></canvas>
+            <div id="memoryOverlay" class="chart-overlay">0</div>
+        </div>
+    </div>
+    <div class="detail-view" id="memory-detail-view">
+        <div class="graph-label">24hr RAM Usage</div>
+        <canvas id="memoryDetailChart"></canvas>
+    </div>
+</div>

@@ -1,0 +1,74 @@
+{% extends "base.html" %} {% block title %}Login{% endblock %} {% block
+extra_styles %}
+<style>
+    .auth-card {
+        background: var(--glass);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        max-width: 400px;
+        margin: 5rem auto;
+        text-align: left;
+    }
+    .form-group {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        text-align: left;
+        margin-right: 0.5rem;
+    }
+    .submit-group {
+        text-align: center;
+    }
+</style>
+{% endblock %} {% block content %}
+<div class="hexagons" id="hexagon-container"></div>
+<div class="container">
+    <div class="auth-card">
+        <h2 style="margin-bottom: 1rem; text-align: center">Login</h2>
+        <form action="{{ url_for('security.login') }}" method="POST">
+            {{ login_user_form.hidden_tag() }}
+            <div class="form-group">
+                {{ login_user_form.email.label(class="form-label") }} {{
+                login_user_form.email(class="form-control", placeholder="Your
+                email") }}
+            </div>
+            <div class="form-group">
+                {{ login_user_form.password.label(class="form-label") }} {{
+                login_user_form.password(class="form-control", placeholder="Your
+                password") }}
+            </div>
+            <div class="form-group">
+                {{ login_user_form.remember.label() }} {{
+                login_user_form.remember() }}
+            </div>
+            <div class="submit-group">
+                <input
+                    type="submit"
+                    value="Login"
+                    class="btn btn-primary"
+                    style="
+                        padding: 0.5rem 1rem;
+                        border: none;
+                        border-radius: 4px;
+                        background: var(--primary);
+                        color: var(--text);
+                        cursor: pointer;
+                    "
+                />
+            </div>
+        </form>
+        {% if get_flashed_messages() %}
+        <div style="margin-top: 1rem; color: red">
+            {% for message in get_flashed_messages() %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='animations.js') }}"></script>
+{% endblock %}

@@ -1,6 +1,8 @@
+# simplehostmetrics.refac/database.py
+# Mit ip_cache und security_log. Unverändert, nur zur Übersicht.
 import sqlite3
 from sqlite3 import Row
-import time  # Needed for time.time()
+import time
 
 def get_db_connection():
     conn = sqlite3.connect("stats.db", check_same_thread=False)
@@ -19,27 +21,40 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
     # Neue Tabelle für Custom Network Graphs:
     cursor.execute("CREATE TABLE IF NOT EXISTS custom_network_graphs (id INTEGER PRIMARY KEY, graph_name TEXT, interfaces TEXT)")
+
+    # Neue Tabelle für IP-Caching (RTAD):
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ip_cache (
+            ip TEXT PRIMARY KEY,
+            latitude REAL,
+            longitude REAL,
+            country TEXT,
+            city TEXT,
+            last_update INTEGER
+        )
+    """)
+
+    # Neue Tabelle für Security-Logs (Fail2Ban, Firewall, etc.)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS security_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip TEXT,
+            port TEXT,
+            action TEXT,
+            timestamp INTEGER
+        )
+    """)
+
     conn.commit()
     conn.close()
 
 def load_history(cached_data):
-    """
-    Lädt die in der Vergangenheit gespeicherten History-Daten aus der SQLite-Datenbank
-    in das übergebene Dictionary 'cached_data'. Erwartete Schlüssel sind:
-      - 'cpu_history'
-      - 'memory_history_basic'
-      - 'disk_history_basic'
-      - 'cpu_history_24h'
-      - 'memory_history_24h'
-      - 'disk_history'
-      - 'network_history'
-    """
     from datetime import datetime
     import psutil
 
     MAX_HISTORY = 30
-    MAX_HISTORY_EXT_CPU = 24  # 24h CPU-Graph
-    MAX_HISTORY_EXT_DISK = 28 # 7d Disk-Graph (6h-Intervall)
+    MAX_HISTORY_EXT_CPU = 24
+    MAX_HISTORY_EXT_DISK = 28
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -76,7 +91,6 @@ def load_history(cached_data):
     if rows:
         cached_data['cpu_history_24h'].extend([{'time': r['timestamp'], 'usage': r['usage']} for r in rows])
     else:
-        # Fallback: use current CPU usage if no data available
         current_usage = psutil.cpu_percent()
         cached_data['cpu_history_24h'].append({'time': time.time(), 'usage': current_usage})
     if len(cached_data['cpu_history_24h']) > MAX_HISTORY_EXT_CPU:
@@ -97,7 +111,6 @@ def load_history(cached_data):
     if rows:
         cached_data['disk_history'].extend([{'time': r['timestamp'], 'used': r['used']} for r in rows])
     else:
-        # Fallback: use current disk usage if no data available
         disk = psutil.disk_usage('/')
         cached_data['disk_history'].append({'time': time.time(), 'used': disk.used})
     if len(cached_data['disk_history']) > MAX_HISTORY_EXT_DISK:

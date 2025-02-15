@@ -1,4 +1,4 @@
-// static/stats.js
+// simplehostmetrics.refac/static/stats.js
 
 function updateStats() {
   fetch("/stats")
@@ -143,5 +143,6 @@ function updateStats() {
     .catch((err) => console.error("Error fetching stats:", err));
 }
 
-setInterval(updateStats, 500);
+// Updated polling interval from 500ms to 1000ms
+setInterval(updateStats, 1000);
 updateStats();

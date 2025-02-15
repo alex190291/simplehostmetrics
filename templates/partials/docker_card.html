@@ -1,0 +1,25 @@
+<div class="card docker-card full-width">
+    <h2 class="card-title">Docker Containers</h2>
+    <button
+        class="update-btn"
+        id="checkAllBtn"
+        style="margin-bottom: 1rem"
+        onclick="checkAllUpdates()"
+    >
+        ↻ Check for updates
+    </button>
+    <div class="docker-container">
+        <table class="docker-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Uptime</th>
+                    <th>Image</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="docker-data"></tbody>
+        </table>
+    </div>
+</div>

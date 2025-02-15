@@ -1,4 +1,3 @@
-# simplehostmetrics.refac/custom_network.py
 from flask import Blueprint, request, jsonify
 import logging
 import psutil
@@ -24,7 +23,7 @@ def load_custom_network_graphs():
 
 def add_custom_network_graphs(new_graphs):
     """
-    Fügt die neuen Graphen hinzu oder aktualisiert sie, ohne die bereits vorhandene Konfiguration zu löschen.
+    Adds or updates new graphs without deleting existing configuration.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -46,16 +45,22 @@ def get_config():
 @custom_network_bp.route('/config', methods=['POST'])
 def update_config():
     """
-    Update the custom network graphs configuration by adding new graphs.
+    Update the custom network graphs configuration by adding or replacing graphs.
     Expected JSON format:
-      { "custom_network_graphs": [
-           { "id": ..., "graph_name": ..., "interfaces": [
-               { "iface_name": ..., "label": ..., "color": ... }, ...
+      {
+        "custom_network_graphs": [
+           {
+             "id": ...,
+             "graph_name": ...,
+             "interfaces": [
+               {"iface_name": ..., "label": ..., "color": ...}, ...
              ]
-           }, ...
-         ]
+           },
+           ...
+        ]
       }
-    This will add or update the provided graphs without overwriting existing ones.
+    This will add or update the provided graphs, but won't overwrite existing ones
+    that aren't included in the request.
     """
     data = request.get_json()
     new_graphs = data.get('custom_network_graphs', [])
@@ -68,6 +73,7 @@ def update_config():
 def available_interfaces():
     """
     Returns a list of all network interfaces available on the host.
+    Uses psutil.net_if_addrs() under the hood.
     """
     interfaces = list(psutil.net_if_addrs().keys())
     return jsonify(interfaces)
