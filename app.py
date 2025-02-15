@@ -1,9 +1,6 @@
-# simplehostmetrics.refac/app.py
-# KOMPLETT: Mit RTAD-Routen, wie zuvor – nur zur Übersicht nochmal unverändert.
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
 import logging
-
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from flask_security.utils import hash_password
@@ -17,7 +14,7 @@ import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
 
-# Neu importiertes Modul:
+# New import for RTAD
 import rtad_manager
 
 app = Flask(__name__)
@@ -82,7 +79,6 @@ load_history(history_data)
 @app.before_request
 def require_user_update():
     if current_user.is_authenticated:
-        # Allow access to user_management, logout, and static endpoints
         allowed = ['user_management', 'security.logout', 'static']
         if current_user.first_login:
             if request.endpoint not in allowed and not (request.endpoint and request.endpoint.startswith('static')):
@@ -104,7 +100,6 @@ def user_management():
         if not new_email or not new_password:
             flash('Both email and password are required.', 'error')
             return redirect(url_for('user_management'))
-        # Update current user's email/password
         current_user.email = new_email
         current_user.password = hash_password(new_password)
         current_user.first_login = False
@@ -116,7 +111,6 @@ def user_management():
 @app.route('/stats')
 @login_required
 def stats_route():
-    # Supplement docker information
     stats.cached_stats['docker'] = docker_manager.docker_data_cache
     return jsonify(stats.cached_stats)
 
@@ -161,7 +155,8 @@ def rtad_view():
 @app.route('/rtad/data')
 @login_required
 def rtad_data():
-    events = rtad_manager.get_attack_events()
+    events = rtad_manager.get_attack_events()  # Get attack events from rtad_manager
+    rtad_manager.insert_events_to_db(events)  # Insert events into DB
     summary = rtad_manager.get_security_summary()
     return jsonify({
         'events': events,

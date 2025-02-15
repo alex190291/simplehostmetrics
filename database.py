@@ -34,14 +34,15 @@ def initialize_database():
         )
     """)
 
-    # Neue Tabelle für Security-Logs (Fail2Ban, Firewall, etc.)
+    # Neue Tabelle für Security-Logs (Fail2Ban, Firewall, HTTP Errors, etc.)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS security_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT,
             port TEXT,
             action TEXT,
-            timestamp INTEGER
+            timestamp INTEGER,
+            extra_info TEXT
         )
     """)
 
