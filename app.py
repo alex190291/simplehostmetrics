@@ -1,3 +1,4 @@
+# simplehostmetrics.refac/app.py
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
 import logging
@@ -5,8 +6,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from flask_security.utils import hash_password
 
-# Import our models (User and Role defined in models.py)
-from models import db, User, Role
+# Import our models (User, Role, CustomNetworkGraph defined in models.py)
+from models import db, User, Role, CustomNetworkGraph
 
 # Legacy modules and blueprints
 import stats
@@ -47,7 +48,7 @@ user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
 with app.app_context():
-    # Create tables for User, Role, etc.
+    # Create tables for User, Role, CustomNetworkGraph, etc.
     db.create_all()
 
     # Create default user if no users exist
@@ -156,7 +157,6 @@ def rtad_view():
 @login_required
 def rtad_data():
     events = rtad_manager.get_attack_events()  # Get attack events from rtad_manager
-    rtad_manager.insert_events_to_db(events)  # Insert events into DB
     summary = rtad_manager.get_security_summary()
     return jsonify({
         'events': events,

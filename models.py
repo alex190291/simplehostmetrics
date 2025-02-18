@@ -28,10 +28,19 @@ class User(db.Model, UserMixin):
     first_login = db.Column(db.Boolean(), default=True)
     roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
 
-# Neues Modell für Custom Network Graphs
+# Model for Custom Network Graphs
 class CustomNetworkGraph(db.Model):
     __tablename__ = 'custom_network_graph'
     id = db.Column(db.Integer, primary_key=True)
     graph_name = db.Column(db.String(255), nullable=False)
-    # Speicherung als JSON (Liste von Interface-Konfigurationen)
     interfaces = db.Column(db.JSON, nullable=False)
+
+# Model for security logs (RTAD)
+class SecurityLog(db.Model):
+    __tablename__ = 'security_log'
+    id = db.Column(db.Integer, primary_key=True)
+    ip = db.Column(db.String(255), nullable=False)
+    action = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.Integer, nullable=False)
+    port = db.Column(db.Integer, nullable=False)
+    extra_info = db.Column(db.String(255), nullable=True)

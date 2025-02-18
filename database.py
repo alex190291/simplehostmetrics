@@ -1,5 +1,3 @@
-# simplehostmetrics.refac/database.py
-# Mit ip_cache und security_log. Unverändert, nur zur Übersicht.
 import sqlite3
 from sqlite3 import Row
 import time
@@ -19,10 +17,10 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_basic (timestamp REAL, total REAL, used REAL, free REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_details (timestamp REAL, used REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
-    # Neue Tabelle für Custom Network Graphs:
+    # Table for Custom Network Graphs:
     cursor.execute("CREATE TABLE IF NOT EXISTS custom_network_graphs (id INTEGER PRIMARY KEY, graph_name TEXT, interfaces TEXT)")
 
-    # Neue Tabelle für IP-Caching (RTAD):
+    # Table for IP-Caching (RTAD):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ip_cache (
             ip TEXT PRIMARY KEY,
@@ -34,7 +32,7 @@ def initialize_database():
         )
     """)
 
-    # Neue Tabelle für Security-Logs (Fail2Ban, Firewall, HTTP Errors, etc.)
+    # Table for Security-Logs (Fail2Ban, Firewall, HTTP Errors, etc.)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS security_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +46,22 @@ def initialize_database():
 
     conn.commit()
     conn.close()
+
+# Function to insert events into the security_log table
+def insert_security_log(ip, action, timestamp, port, extra_info=None):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO security_log (ip, action, timestamp, port, extra_info)
+            VALUES (?, ?, ?, ?, ?)
+        """, (ip, action, timestamp, port, extra_info))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
 
 def load_history(cached_data):
     from datetime import datetime

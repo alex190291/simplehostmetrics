@@ -1,97 +1,100 @@
-(function () {
-  const mapSvg = document.getElementById("rtad-map");
-  const linesGroup = document.getElementById("rtad-lines");
-  const securityTotalEl = document.getElementById("sec-total-events");
-  const securityBlockedEl = document.getElementById("sec-blocked-ips");
-  const securityFailedEl = document.getElementById("sec-failed-logins");
+// rtad.js
+document.addEventListener("DOMContentLoaded", function () {
+  const svg = document.getElementById("world-map");
+  const summaryDiv = document.getElementById("rtad-summary");
+  // Retrieve dimensions from the SVG attributes or viewBox
+  const svgWidthAttr = svg.getAttribute("width");
+  const svgHeightAttr = svg.getAttribute("height");
+  const viewBox = svg.getAttribute("viewBox");
+  let width = svgWidthAttr ? parseFloat(svgWidthAttr) : 660;
+  let height = svgHeightAttr ? parseFloat(svgHeightAttr) : 320;
+  if (viewBox) {
+    const vbValues = viewBox.split(" ");
+    // Expecting viewBox="0 0 660 320"
+    width = parseFloat(vbValues[2]);
+    height = parseFloat(vbValues[3]);
+  }
 
-  // Neue Skalierung: 494.7 x 265.7
-  // lat: -90..90 => y: 0..265.7
-  // lon: -180..180 => x: 0..494.7
+  // Converts latitude and longitude into x,y coordinates using an equirectangular projection.
+  // (Assumes the provided SVG map follows an equirectangular layout.)
   function latLonToXY(lat, lon) {
-    const x = (lon + 180) * (494.7 / 360);
-    const y = (90 - lat) * (265.7 / 180);
+    const x = ((lon + 180) / 360) * width;
+    const y = ((90 - lat) / 180) * height;
     return { x, y };
   }
 
+  // Determines stroke color based on port
   function getColorForPort(port) {
-    if (!port) return "rgba(255,255,255,0.6)";
-    const portNum = parseInt(port, 10) || 0;
-    if (portNum === 22) return "rgba(255,0,0,0.7)";
-    if (portNum === 80 || portNum === 443) return "rgba(0,255,0,0.7)";
-    if (portNum === 3306) return "rgba(255,255,0,0.7)";
-    if (portNum === 403) return "rgba(255,165,0,0.7)"; // Forbidden
-    if (portNum === 404) return "rgba(0,0,255,0.7)"; // Not Found
-    return "rgba(255,255,255,0.6)";
+    if (port === "22") return "red";
+    if (port === "80" || port === "443") return "green";
+    if (port === "3306") return "yellow";
+    return "white";
   }
 
-  function drawArc(fromX, fromY, toX, toY, color) {
-    const midX = (fromX + toX) / 2;
-    const midY = (fromY + toY) / 2 - 20; // leichte Wölbung
-    const pathData = `M ${fromX},${fromY} Q ${midX},${midY} ${toX},${toY}`;
-    const pathEl = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "path",
-    );
-    pathEl.setAttribute("d", pathData);
-    pathEl.setAttribute("stroke", color);
-    pathEl.setAttribute("stroke-width", "2");
-    pathEl.setAttribute("fill", "none");
-    pathEl.setAttribute("opacity", "0.8");
+  // Draws an attack event as an animated curved line on the SVG map
+  function drawAttackEvent(event) {
+    if (!event.attacker_geo || !event.server_geo) return;
+    const attacker = event.attacker_geo;
+    const server = event.server_geo;
+    if (
+      attacker.lat == null ||
+      attacker.lon == null ||
+      server.lat == null ||
+      server.lon == null
+    )
+      return;
 
-    // Glow-Effekt:
-    pathEl.style.filter = `drop-shadow(0 0 4px ${color})`;
+    const attackerXY = latLonToXY(attacker.lat, attacker.lon);
+    const serverXY = latLonToXY(server.lat, server.lon);
+    const cx = (attackerXY.x + serverXY.x) / 2;
+    // Offset control point upward for a curved arc
+    const cy = Math.min(attackerXY.y, serverXY.y) - 30;
 
-    // "pfad-draw" per stroke-dasharray
-    const approximateLength =
-      Math.sqrt((toX - fromX) ** 2 + (toY - fromY) ** 2) * 3;
-    pathEl.style.strokeDasharray = approximateLength;
-    pathEl.style.strokeDashoffset = approximateLength;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const d = `M ${attackerXY.x},${attackerXY.y} Q ${cx},${cy} ${serverXY.x},${serverXY.y}`;
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", getColorForPort(event.port));
+    path.setAttribute("stroke-width", "2");
+    path.classList.add("attack-line");
 
-    linesGroup.appendChild(pathEl);
-
-    // Animation
+    svg.appendChild(path);
+    const pathLength = path.getTotalLength();
+    path.style.strokeDasharray = pathLength;
+    path.style.strokeDashoffset = pathLength;
+    path.style.transition = "stroke-dashoffset 2s ease-out";
     setTimeout(() => {
-      pathEl.style.transition =
-        "stroke-dashoffset 2s ease-out, opacity 4s ease";
-      pathEl.style.strokeDashoffset = "0";
-      // Verblassen nach 2s
-      setTimeout(() => {
-        pathEl.style.opacity = "0";
-        // Nach 2 weiteren Sekunden entfernen
-        setTimeout(() => {
-          if (pathEl.parentNode) {
-            pathEl.parentNode.removeChild(pathEl);
-          }
-        }, 2000);
-      }, 2000);
-    }, 50);
+      path.style.strokeDashoffset = "0";
+    }, 100);
   }
 
-  function fetchRTADData() {
+  // Clears previously drawn attack lines
+  function clearAttackPaths() {
+    const paths = svg.querySelectorAll("path.attack-line");
+    paths.forEach((path) => path.remove());
+  }
+
+  // Polls the backend for the latest RTAD data and updates the map and summary
+  function pollRTAD() {
     fetch("/rtad/data")
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((data) => {
+        clearAttackPaths();
+        data.events.forEach((event) => {
+          drawAttackEvent(event);
+        });
         if (data.summary) {
-          securityTotalEl.innerText = data.summary.total_events;
-          securityBlockedEl.innerText = data.summary.blocked_ips;
-          securityFailedEl.innerText = data.summary.failed_logins;
-        }
-        if (data.events && data.events.length) {
-          data.events.forEach((evt) => {
-            if (evt.latitude && evt.longitude) {
-              const ipXY = latLonToXY(evt.latitude, evt.longitude);
-              const serverXY = latLonToXY(evt.server_lat, evt.server_lon);
-              const color = getColorForPort(evt.port);
-              drawArc(ipXY.x, ipXY.y, serverXY.x, serverXY.y, color);
-            }
-          });
+          summaryDiv.innerHTML = `
+                        <p>Total Events: ${data.summary.total_events}</p>
+                        <p>Failed Logins: ${data.summary.failed_logins}</p>
+                        <p>Blocked IPs: ${data.summary.blocked_ips}</p>
+                    `;
         }
       })
-      .catch((err) => console.error("Error fetching RTAD data:", err));
+      .catch((err) => {
+        console.error("Error fetching RTAD data:", err);
+      });
   }
 
-  // Fetch every second to ensure fast updates
-  setInterval(fetchRTADData, 1000); // 1000 ms for quicker updates
-  fetchRTADData();
-})();
+  setInterval(pollRTAD, 1000);
+});
