@@ -1,0 +1,14 @@
+logfiles:
+  #  - path: "/var/log/nginx/access.log"
+  #    proxy_type: "nginx"
+  #  - path: "/var/log/apache2/access.log"
+  #    proxy_type: "apache"
+  #  - path: "/var/log/traefik/access.log"
+  #     proxy_type: "traefik"
+  - path: "/data/zoraxy/config/log/zr_2025-2.log"
+    proxy_type: "zoraxy"
+#defaults:
+#  nginx: "/var/log/nginx/access.log"
+#  apache: "/var/log/apache2/access.log"
+#  traefik: "/var/log/traefik/access.log"
+#  zoraxy: "/var/log/zoraxy/access.log"
