@@ -99,15 +99,6 @@ class LogParser:
             return
         self.parse_log_files()
 
-# API Route Integration (for real-time access to log data)
-@app.route('/rtad_logs')
-def get_rtad_logs():
-    # Fetch and return processed logs
-    return jsonify({
-        'login_attempts': fetch_login_attempts(),
-        'http_error_logs': fetch_http_error_logs()
-    })
-
 def fetch_login_attempts():
     conn = get_db_connection()
     cursor = conn.cursor()
