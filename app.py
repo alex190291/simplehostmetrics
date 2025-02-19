@@ -10,6 +10,7 @@ from flask_security.utils import hash_password
 from models import db, User, Role, CustomNetworkGraph
 
 # Legacy modules and blueprints
+import rtad_manager
 import stats
 import docker_manager
 from custom_network import custom_network_bp
@@ -160,3 +161,4 @@ if __name__ == '__main__':
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)
+    threading.Thread(target=rtad_manager.LogParser, daemon=True).start()
