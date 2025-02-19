@@ -1,22 +1,39 @@
 # simplehostmetrics.refac/rtad_manager.py
+import time
+import re
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from datetime import datetime
+from database import insert_security_log, get_db_connection
 
-from collections import defaultdict
+
+# This handler processes the log changes when a file is modified
+class LogHandler(FileSystemEventHandler):
+    def __init__(self, event_handler):
+        self.event_handler = event_handler
+
+    def on_modified(self, event):
+        # Check if the modified file is one of the log files we're watching
+        if event.src_path in ["/var/log/fail2ban.log", "/var/log/secure", "/var/log/btmp"]:
+            self.event_handler.process_log(event.src_path)
+
 
 class RTADManager:
     def __init__(self):
         self.logs_to_watch = [
             "/var/log/fail2ban.log", "/var/log/secure", "/var/log/btmp"
         ]
-        self.event_handler = LogHandler(self)
-        self.observer = Observer()
-        self.attack_data = defaultdict(list)  # Store attack data for graph
+        self.event_handler = LogHandler(self)  # Initialize LogHandler
+        self.observer = Observer()  # Initialize Observer
 
     def start(self):
+        # Setting up observer to watch the specified logs
         for log in self.logs_to_watch:
             self.observer.schedule(self.event_handler, log, recursive=False)
-        self.observer.start()
+        self.observer.start()  # Start observing
 
     def stop(self):
+        # Stop the observer when done
         self.observer.stop()
         self.observer.join()
 
@@ -39,7 +56,6 @@ class RTADManager:
             timestamp = int(time.time())
             port = 0  # No port data in fail2ban log
             insert_security_log(ip, action, timestamp, port)
-            self.attack_data[port].append(timestamp)
 
     def parse_secure_log(self, line):
         match = re.search(r'Failed password for (\S+) from (\d+\.\d+\.\d+\.\d+) port (\d+)', line)
@@ -49,7 +65,6 @@ class RTADManager:
             port = int(match.group(3))
             timestamp = int(time.time())
             insert_security_log(ip, action, timestamp, port)
-            self.attack_data[port].append(timestamp)
 
     def parse_lastb_log(self, line):
         match = re.match(r'^\S+\s+ssh:notty\s+(\d+\.\d+\.\d+\.\d+)', line)
@@ -59,7 +74,6 @@ class RTADManager:
             timestamp = int(time.time())
             port = 0  # No port in lastb log
             insert_security_log(ip, action, timestamp, port)
-            self.attack_data[port].append(timestamp)
 
     def get_attack_events(self):
         conn = get_db_connection()
@@ -70,17 +84,16 @@ class RTADManager:
         return rows
 
     def get_security_summary(self):
-        # Collect summary for graph
-        summary = []
-        for port, timestamps in self.attack_data.items():
-            summary.append({
-                'port': port,
-                'count': len(timestamps)
-            })
-        return summary
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT port, COUNT(*) FROM security_log GROUP BY port
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        return rows
 
     def get_graph_data(self):
-        # Collect data for the graph
         graph_data = defaultdict(int)
         for port, timestamps in self.attack_data.items():
             for timestamp in timestamps:
