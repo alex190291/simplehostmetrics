@@ -45,7 +45,7 @@ class LogParser:
 
     def parse_system_logs(self):
         logging.debug("Parsing system logs for login attempts")
-        # Attempt multiple common system log paths for authentication logs
+        # Try common system log paths for authentication logs
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
@@ -56,19 +56,14 @@ class LogParser:
         self.parse_lastb_output()
 
     def process_http_error_log(self, line, proxy_type):
-        """
-        Updated to try matching multiple HTTP log formats.
-        This example handles our format:
-        [2025-02-19 06:36:53.313612] [router:host-http] [origin:proxy-sinusbot] [client 178.201.9.113] GET /api/v1/bot/i/ee8abb70-248b-4f43-87ea-a975f282e9fe/status 200
-        """
-        # First attempt: match our custom bracketed log format
-        pattern1 = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]+)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
+        # Pattern updated to allow an empty origin field
+        pattern1 = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
         match = re.search(pattern1, line)
         if match:
             ip_address = match.group("ip")
             url = match.group("url")
             error_code = int(match.group("code"))
-            # Only store error logs if code indicates error (e.g., >= 400)
+            # Only store if the error code indicates an error (>= 400)
             if error_code >= 400:
                 logging.debug("Matched HTTP error log (pattern1): IP %s, URL %s, Code %s, Proxy %s", ip_address, url, error_code, proxy_type)
                 self.store_http_error_log(proxy_type, error_code, url, ip_address)
@@ -76,16 +71,9 @@ class LogParser:
                 logging.debug("HTTP log matched but not an error (code < 400): %s", line)
             return
 
-        # Additional patterns can be added here if necessary
         logging.debug("No HTTP error log match for line: %s", line)
 
     def process_login_attempt(self, line):
-        """
-        Updated to handle multiple login attempt formats.
-        Handles:
-        - 'Failed password for [invalid user] <user> from <ip> ...'
-        - 'Invalid user <user> from <ip> port ...'
-        """
         # Pattern for "Failed password for ..." lines.
         pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+) port \d+"
         match = re.search(pattern_failed, line)
@@ -106,7 +94,6 @@ class LogParser:
             self.store_failed_login(user, ip_address)
             return
 
-        # Optionally add a pattern for "authentication failure" or other messages
         logging.debug("No login attempt match for line: %s", line)
 
     def parse_login_attempts(self, log_path):
@@ -179,3 +166,37 @@ class LogParser:
             return
         logging.debug("Watchdog detected modification in file: %s", event.src_path)
         self.parse_log_files()
+
+# Functions for the API endpoint to fetch processed log data
+
+def fetch_login_attempts():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM login_attempts ORDER BY timestamp DESC")
+    rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        result.append({
+            "id": row["id"],
+            "user": row["user"],
+            "ip_address": row["ip_address"],
+            "timestamp": row["timestamp"],
+            "failure_reason": row["failure_reason"]
+        })
+    return result
+
+def fetch_http_error_logs():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM http_error_logs ORDER BY timestamp DESC")
+    rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        result.append({
+            "id": row["id"],
+            "proxy_type": row["proxy_type"],
+            "error_code": row["error_code"],
+            "timestamp": row["timestamp"],
+            "url": row["url"]
+        })
+    return result
