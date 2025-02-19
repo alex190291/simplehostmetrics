@@ -1,11 +1,15 @@
 import yaml
 import re
 import subprocess
+import os
+import logging
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from datetime import datetime
 from database import get_db_connection
-import os
+
+# Set up logging for debugging purposes
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load proxy log configurations from YAML
 with open('proxy_manager_logs.yaml', 'r') as f:
@@ -13,25 +17,42 @@ with open('proxy_manager_logs.yaml', 'r') as f:
 
 class LogParser:
     def __init__(self):
-        self.proxy_logs = config['logfiles']
+        self.proxy_logs = config.get('logfiles', [])
+        logging.debug("LogParser initialized with proxy logs: %s", self.proxy_logs)
         self.setup_watchdog()
 
     def parse_log_files(self):
+        logging.debug("Starting parse_log_files")
         for log_config in self.proxy_logs:
-            self.parse_proxy_log(log_config['path'], log_config['proxy_type'])
+            path = log_config.get('path')
+            proxy_type = log_config.get('proxy_type')
+            logging.debug("Parsing proxy log: %s (type: %s)", path, proxy_type)
+            self.parse_proxy_log(path, proxy_type)
         self.parse_system_logs()
 
     def parse_proxy_log(self, log_path, proxy_type):
         if not os.path.exists(log_path):
+            logging.warning("Proxy log path does not exist: %s", log_path)
             return
 
         with open(log_path, 'r') as log_file:
             for line in log_file:
+                line = line.strip()
+                if not line:
+                    continue
+                logging.debug("Processing proxy log line: %s", line)
                 self.process_http_error_log(line, proxy_type)
 
     def parse_system_logs(self):
-        # Parse /var/log/secure and other logs for failed login attempts
-        self.parse_login_attempts("/var/log/secure")
+        logging.debug("Parsing system logs for login attempts")
+        # Attempt multiple common system log paths for authentication logs
+        system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log"]
+        for log_path in system_log_paths:
+            if os.path.exists(log_path):
+                logging.debug("Parsing system log: %s", log_path)
+                self.parse_login_attempts(log_path)
+            else:
+                logging.warning("System log path does not exist: %s", log_path)
         self.parse_lastb_output()
 
     def process_http_error_log(self, line, proxy_type):
@@ -90,18 +111,33 @@ class LogParser:
 
     def parse_login_attempts(self, log_path):
         if not os.path.exists(log_path):
+            logging.warning("Login attempt log path does not exist: %s", log_path)
             return
 
         with open(log_path, 'r') as log_file:
             for line in log_file:
+                line = line.strip()
+                if not line:
+                    continue
+                logging.debug("Processing system log line for login attempt: %s", line)
                 self.process_login_attempt(line)
 
     def parse_lastb_output(self):
-        # Parse the output of 'lastb' to capture failed login attempts
-        result = subprocess.run(['lastb'], stdout=subprocess.PIPE)
-        output = result.stdout.decode()
-        for line in output.splitlines():
-            self.process_login_attempt(line)
+        logging.debug("Parsing output of lastb")
+        try:
+            result = subprocess.run(['lastb'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode != 0:
+                logging.error("Error running lastb: %s", result.stderr.decode())
+                return
+            output = result.stdout.decode()
+            for line in output.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                logging.debug("Processing lastb line: %s", line)
+                self.process_login_attempt(line)
+        except Exception as e:
+            logging.error("Exception when running lastb: %s", e)
 
     def store_failed_login(self, user, ip_address):
         timestamp = datetime.now().timestamp()
@@ -111,6 +147,7 @@ class LogParser:
         cursor.execute('''INSERT INTO login_attempts (user, ip_address, timestamp, failure_reason)
                           VALUES (?, ?, ?, ?)''', (user, ip_address, timestamp, failure_reason))
         conn.commit()
+        logging.debug("Stored failed login attempt for user %s from IP %s", user, ip_address)
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address):
         timestamp = datetime.now().timestamp()
@@ -119,31 +156,26 @@ class LogParser:
         cursor.execute('''INSERT INTO http_error_logs (proxy_type, error_code, timestamp, url)
                           VALUES (?, ?, ?, ?)''', (proxy_type, error_code, timestamp, url))
         conn.commit()
+        logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s", proxy_type, error_code, url)
 
     def setup_watchdog(self):
-        # Monitor log files for real-time changes
+        logging.debug("Setting up watchdog observer")
         event_handler = FileSystemEventHandler()
         event_handler.on_modified = self.on_modified
         observer = Observer()
         for log_config in self.proxy_logs:
-            observer.schedule(event_handler, log_config['path'], recursive=False)
+            path = log_config.get('path')
+            if os.path.exists(path):
+                # Watch the directory containing the log file to catch modifications
+                directory = os.path.dirname(path)
+                logging.debug("Scheduling watchdog for directory: %s", directory)
+                observer.schedule(event_handler, directory, recursive=False)
+            else:
+                logging.warning("Watchdog could not schedule non-existent path: %s", path)
         observer.start()
 
     def on_modified(self, event):
         if event.is_directory:
             return
+        logging.debug("Watchdog detected modification in file: %s", event.src_path)
         self.parse_log_files()
-
-def fetch_login_attempts():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM login_attempts ORDER BY timestamp DESC")
-    rows = cursor.fetchall()
-    return [{'user': row['user'], 'ip': row['ip_address'], 'timestamp': row['timestamp']} for row in rows]
-
-def fetch_http_error_logs():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM http_error_logs ORDER BY timestamp DESC")
-    rows = cursor.fetchall()
-    return [{'proxy_type': row['proxy_type'], 'error_code': row['error_code'], 'url': row['url'], 'timestamp': row['timestamp']} for row in rows]
