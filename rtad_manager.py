@@ -25,6 +25,7 @@ class RTADManager:
         ]
         self.event_handler = LogHandler(self)  # Initialize LogHandler
         self.observer = Observer()  # Initialize Observer
+        self.attack_data = defaultdict(list)
 
     def start(self):
         # Setting up observer to watch the specified logs
