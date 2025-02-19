@@ -21,6 +21,24 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_details (timestamp REAL, used REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS custom_network_graphs (id INTEGER PRIMARY KEY, graph_name TEXT, interfaces TEXT)")
+    # Tables for RTAD
+        # Table for storing unsuccessful login attempts
+    cursor.execute('''CREATE TABLE IF NOT EXISTS login_attempts (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user TEXT,
+                            ip_address TEXT,
+                            timestamp REAL,
+                            failure_reason TEXT
+                        )''')
+
+    # Table for storing HTTP error logs
+    cursor.execute('''CREATE TABLE IF NOT EXISTS http_error_logs (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            proxy_type TEXT,
+                            error_code INTEGER,
+                            timestamp REAL,
+                            url TEXT
+                        )''')
 
     conn.commit()
     conn.close()
