@@ -147,25 +147,6 @@ def check_all_status_route():
     status = docker_manager.get_all_status()
     return jsonify(status)
 
-# -------------------------------
-# RTAD (Realtime Attack Detection) Routes
-# -------------------------------
-@app.route('/rtad')
-@login_required
-def rtad_view():
-    return render_template('rtad.html')
-
-@app.route('/rtad/data')
-@login_required
-def rtad_data():
-    events = rtad_manager.get_attack_events()  # Get attack events from rtad_manager
-    summary = rtad_manager.get_security_summary()
-    graph_data = rtad_manager.get_graph_data()
-    return jsonify({
-        'events': events,
-        'summary': summary,
-        'graph': graph_data
-    })
 
 if __name__ == '__main__':
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()

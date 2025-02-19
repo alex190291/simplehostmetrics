@@ -22,55 +22,9 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS custom_network_graphs (id INTEGER PRIMARY KEY, graph_name TEXT, interfaces TEXT)")
 
-    # RTAD-related tables
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS ip_cache (
-            ip TEXT PRIMARY KEY,
-            latitude REAL,
-            longitude REAL,
-            country TEXT,
-            city TEXT,
-            last_update INTEGER,
-            query_count INTEGER DEFAULT 1,
-            last_seen INTEGER
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS security_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip TEXT,
-            port TEXT,
-            action TEXT,
-            timestamp INTEGER,
-            extra_info TEXT
-        )
-    """)
-
-    # Add missing columns if needed
-    cursor.execute("PRAGMA table_info(ip_cache)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'query_count' not in columns:
-        cursor.execute("ALTER TABLE ip_cache ADD COLUMN query_count INTEGER DEFAULT 1")
-    if 'last_seen' not in columns:
-        cursor.execute("ALTER TABLE ip_cache ADD COLUMN last_seen INTEGER")
-
     conn.commit()
     conn.close()
 
-def insert_security_log(ip, action, timestamp, port, extra_info=None):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO security_log (ip, action, timestamp, port, extra_info)
-            VALUES (?, ?, ?, ?, ?)
-        """, (ip, action, timestamp, port, extra_info))
-        conn.commit()
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-    finally:
-        conn.close()
 
 def load_history(cached_data):
     from datetime import datetime
