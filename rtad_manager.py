@@ -35,23 +35,58 @@ class LogParser:
         self.parse_lastb_output()
 
     def process_http_error_log(self, line, proxy_type):
-        # Regex patterns to capture error codes like 403, 404, 500, etc.
-        pattern = r"(\d+\.\d+\.\d+\.\d+) - - \[.*\] \"[A-Z]+ (\/[^\s]+) HTTP/1.1\" (\d{3})"
-        match = re.match(pattern, line)
+        """
+        Updated to try matching multiple HTTP log formats.
+        This example handles our format:
+        [2025-02-19 06:36:53.313612] [router:host-http] [origin:proxy-sinusbot] [client 178.201.9.113] GET /api/v1/bot/i/ee8abb70-248b-4f43-87ea-a975f282e9fe/status 200
+        """
+        # First attempt: match our custom bracketed log format
+        pattern1 = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]+)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
+        match = re.search(pattern1, line)
         if match:
-            ip_address = match.group(1)
-            url = match.group(2)
-            error_code = int(match.group(3))
-            self.store_http_error_log(proxy_type, error_code, url, ip_address)
+            ip_address = match.group("ip")
+            url = match.group("url")
+            error_code = int(match.group("code"))
+            # Only store error logs if code indicates error (e.g., >= 400)
+            if error_code >= 400:
+                logging.debug("Matched HTTP error log (pattern1): IP %s, URL %s, Code %s, Proxy %s", ip_address, url, error_code, proxy_type)
+                self.store_http_error_log(proxy_type, error_code, url, ip_address)
+            else:
+                logging.debug("HTTP log matched but not an error (code < 400): %s", line)
+            return
+
+        # Additional patterns can be added here if necessary
+        logging.debug("No HTTP error log match for line: %s", line)
 
     def process_login_attempt(self, line):
-        # Example: Failed password attempt in /var/log/secure
-        pattern = r"Failed password for (invalid user )?(\S+) from (\S+) port \d+ ssh2"
-        match = re.match(pattern, line)
+        """
+        Updated to handle multiple login attempt formats.
+        Handles:
+        - 'Failed password for [invalid user] <user> from <ip> ...'
+        - 'Invalid user <user> from <ip> port ...'
+        """
+        # Pattern for "Failed password for ..." lines.
+        pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+) port \d+"
+        match = re.search(pattern_failed, line)
         if match:
-            user = match.group(2)
-            ip_address = match.group(3)
+            user = match.group("user")
+            ip_address = match.group("ip")
+            logging.debug("Matched login attempt (failed password): user %s, IP %s", user, ip_address)
             self.store_failed_login(user, ip_address)
+            return
+
+        # Pattern for "Invalid user ..." lines.
+        pattern_invalid = r"Invalid user (?P<user>\S+) from (?P<ip>\S+) port \d+"
+        match = re.search(pattern_invalid, line)
+        if match:
+            user = match.group("user")
+            ip_address = match.group("ip")
+            logging.debug("Matched login attempt (invalid user): user %s, IP %s", user, ip_address)
+            self.store_failed_login(user, ip_address)
+            return
+
+        # Optionally add a pattern for "authentication failure" or other messages
+        logging.debug("No login attempt match for line: %s", line)
 
     def parse_login_attempts(self, log_path):
         if not os.path.exists(log_path):
