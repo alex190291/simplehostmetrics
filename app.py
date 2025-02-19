@@ -11,15 +11,12 @@ from flask_security.utils import hash_password
 from models import db, User, Role, CustomNetworkGraph
 
 # Legacy modules and blueprints
-import rtad_manager
 import stats
 import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
 
 # New import for RTAD
-from rtad_manager import RTADManager
-rtad_manager = RTADManager()
 app = Flask(__name__)
 
 # Configuration (replace with secure keys in production)
