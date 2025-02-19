@@ -1,4 +1,3 @@
-# simplehostmetrics.refac/app.py
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -16,7 +15,9 @@ import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
 
-# New import for RTAD
+# New import for RTAD functionality will be used in the new route
+# (The actual rtad_manager.py module should implement fetch_login_attempts() and fetch_http_error_logs())
+
 app = Flask(__name__)
 
 # Configuration (replace with secure keys in production)
@@ -62,7 +63,7 @@ with app.app_context():
 # Register the custom_network blueprint
 app.register_blueprint(custom_network_bp)
 
-# Initialize the legacy database schema (for stats and history) + new tables
+# Initialize the legacy database schema (for stats and history) + new RTAD tables
 initialize_database()
 history_data = {
     'cpu_history': stats.cpu_history,
@@ -144,6 +145,15 @@ def check_all_status_route():
     status = docker_manager.get_all_status()
     return jsonify(status)
 
+# New RTAD logs API endpoint for retrieving processed log and lastb data
+@app.route('/rtad_logs', methods=['GET'])
+@login_required
+def rtad_logs():
+    from rtad_manager import fetch_login_attempts, fetch_http_error_logs
+    return jsonify({
+        'login_attempts': fetch_login_attempts(),
+        'http_error_logs': fetch_http_error_logs()
+    })
 
 if __name__ == '__main__':
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
