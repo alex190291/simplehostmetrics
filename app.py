@@ -5,19 +5,17 @@ import logging
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from flask_security.utils import hash_password
+import time
+import rtad_manager
 
 # Import our models (User, Role, CustomNetworkGraph defined in models.py)
 from models import db, User, Role, CustomNetworkGraph
 
 # Legacy modules and blueprints
-import rtad_manager
 import stats
 import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
-
-# New import for RTAD functionality will be used in the new route
-# (The actual rtad_manager.py module should implement fetch_login_attempts() and fetch_http_error_logs())
 
 app = Flask(__name__)
 
@@ -77,7 +75,6 @@ history_data = {
 }
 load_history(history_data)
 
-# Force default user to update credentials on first login
 @app.before_request
 def require_user_update():
     if current_user.is_authenticated:
@@ -156,9 +153,21 @@ def rtad_logs():
         'http_error_logs': fetch_http_error_logs()
     })
 
+# Function to continuously run the RTAD log parser
+def start_rtad_log_parser():
+    # Instantiate the parser which also sets up the watchdog observer
+    parser = rtad_manager.LogParser()
+    # Trigger an initial parse to process existing logs
+    parser.parse_log_files()
+    # Keep this thread alive to allow watchdog's observer to function
+    while True:
+        time.sleep(10)
+
+# Start the RTAD log parser in a daemon thread
+threading.Thread(target=start_rtad_log_parser, daemon=True).start()
+
 if __name__ == '__main__':
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
-    threading.Thread(target=rtad_manager.LogParser, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)
