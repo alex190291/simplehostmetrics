@@ -1,4 +1,5 @@
 # simplehostmetrics.refac/app.py
+from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
 import logging
@@ -10,14 +11,15 @@ from flask_security.utils import hash_password
 from models import db, User, Role, CustomNetworkGraph
 
 # Legacy modules and blueprints
+import rtad_manager
 import stats
 import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
 
 # New import for RTAD
-import rtad_manager
-
+from rtad_manager import RTADManager
+rtad_manager = RTADManager()
 app = Flask(__name__)
 
 # Configuration (replace with secure keys in production)
