@@ -5,7 +5,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from datetime import datetime
 from database import insert_security_log, get_db_connection
-
+from collections import defaultdict
 
 # This handler processes the log changes when a file is modified
 class LogHandler(FileSystemEventHandler):
