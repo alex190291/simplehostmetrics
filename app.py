@@ -158,9 +158,11 @@ def rtad_view():
 def rtad_data():
     events = rtad_manager.get_attack_events()  # Get attack events from rtad_manager
     summary = rtad_manager.get_security_summary()
+    graph_data = rtad_manager.get_graph_data()
     return jsonify({
         'events': events,
-        'summary': summary
+        'summary': summary,
+        'graph': graph_data
     })
 
 if __name__ == '__main__':
