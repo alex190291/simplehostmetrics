@@ -1,6 +1,7 @@
 import sqlite3
 from sqlite3 import Row
 import time
+import os
 
 def get_db_connection():
     conn = sqlite3.connect("stats.db", check_same_thread=False)
@@ -10,6 +11,8 @@ def get_db_connection():
 def initialize_database():
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Create core tables
     cursor.execute("CREATE TABLE IF NOT EXISTS cpu_history (timestamp REAL, usage REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS cpu_history_24h (timestamp REAL, usage REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS memory_history (timestamp REAL, free REAL, used REAL, cached REAL)")
@@ -17,10 +20,9 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_basic (timestamp REAL, total REAL, used REAL, free REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS disk_history_details (timestamp REAL, used REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
-    # Table for Custom Network Graphs:
     cursor.execute("CREATE TABLE IF NOT EXISTS custom_network_graphs (id INTEGER PRIMARY KEY, graph_name TEXT, interfaces TEXT)")
 
-    # Table for IP-Caching (RTAD):
+    # RTAD-related tables
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ip_cache (
             ip TEXT PRIMARY KEY,
@@ -28,11 +30,12 @@ def initialize_database():
             longitude REAL,
             country TEXT,
             city TEXT,
-            last_update INTEGER
+            last_update INTEGER,
+            query_count INTEGER DEFAULT 1,
+            last_seen INTEGER
         )
     """)
 
-    # Table for Security-Logs (Fail2Ban, Firewall, HTTP Errors, etc.)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS security_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,10 +47,17 @@ def initialize_database():
         )
     """)
 
+    # Add missing columns if needed
+    cursor.execute("PRAGMA table_info(ip_cache)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'query_count' not in columns:
+        cursor.execute("ALTER TABLE ip_cache ADD COLUMN query_count INTEGER DEFAULT 1")
+    if 'last_seen' not in columns:
+        cursor.execute("ALTER TABLE ip_cache ADD COLUMN last_seen INTEGER")
+
     conn.commit()
     conn.close()
 
-# Function to insert events into the security_log table
 def insert_security_log(ip, action, timestamp, port, extra_info=None):
     try:
         conn = get_db_connection()
@@ -57,11 +67,10 @@ def insert_security_log(ip, action, timestamp, port, extra_info=None):
             VALUES (?, ?, ?, ?, ?)
         """, (ip, action, timestamp, port, extra_info))
         conn.commit()
-        conn.close()
     except sqlite3.Error as e:
         print(f"Database error: {e}")
-    except Exception as e:
-        print(f"Error: {e}")
+    finally:
+        conn.close()
 
 def load_history(cached_data):
     from datetime import datetime
