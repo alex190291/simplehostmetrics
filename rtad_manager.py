@@ -8,65 +8,61 @@ from watchdog.events import FileSystemEventHandler
 from datetime import datetime
 from database import get_db_connection
 
+# Set up logging for debugging purposes
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Load configuration from config.yml
-with open('config.yml', 'r') as f:
-    app_config = yaml.safe_load(f)
-
-# Get logs directory from config
-logs_directory = app_config.get('logs_directory', '/data/npm/logs')
+# Load proxy log configurations from YAML
+with open('proxy_manager_logs.yaml', 'r') as f:
+    config = yaml.safe_load(f)
 
 def get_log_files(path):
+    """
+    Gibt eine Liste von Log-Dateien zurück.
+    Falls 'path' eine Datei ist, wird diese in eine Liste gepackt.
+    Falls 'path' ein Verzeichnis ist, werden alle darin enthaltenen Dateien zurückgegeben.
+    """
     if os.path.isfile(path):
         return [path]
     elif os.path.isdir(path):
+        # Alle Dateien (nicht rekursiv) aus dem Verzeichnis abrufen
         return [os.path.join(path, filename) for filename in os.listdir(path) if os.path.isfile(os.path.join(path, filename))]
     else:
         return []
 
 class LogParser:
     def __init__(self):
-        self.logs_directory = logs_directory
-        logging.debug("LogParser initialized with logs directory: %s", self.logs_directory)
+        self.proxy_logs = config.get('logfiles', [])
+        logging.debug("LogParser initialized with proxy logs: %s", self.proxy_logs)
         self.setup_watchdog()
 
     def parse_log_files(self):
         logging.debug("Starting parse_log_files")
-        self.parse_nginx_logs()
+        for log_config in self.proxy_logs:
+            path = log_config.get('path')
+            proxy_type = log_config.get('proxy_type')
+            logging.debug("Parsing proxy log: %s (type: %s)", path, proxy_type)
+            self.parse_proxy_log(path, proxy_type)
         self.parse_system_logs()
 
-    def parse_nginx_logs(self):
-        logging.debug("Parsing nginx proxy manager logs from directory: %s", self.logs_directory)
-        log_files = get_log_files(self.logs_directory)
+    def parse_proxy_log(self, log_path, proxy_type):
+        if not os.path.exists(log_path):
+            logging.warning("Proxy log path does not exist: %s", log_path)
+            return
+        # Hole alle relevanten Dateien (egal ob einzelner File oder Directory)
+        log_files = get_log_files(log_path)
         for file in log_files:
-            logging.debug("Parsing nginx log file: %s", file)
-            with open(file, 'r') as f:
-                for line in f:
+            logging.debug("Parsing proxy log file: %s", file)
+            with open(file, 'r') as log_file:
+                for line in log_file:
                     line = line.strip()
                     if not line:
                         continue
-                    self.process_nginx_log_line(line)
-
-    def process_nginx_log_line(self, line):
-        # Regex pattern for nginx proxy manager logs
-        pattern = r'^(?P<timestamp>\d{1,2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2}\s[+\-]\d{4})\] - (?P<code1>\d{3})\s+(?P<code2>\d{3})\s+-\s+(?P<method>[A-Z]+)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<path>[^"]+)"\s+\[Client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]'
-        match = re.search(pattern, line)
-        if match:
-            error_code = int(match.group("code2"))
-            method = match.group("method")
-            protocol = match.group("protocol")
-            host = match.group("host")
-            path = match.group("path")
-            ip_address = match.group("ip")
-            url = f"{protocol}://{host}{path}"
-            logging.debug("Parsed nginx log: %s %s from %s", method, url, ip_address)
-            self.store_http_error_log("nginx_proxy_manager", error_code, url, ip_address)
-        else:
-            logging.debug("No match for nginx log line: %s", line)
+                    logging.debug("Processing proxy log line: %s", line)
+                    self.process_http_error_log(line, proxy_type)
 
     def parse_system_logs(self):
         logging.debug("Parsing system logs for login attempts")
+        # Common system log paths for authentication logs (können sowohl einzelne Dateien als auch Verzeichnisse sein)
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
@@ -74,9 +70,28 @@ class LogParser:
                 self.parse_login_attempts(log_path)
             else:
                 logging.warning("System log path does not exist: %s", log_path)
-        # Removed continuous parsing of lastb output to handle it via a separate route
+        self.parse_lastb_output()
+
+    def process_http_error_log(self, line, proxy_type):
+        # Pattern updated to allow an empty origin field
+        pattern1 = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
+        match = re.search(pattern1, line)
+        if match:
+            ip_address = match.group("ip")
+            url = match.group("url")
+            error_code = int(match.group("code"))
+            # Only store if the error code indicates an error (>= 400)
+            if error_code >= 400:
+                logging.debug("Matched HTTP error log (pattern1): IP %s, URL %s, Code %s, Proxy %s", ip_address, url, error_code, proxy_type)
+                self.store_http_error_log(proxy_type, error_code, url, ip_address)
+            else:
+                logging.debug("HTTP log matched but not an error (code < 400): %s", line)
+            return
+
+        logging.debug("No HTTP error log match for line: %s", line)
 
     def process_login_attempt(self, line):
+        # Pattern for "Failed password for ..." lines.
         pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+) port \d+"
         match = re.search(pattern_failed, line)
         if match:
@@ -85,6 +100,8 @@ class LogParser:
             logging.debug("Matched login attempt (failed password): user %s, IP %s", user, ip_address)
             self.store_failed_login(user, ip_address)
             return
+
+        # Pattern for "Invalid user ..." lines.
         pattern_invalid = r"Invalid user (?P<user>\S+) from (?P<ip>\S+) port \d+"
         match = re.search(pattern_invalid, line)
         if match:
@@ -93,12 +110,14 @@ class LogParser:
             logging.debug("Matched login attempt (invalid user): user %s, IP %s", user, ip_address)
             self.store_failed_login(user, ip_address)
             return
+
         logging.debug("No login attempt match for line: %s", line)
 
     def parse_login_attempts(self, log_path):
         if not os.path.exists(log_path):
             logging.warning("Login attempt log path does not exist: %s", log_path)
             return
+        # Hole alle relevanten Dateien, falls 'log_path' ein Verzeichnis ist
         log_files = get_log_files(log_path)
         for file in log_files:
             logging.debug("Parsing login attempt log file: %s", file)
@@ -107,7 +126,25 @@ class LogParser:
                     line = line.strip()
                     if not line:
                         continue
+                    logging.debug("Processing system log line for login attempt: %s", line)
                     self.process_login_attempt(line)
+
+    def parse_lastb_output(self):
+        logging.debug("Parsing output of lastb")
+        try:
+            result = subprocess.run(['lastb'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode != 0:
+                logging.error("Error running lastb: %s", result.stderr.decode())
+                return
+            output = result.stdout.decode()
+            for line in output.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                logging.debug("Processing lastb line: %s", line)
+                self.process_login_attempt(line)
+        except Exception as e:
+            logging.error("Exception when running lastb: %s", e)
 
     def store_failed_login(self, user, ip_address):
         timestamp = datetime.now().timestamp()
@@ -129,15 +166,19 @@ class LogParser:
         logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s", proxy_type, error_code, url)
 
     def setup_watchdog(self):
-        logging.debug("Setting up watchdog observer for nginx logs")
+        logging.debug("Setting up watchdog observer")
         event_handler = FileSystemEventHandler()
         event_handler.on_modified = self.on_modified
         observer = Observer()
-        if os.path.exists(self.logs_directory):
-            observer.schedule(event_handler, self.logs_directory, recursive=False)
-            logging.debug("Watchdog scheduled for directory: %s", self.logs_directory)
-        else:
-            logging.warning("Watchdog could not schedule non-existent directory: %s", self.logs_directory)
+        for log_config in self.proxy_logs:
+            path = log_config.get('path')
+            if os.path.exists(path):
+                # Watch the directory containing the log file to catch modifications
+                directory = path if os.path.isdir(path) else os.path.dirname(path)
+                logging.debug("Scheduling watchdog for directory: %s", directory)
+                observer.schedule(event_handler, directory, recursive=False)
+            else:
+                logging.warning("Watchdog could not schedule non-existent path: %s", path)
         observer.start()
 
     def on_modified(self, event):
@@ -146,10 +187,28 @@ class LogParser:
         logging.debug("Watchdog detected modification in file: %s", event.src_path)
         self.parse_log_files()
 
-def fetch_http_error_logs_nginx():
+# Functions for the API endpoint to fetch processed log data
+
+def fetch_login_attempts():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM http_error_logs WHERE proxy_type = ?", ("nginx_proxy_manager",))
+    cursor.execute("SELECT * FROM login_attempts ORDER BY timestamp DESC")
+    rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        result.append({
+            "id": row["id"],
+            "user": row["user"],
+            "ip_address": row["ip_address"],
+            "timestamp": row["timestamp"],
+            "failure_reason": row["failure_reason"]
+        })
+    return result
+
+def fetch_http_error_logs():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM http_error_logs ORDER BY timestamp DESC")
     rows = cursor.fetchall()
     result = []
     for row in rows:
@@ -161,15 +220,3 @@ def fetch_http_error_logs_nginx():
             "url": row["url"]
         })
     return result
-
-def get_lastb_output():
-    try:
-        result = subprocess.run(['lastb'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode != 0:
-            logging.error("Error running lastb: %s", result.stderr)
-            return {"error": result.stderr}
-        output = result.stdout.splitlines()
-        return {"output": output}
-    except Exception as e:
-        logging.error("Exception when running lastb: %s", e)
-        return {"error": str(e)}
