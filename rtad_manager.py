@@ -12,7 +12,7 @@ from database import get_db_connection
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load proxy log configurations from YAML
-with open('proxy_manager_logs.yaml', 'r') as f:
+with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
 def get_log_files(path):
@@ -24,8 +24,8 @@ def get_log_files(path):
     if os.path.isfile(path):
         return [path]
     elif os.path.isdir(path):
-        # Alle Dateien (nicht rekursiv) aus dem Verzeichnis abrufen
-        return [os.path.join(path, filename) for filename in os.listdir(path) if os.path.isfile(os.path.join(path, filename))]
+        return [os.path.join(path, filename) for filename in os.listdir(path)
+                if os.path.isfile(os.path.join(path, filename))]
     else:
         return []
 
@@ -48,7 +48,6 @@ class LogParser:
         if not os.path.exists(log_path):
             logging.warning("Proxy log path does not exist: %s", log_path)
             return
-        # Hole alle relevanten Dateien (egal ob einzelner File oder Directory)
         log_files = get_log_files(log_path)
         for file in log_files:
             logging.debug("Parsing proxy log file: %s", file)
@@ -62,7 +61,6 @@ class LogParser:
 
     def parse_system_logs(self):
         logging.debug("Parsing system logs for login attempts")
-        # Common system log paths for authentication logs (können sowohl einzelne Dateien als auch Verzeichnisse sein)
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
@@ -73,16 +71,25 @@ class LogParser:
         self.parse_lastb_output()
 
     def process_http_error_log(self, line, proxy_type):
-        # Pattern updated to allow an empty origin field
-        pattern1 = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
-        match = re.search(pattern1, line)
+        # Wähle Regex basierend auf proxy_type:
+        if proxy_type == "zoraxy":
+            # Vorheriger Regex für zoraxy
+            pattern = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
+        elif proxy_type == "npm":
+            # Aktueller Regex für npm
+            pattern = r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
+        else:
+            logging.debug("Unknown proxy_type '%s'. Using npm regex as default.", proxy_type)
+            pattern = r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
+
+        match = re.search(pattern, line)
         if match:
             ip_address = match.group("ip")
             url = match.group("url")
             error_code = int(match.group("code"))
-            # Only store if the error code indicates an error (>= 400)
             if error_code >= 400:
-                logging.debug("Matched HTTP error log (pattern1): IP %s, URL %s, Code %s, Proxy %s", ip_address, url, error_code, proxy_type)
+                logging.debug("Matched HTTP error log: IP %s, URL %s, Code %s, Proxy %s",
+                              ip_address, url, error_code, proxy_type)
                 self.store_http_error_log(proxy_type, error_code, url, ip_address)
             else:
                 logging.debug("HTTP log matched but not an error (code < 400): %s", line)
@@ -91,7 +98,6 @@ class LogParser:
         logging.debug("No HTTP error log match for line: %s", line)
 
     def process_login_attempt(self, line):
-        # Pattern for "Failed password for ..." lines.
         pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+) port \d+"
         match = re.search(pattern_failed, line)
         if match:
@@ -101,7 +107,6 @@ class LogParser:
             self.store_failed_login(user, ip_address)
             return
 
-        # Pattern for "Invalid user ..." lines.
         pattern_invalid = r"Invalid user (?P<user>\S+) from (?P<ip>\S+) port \d+"
         match = re.search(pattern_invalid, line)
         if match:
@@ -117,7 +122,6 @@ class LogParser:
         if not os.path.exists(log_path):
             logging.warning("Login attempt log path does not exist: %s", log_path)
             return
-        # Hole alle relevanten Dateien, falls 'log_path' ein Verzeichnis ist
         log_files = get_log_files(log_path)
         for file in log_files:
             logging.debug("Parsing login attempt log file: %s", file)
@@ -173,7 +177,6 @@ class LogParser:
         for log_config in self.proxy_logs:
             path = log_config.get('path')
             if os.path.exists(path):
-                # Watch the directory containing the log file to catch modifications
                 directory = path if os.path.isdir(path) else os.path.dirname(path)
                 logging.debug("Scheduling watchdog for directory: %s", directory)
                 observer.schedule(event_handler, directory, recursive=False)
@@ -186,8 +189,6 @@ class LogParser:
             return
         logging.debug("Watchdog detected modification in file: %s", event.src_path)
         self.parse_log_files()
-
-# Functions for the API endpoint to fetch processed log data
 
 def fetch_login_attempts():
     conn = get_db_connection()
