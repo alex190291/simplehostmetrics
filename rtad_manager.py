@@ -15,6 +15,20 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 with open('proxy_manager_logs.yaml', 'r') as f:
     config = yaml.safe_load(f)
 
+def get_log_files(path):
+    """
+    Gibt eine Liste von Log-Dateien zurück.
+    Falls 'path' eine Datei ist, wird diese in eine Liste gepackt.
+    Falls 'path' ein Verzeichnis ist, werden alle darin enthaltenen Dateien zurückgegeben.
+    """
+    if os.path.isfile(path):
+        return [path]
+    elif os.path.isdir(path):
+        # Alle Dateien (nicht rekursiv) aus dem Verzeichnis abrufen
+        return [os.path.join(path, filename) for filename in os.listdir(path) if os.path.isfile(os.path.join(path, filename))]
+    else:
+        return []
+
 class LogParser:
     def __init__(self):
         self.proxy_logs = config.get('logfiles', [])
@@ -34,19 +48,22 @@ class LogParser:
         if not os.path.exists(log_path):
             logging.warning("Proxy log path does not exist: %s", log_path)
             return
-
-        with open(log_path, 'r') as log_file:
-            for line in log_file:
-                line = line.strip()
-                if not line:
-                    continue
-                logging.debug("Processing proxy log line: %s", line)
-                self.process_http_error_log(line, proxy_type)
+        # Hole alle relevanten Dateien (egal ob einzelner File oder Directory)
+        log_files = get_log_files(log_path)
+        for file in log_files:
+            logging.debug("Parsing proxy log file: %s", file)
+            with open(file, 'r') as log_file:
+                for line in log_file:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    logging.debug("Processing proxy log line: %s", line)
+                    self.process_http_error_log(line, proxy_type)
 
     def parse_system_logs(self):
         logging.debug("Parsing system logs for login attempts")
-        # Try common system log paths for authentication logs
-        system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log"]
+        # Common system log paths for authentication logs (können sowohl einzelne Dateien als auch Verzeichnisse sein)
+        system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
                 logging.debug("Parsing system log: %s", log_path)
@@ -100,14 +117,17 @@ class LogParser:
         if not os.path.exists(log_path):
             logging.warning("Login attempt log path does not exist: %s", log_path)
             return
-
-        with open(log_path, 'r') as log_file:
-            for line in log_file:
-                line = line.strip()
-                if not line:
-                    continue
-                logging.debug("Processing system log line for login attempt: %s", line)
-                self.process_login_attempt(line)
+        # Hole alle relevanten Dateien, falls 'log_path' ein Verzeichnis ist
+        log_files = get_log_files(log_path)
+        for file in log_files:
+            logging.debug("Parsing login attempt log file: %s", file)
+            with open(file, 'r') as log_file:
+                for line in log_file:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    logging.debug("Processing system log line for login attempt: %s", line)
+                    self.process_login_attempt(line)
 
     def parse_lastb_output(self):
         logging.debug("Parsing output of lastb")
@@ -154,7 +174,7 @@ class LogParser:
             path = log_config.get('path')
             if os.path.exists(path):
                 # Watch the directory containing the log file to catch modifications
-                directory = os.path.dirname(path)
+                directory = path if os.path.isdir(path) else os.path.dirname(path)
                 logging.debug("Scheduling watchdog for directory: %s", directory)
                 observer.schedule(event_handler, directory, recursive=False)
             else:
