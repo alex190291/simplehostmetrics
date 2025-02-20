@@ -29,29 +29,12 @@ class LogParser:
             logging.debug("Parsing proxy log: %s (type: %s)", path, proxy_type)
             self.parse_proxy_log(path, proxy_type)
         self.parse_system_logs()
-    ## old implementation --------
-    #def parse_proxy_log(self, log_path, proxy_type):
-    #    if not os.path.exists(log_path):
-    #        logging.warning("Proxy log path does not exist: %s", log_path)
-    #        return
 
     def parse_proxy_log(self, log_path, proxy_type):
         if not os.path.exists(log_path):
             logging.warning("Proxy log path does not exist: %s", log_path)
             return
-      # Verwenden von "tail -n 100", um nur die letzten 100 Zeilen zu lesen
-        result = subprocess.run(['tail', '-n', '100', log_path],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            logging.error("Error running tail on %s: %s", log_path, result.stderr.decode())
-            return
-        for line in result.stdout.decode().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            logging.debug("Processing proxy log line: %s", line)
-            self.process_http_error_log(line, proxy_type)
+
         with open(log_path, 'r') as log_file:
             for line in log_file:
                 line = line.strip()
@@ -113,36 +96,18 @@ class LogParser:
 
         logging.debug("No login attempt match for line: %s", line)
 
-    ## old implementation --------
-    #def parse_login_attempts(self, log_path):
-    #    if not os.path.exists(log_path):
-    #        logging.warning("Login attempt log path does not exist: %s", log_path)
-    #        return
-    #    with open(log_path, 'r') as log_file:
-    #        for line in log_file:
-    #            line = line.strip()
-    #            if not line:
-    #                continue
-    #            logging.debug("Processing system log line for login attempt: %s", line)
-    #            self.process_login_attempt(line)
+    def parse_login_attempts(self, log_path):
+        if not os.path.exists(log_path):
+            logging.warning("Login attempt log path does not exist: %s", log_path)
+            return
 
-def parse_login_attempts(self, log_path):
-    if not os.path.exists(log_path):
-        logging.warning("Login attempt log path does not exist: %s", log_path)
-        return
-    # Verwenden von "tail -n 100", um nur die letzten 100 Zeilen zu lesen
-    result = subprocess.run(['tail', '-n', '100', log_path],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-    if result.returncode != 0:
-        logging.error("Error running tail on %s: %s", log_path, result.stderr.decode())
-        return
-    for line in result.stdout.decode().splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        logging.debug("Processing system log line for login attempt: %s", line)
-        self.process_login_attempt(line)
+        with open(log_path, 'r') as log_file:
+            for line in log_file:
+                line = line.strip()
+                if not line:
+                    continue
+                logging.debug("Processing system log line for login attempt: %s", line)
+                self.process_login_attempt(line)
 
     def parse_lastb_output(self):
         logging.debug("Parsing output of lastb")
