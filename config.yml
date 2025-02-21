@@ -1,5 +1,5 @@
 logfiles:
-  - path: /data/npm/logs/access_fallback.log
-    proxy_type: nginx
-  - path: /data/npm/logs/error_fallback.log
-    proxy_type: nginx
+  - path: /data/npm/logs/fallback_access.log
+    proxy_type: npm
+  - path: /data/npm/logs/fallback_error.log
+    proxy_type: npm
