@@ -1,5 +1,4 @@
 <!-- simplehostmetrics.refac/templates/base.html -->
-<!-- RTAD-Link in der Navigation. Unverändert. -->
 <!doctype html>
 <html>
     <head>
@@ -19,14 +18,15 @@
     </head>
     <body>
         <div class="nav-tabs">
-            <a href="/" class="{% if request.path == '/' %}active{% endif %}"
-                >Dashboard</a
-            >
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}">
+                Dashboard
+            </a>
             <a
                 href="/rtad"
                 class="{% if request.path.startswith('/rtad') %}active{% endif %}"
-                >RTAD</a
             >
+                RTAD Overview
+            </a>
         </div>
         {% block content %}{% endblock %} {% block scripts %}{% endblock %}
     </body>

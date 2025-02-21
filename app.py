@@ -169,6 +169,11 @@ def get_rtad_proxy():
     logs = rtad_manager.fetch_http_error_logs()
     return jsonify(logs)
 
+@app.route('/rtad')
+@login_required
+def rtad_view():
+    return render_template('rtad.html')
+
 # Function to continuously run the RTAD log parser
 def start_rtad_log_parser():
     # Instantiate the parser which also sets up the watchdog observer
