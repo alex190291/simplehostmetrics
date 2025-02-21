@@ -1,3 +1,4 @@
+# rtad_manager.py
 import yaml
 import re
 import subprocess
@@ -122,7 +123,8 @@ class LogParser:
                 self.process_files_concurrently(files, self.process_login_attempt)
             else:
                 logging.warning("System-Log-Pfad existiert nicht: %s", log_path)
-        self.parse_lastb_output()
+        # Statt den Aufruf von lastb zu nutzen, parsen wir direkt /var/log/btmp
+        self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
         if proxy_type == "zoraxy":
@@ -165,20 +167,30 @@ class LogParser:
         else:
             logging.debug("Keine Übereinstimmung für Login-Versuch in Zeile: %s", line)
 
-    def parse_lastb_output(self):
-        logging.debug("Verarbeite Ausgabe von lastb")
+    def parse_btmp_file(self):
+        logging.debug("Parsing /var/log/btmp using python‑utmp")
         try:
-            result = subprocess.run(['lastb'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if result.returncode != 0:
-                logging.error("Fehler beim Ausführen von lastb: %s", result.stderr.decode())
-                return
-            output = result.stdout.decode()
-            for line in output.splitlines():
-                line = line.strip()
-                if line:
-                    self.process_login_attempt(line)
+            import utmp
+        except ImportError:
+            logging.error("python‑utmp library is not installed. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
+            return
+
+        btmp_path = "/var/log/btmp"
+        if not os.path.exists(btmp_path):
+            logging.warning("Datei /var/log/btmp existiert nicht.")
+            return
+
+        try:
+            # UtmpFile liefert uns alle Einträge aus der btmp-Datei
+            for record in utmp.UtmpFile(btmp_path):
+                # Erwartete Felder: record.user, record.host, record.timestamp (oder record.time)
+                user = getattr(record, "user", None)
+                host = getattr(record, "host", None)
+                ip_address = host  # Falls keine separate IP vorhanden ist, nutzen wir den Host-Eintrag
+                logging.debug("Btmp-Eintrag: Benutzer %s, Host/IP %s", user, host)
+                self.store_failed_login(user, ip_address, host)
         except Exception as e:
-            logging.error("Ausnahmefehler bei lastb: %s", e)
+            logging.error("Fehler beim Parsen von /var/log/btmp: %s", e)
 
     def store_failed_login(self, user, ip_address, host):
         timestamp = datetime.now().timestamp()
