@@ -188,7 +188,6 @@ class LogParser:
                 "id": len(login_attempts_cache) + 1,
                 "user": user,
                 "ip_address": ip_address,
-                "domain": host,
                 "timestamp": timestamp,
                 "failure_reason": failure_reason
             })
