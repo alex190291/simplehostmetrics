@@ -12,10 +12,13 @@ const dateCache = new Map();
 
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
-    const date =
-      typeof timestamp === "number"
-        ? new Date(timestamp * 1000)
-        : new Date(timestamp);
+    let date;
+    // Prüfe, ob der Timestamp als Zahl interpretiert werden kann.
+    if (isNaN(Number(timestamp))) {
+      date = new Date(timestamp);
+    } else {
+      date = new Date(parseFloat(timestamp) * 1000);
+    }
     dateCache.set(timestamp, date.getTime());
   }
   return dateCache.get(timestamp);
@@ -43,8 +46,17 @@ function sortTable(table, column, direction) {
     if (column === timestampColumn) {
       const aTimestamp = a.children[column].getAttribute("data-timestamp");
       const bTimestamp = b.children[column].getAttribute("data-timestamp");
-      const aTime = Number(aTimestamp) * 1000;
-      const bTime = Number(bTimestamp) * 1000;
+      let aTime, bTime;
+      if (isNaN(Number(aTimestamp))) {
+        aTime = new Date(aTimestamp).getTime();
+      } else {
+        aTime = Number(aTimestamp) * 1000;
+      }
+      if (isNaN(Number(bTimestamp))) {
+        bTime = new Date(bTimestamp).getTime();
+      } else {
+        bTime = Number(bTimestamp) * 1000;
+      }
       return direction === "asc" ? aTime - bTime : bTime - aTime;
     }
 
@@ -65,12 +77,12 @@ function sortTable(table, column, direction) {
   const sortedRows = rows.sort(compareFunction);
   const fragment = document.createDocumentFragment();
   sortedRows.forEach((row) => fragment.appendChild(row));
+
   tbody.innerHTML = "";
   tbody.appendChild(fragment);
 }
 
 function fetchRTADData() {
-  // Für /rtad_lastb: Wenn lastbLastId null ist, laden wir die komplette Liste
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
@@ -86,10 +98,16 @@ function fetchRTADData() {
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
-        const date = new Date(item.timestamp * 1000);
+        let date;
+        // Wenn der Timestamp als Zahl interpretiert werden kann, multipliziere mit 1000; sonst direkt parsen
+        if (isNaN(Number(item.timestamp))) {
+          date = new Date(item.timestamp);
+        } else {
+          date = new Date(parseFloat(item.timestamp) * 1000);
+        }
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
-        // ID-Spalte wurde entfernt
+        // ID-Spalte entfernt
         row.innerHTML = `
                     <td>${item.ip_address}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
@@ -98,8 +116,8 @@ function fetchRTADData() {
                 `;
         fragment.appendChild(row);
       });
+
       tbody.appendChild(fragment);
-      // Setze lastbLastId auf den Wert des letzten Eintrags
       lastbLastId = data[data.length - 1].id;
 
       if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
@@ -130,7 +148,12 @@ function fetchRTADData() {
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
-        const date = new Date(item.timestamp * 1000);
+        let date;
+        if (isNaN(Number(item.timestamp))) {
+          date = new Date(item.timestamp);
+        } else {
+          date = new Date(parseFloat(item.timestamp) * 1000);
+        }
         const formattedDate = date.toLocaleString();
         let errorClass = "";
         if (item.error_code >= 300 && item.error_code < 400) {
@@ -148,7 +171,7 @@ function fetchRTADData() {
         }
 
         const row = document.createElement("tr");
-        // ID-Spalte wurde entfernt
+        // ID-Spalte entfernt
         row.innerHTML = `
                     <td>${item.domain}</td>
                     <td>${item.ip_address}</td>
@@ -177,7 +200,6 @@ function fetchRTADData() {
     });
 }
 
-// Hier wird der Refresh-Button aktualisiert: Beim Klick werden die Zähler zurückgesetzt und der komplette Datensatz neu geladen.
 function refreshRTADData() {
   lastbLastId = null;
   proxyLastId = null;
