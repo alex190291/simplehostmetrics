@@ -144,14 +144,14 @@ def check_all_status_route():
     return jsonify(status)
 
 # New RTAD logs API endpoint for retrieving processed log and lastb data
-@app.route('/login_attempts', methods=['GET'])
-def get_login_attempts():
+@app.route('/rtad_lastb', methods=['GET'])
+def get_rtad_lastb():
     """Gibt die gesammelten fehlgeschlagenen Login-Versuche als JSON zurück."""
     attempts = rtad_manager.fetch_login_attempts()
     return jsonify(attempts)
 
-@app.route('/http_error_logs', methods=['GET'])
-def get_http_error_logs():
+@app.route('/rtad_proxy', methods=['GET'])
+def get_rtad_proxy():
     """Gibt die gesammelten HTTP-Error-Logs als JSON zurück."""
     logs = rtad_manager.fetch_http_error_logs()
     return jsonify(logs)
