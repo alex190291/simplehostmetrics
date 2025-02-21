@@ -31,7 +31,8 @@ generateHexagons(40);
 // -------------------------------
 // Card Expand/Collapse ----------
 // -------------------------------
-document.querySelectorAll(".card").forEach((card) => {
+// Only add toggle behavior for cards that do NOT have the 'rtad' class.
+document.querySelectorAll(".card:not(.rtad)").forEach((card) => {
   card.addEventListener("click", (e) => {
     // Do not toggle if a button was clicked.
     if (e.target.tagName.toLowerCase() === "button") return;
