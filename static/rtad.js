@@ -13,7 +13,7 @@ const dateCache = new Map();
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
     let date;
-    // Prüfe, ob der Timestamp als Zahl interpretiert werden kann.
+    // Wenn der Timestamp als Zahl interpretiert werden kann, multipliziere mit 1000, ansonsten direkt parsen
     if (isNaN(Number(timestamp))) {
       date = new Date(timestamp);
     } else {
@@ -94,20 +94,18 @@ function fetchRTADData() {
       if (data.length === 0) return;
 
       const tbody = document.querySelector("#lastbTable tbody");
-      // Tabelle immer komplett neu aufbauen
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         let date;
-        // Wenn der Timestamp als Zahl interpretiert werden kann, multipliziere mit 1000; sonst direkt parsen
         if (isNaN(Number(item.timestamp))) {
           date = new Date(item.timestamp);
         } else {
           date = new Date(parseFloat(item.timestamp) * 1000);
         }
+        // Für lastb-Einträge reicht das localeString-Format
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
-        // ID-Spalte entfernt
         row.innerHTML = `
                     <td>${item.ip_address}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
@@ -116,7 +114,6 @@ function fetchRTADData() {
                 `;
         fragment.appendChild(row);
       });
-
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
 
@@ -154,7 +151,9 @@ function fetchRTADData() {
         } else {
           date = new Date(parseFloat(item.timestamp) * 1000);
         }
-        const formattedDate = date.toLocaleString();
+        // Formatierung inkl. Millisekunden, um Unterschiede sichtbar zu machen:
+        const ms = date.getMilliseconds().toString().padStart(3, "0");
+        const formattedDate = date.toLocaleString() + "." + ms;
         let errorClass = "";
         if (item.error_code >= 300 && item.error_code < 400) {
           errorClass = "status-yellow";
@@ -171,7 +170,6 @@ function fetchRTADData() {
         }
 
         const row = document.createElement("tr");
-        // ID-Spalte entfernt
         row.innerHTML = `
                     <td>${item.domain}</td>
                     <td>${item.ip_address}</td>
