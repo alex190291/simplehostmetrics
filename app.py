@@ -2,10 +2,13 @@ from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
 import logging
+import time
+import yaml
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from flask_security.utils import hash_password
-import time
+
 import rtad_manager
 
 # Import our models (User, Role, CustomNetworkGraph defined in models.py)
@@ -19,10 +22,14 @@ from database import initialize_database, load_history
 
 app = Flask(__name__)
 
-# Configuration (replace with secure keys in production)
+# Load configuration from config.yml
+with open('config.yml', 'r') as f:
+    config_data = yaml.safe_load(f)
+
+# Set secret keys and other settings from config file
 app.config['DEBUG'] = False
-app.config['SECRET_KEY'] = 'S3cUr3K3y!@#123'
-app.config['SECURITY_PASSWORD_SALT'] = 'S3cUr3S@lt!@#123'
+app.config['SECRET_KEY'] = config_data.get('secret_key', 'default-secret-key')
+app.config['SECURITY_PASSWORD_SALT'] = config_data.get('security_password_salt', 'default-salt')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stats.db'
 
 # Secure password hashing configuration
@@ -50,11 +57,15 @@ with app.app_context():
     # Create tables for User, Role, CustomNetworkGraph, etc.
     db.create_all()
 
+    # Load default admin credentials from config file
+    default_admin_email = config_data.get('default_admin_email', 'admin@example.com')
+    default_admin_password = config_data.get('default_admin_password', 'changeme')
+
     # Create default user if no users exist
     if User.query.count() == 0:
         user_datastore.create_user(
-            email='admin@example.com',
-            password=hash_password('changeme'),
+            email=default_admin_email,
+            password=hash_password(default_admin_password),
             first_login=True  # Mark as first login so user must update credentials
         )
         db.session.commit()
@@ -145,12 +156,14 @@ def check_all_status_route():
 
 # New RTAD logs API endpoint for retrieving processed log and lastb data
 @app.route('/rtad_lastb', methods=['GET'])
+@login_required
 def get_rtad_lastb():
     """Gibt die gesammelten fehlgeschlagenen Login-Versuche als JSON zurück."""
     attempts = rtad_manager.fetch_login_attempts()
     return jsonify(attempts)
 
 @app.route('/rtad_proxy', methods=['GET'])
+@login_required
 def get_rtad_proxy():
     """Gibt die gesammelten HTTP-Error-Logs als JSON zurück."""
     logs = rtad_manager.fetch_http_error_logs()

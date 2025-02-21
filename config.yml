@@ -3,3 +3,9 @@ logfiles:
     proxy_type: npm
   - path: /data/npm/logs/fallback_error.log
     proxy_type: npm
+
+# Security and default admin settings
+secret_key: "S3cUr3K3y!@#123"
+security_password_salt: "S3cUr3S@lt!@#123"
+default_admin_email: "admin@example.com"
+default_admin_password: "changeme"
