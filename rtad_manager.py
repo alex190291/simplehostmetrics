@@ -74,9 +74,6 @@ class LogParser:
         self.setup_watchdog()
 
     def process_log_file(self, file_path, line_processor):
-        """
-        Lese neue Zeilen ab dem letzten bekannten Offset und wende die gegebene line_processor-Funktion auf jede Zeile an.
-        """
         try:
             with file_offsets_lock:
                 last_offset = file_offsets.get(file_path, 0)
@@ -95,9 +92,6 @@ class LogParser:
             logging.error("Fehler beim Verarbeiten der Datei %s: %s", file_path, e)
 
     def process_files_concurrently(self, files, line_processor):
-        """
-        Verarbeitet mehrere Dateien parallel mittels ThreadPoolExecutor.
-        """
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.process_log_file, file, line_processor) for file in files]
             for future in futures:
@@ -105,7 +99,6 @@ class LogParser:
 
     def parse_log_files(self):
         logging.debug("Starte parse_log_files")
-        # Verarbeite Proxy-Logs
         for log_config in self.proxy_logs:
             path = log_config.get('path')
             proxy_type = log_config.get('proxy_type')
@@ -114,7 +107,6 @@ class LogParser:
                 continue
             files = get_log_files(path)
             self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
-        # Verarbeite System-Logs
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
@@ -122,7 +114,6 @@ class LogParser:
                 self.process_files_concurrently(files, self.process_login_attempt)
             else:
                 logging.warning("System-Log-Pfad existiert nicht: %s", log_path)
-        # Direktes Parsen von /var/log/btmp
         self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
@@ -189,31 +180,31 @@ class LogParser:
                 ip_address = host  # Falls keine separate IP vorhanden
                 logging.debug("Btmp-Eintrag: Time: %s, Type: %s, User: %s, Host/IP: %s",
                               record.time, record.type, user, host)
-                self.store_failed_login(user, ip_address, host)
+                # Übergabe des tatsächlichen Zeitstempels (record.time)
+                self.store_failed_login(user, ip_address, host, timestamp=record.time)
         except Exception as e:
             logging.error("Fehler beim Parsen von /var/log/btmp: %s", e)
 
-    def store_failed_login(self, user, ip_address, host):
-        timestamp = datetime.now().timestamp()
-        failure_reason = "Failed login attempt"
+    def store_failed_login(self, user, ip_address, host, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.now().timestamp()
         with login_attempts_lock:
             login_attempts_cache.append({
-                "id": len(login_attempts_cache) + 1,
                 "user": user,
                 "ip_address": ip_address,
                 "timestamp": timestamp,
-                "failure_reason": failure_reason
+                "failure_reason": "Failed login attempt"
             })
-            # Cache auf maximal 500 Einträge beschränken
             if len(login_attempts_cache) > 500:
                 login_attempts_cache.pop(0)
-        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch: Benutzer %s, IP %s, Host %s", user, ip_address, host)
+        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch: Benutzer %s, IP %s, Host %s, Timestamp: %s",
+                      user, ip_address, host, timestamp)
 
-    def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain):
-        timestamp = datetime.now().timestamp()
+    def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.now().timestamp()
         with http_error_logs_lock:
             http_error_logs_cache.append({
-                "id": len(http_error_logs_cache) + 1,
                 "proxy_type": proxy_type,
                 "error_code": error_code,
                 "timestamp": timestamp,
@@ -223,8 +214,8 @@ class LogParser:
             })
             if len(http_error_logs_cache) > 500:
                 http_error_logs_cache.pop(0)
-        logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s",
-                      proxy_type, error_code, url, ip_address, domain)
+        logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
+                      proxy_type, error_code, url, ip_address, domain, timestamp)
 
     def setup_watchdog(self):
         logging.debug("Einrichten des Watchdog Observers")
