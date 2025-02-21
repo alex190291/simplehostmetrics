@@ -41,14 +41,10 @@ function sortTable(table, column, direction) {
 
   const compareFunction = (a, b) => {
     if (column === timestampColumn) {
-      // Get timestamps from data attributes
       const aTimestamp = a.children[column].getAttribute("data-timestamp");
       const bTimestamp = b.children[column].getAttribute("data-timestamp");
-
-      // Convert to numbers for comparison
       const aTime = Number(aTimestamp) * 1000;
       const bTime = Number(bTimestamp) * 1000;
-
       return direction === "asc" ? aTime - bTime : bTime - aTime;
     }
 
@@ -69,33 +65,31 @@ function sortTable(table, column, direction) {
   const sortedRows = rows.sort(compareFunction);
   const fragment = document.createDocumentFragment();
   sortedRows.forEach((row) => fragment.appendChild(row));
-
   tbody.innerHTML = "";
   tbody.appendChild(fragment);
 }
 
 function fetchRTADData() {
+  // Für /rtad_lastb: Wenn lastbLastId null ist, laden wir die komplette Liste
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
   }
 
-  fetch(lastbUrl)
+  fetch(lastbUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
 
       const tbody = document.querySelector("#lastbTable tbody");
-      if (lastbLastId === null) {
-        tbody.innerHTML = "";
-      }
-
+      // Tabelle immer komplett neu aufbauen
+      tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         const date = new Date(item.timestamp * 1000);
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
-        // ID-Spalte entfernt
+        // ID-Spalte wurde entfernt
         row.innerHTML = `
                     <td>${item.ip_address}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
@@ -104,8 +98,8 @@ function fetchRTADData() {
                 `;
         fragment.appendChild(row);
       });
-
       tbody.appendChild(fragment);
+      // Setze lastbLastId auf den Wert des letzten Eintrags
       lastbLastId = data[data.length - 1].id;
 
       if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
@@ -127,16 +121,13 @@ function fetchRTADData() {
     proxyUrl += "?last_id=" + proxyLastId;
   }
 
-  fetch(proxyUrl)
+  fetch(proxyUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
 
       const tbody = document.querySelector("#proxyTable tbody");
-      if (proxyLastId === null) {
-        tbody.innerHTML = "";
-      }
-
+      tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         const date = new Date(item.timestamp * 1000);
@@ -157,7 +148,7 @@ function fetchRTADData() {
         }
 
         const row = document.createElement("tr");
-        // ID-Spalte entfernt
+        // ID-Spalte wurde entfernt
         row.innerHTML = `
                     <td>${item.domain}</td>
                     <td>${item.ip_address}</td>
@@ -168,7 +159,6 @@ function fetchRTADData() {
                 `;
         fragment.appendChild(row);
       });
-
       tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
 
@@ -185,6 +175,13 @@ function fetchRTADData() {
     .catch((error) => {
       console.error("Error fetching /rtad_proxy data:", error);
     });
+}
+
+// Hier wird der Refresh-Button aktualisiert: Beim Klick werden die Zähler zurückgesetzt und der komplette Datensatz neu geladen.
+function refreshRTADData() {
+  lastbLastId = null;
+  proxyLastId = null;
+  fetchRTADData();
 }
 
 function initializeSorting() {
@@ -231,10 +228,6 @@ function initializeSorting() {
       });
     });
   });
-}
-
-function refreshRTADData() {
-  fetchRTADData();
 }
 
 document.addEventListener("DOMContentLoaded", function () {
