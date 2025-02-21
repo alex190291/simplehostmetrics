@@ -4,6 +4,8 @@ import threading
 import logging
 import time
 import yaml
+import requests
+import docker
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
@@ -14,11 +16,13 @@ import rtad_manager
 # Import our models (User, Role, CustomNetworkGraph defined in models.py)
 from models import db, User, Role, CustomNetworkGraph
 
-# Legacy modules and blueprints
 import stats
 import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
+
+NPM_API_URL = "http://npm.ganjagaming.de/api"
+docker_client = docker.from_env()
 
 app = Flask(__name__)
 
@@ -192,6 +196,70 @@ def start_rtad_log_parser():
     # Keep this thread alive to allow watchdog's observer to function
     while True:
         time.sleep(10)
+
+
+# --- Reverse Proxy Routes ---
+@app.route('/proxy/')
+@login_required
+def proxy_index():
+    # Renders the Reverse Proxy management page (template: proxy_manager.html)
+    return render_template('proxy_manager.html')
+
+@app.route('/proxy/health')
+@login_required
+def proxy_health():
+    try:
+        response = requests.get(f"{NPM_API_URL}/")
+        return jsonify(response.json())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- VPN Routes (Container-based) ---
+
+@app.route('/vpn/')
+@login_required
+def vpn_index():
+    # Renders the VPN management page (template: vpn_manager.html)
+    return render_template('vpn_manager.html')
+
+@app.route('/vpn/status')
+@login_required
+def vpn_status():
+    try:
+        container = docker_client.containers.get('vpn_server')
+        return jsonify({"status": container.status})
+    except Exception:
+        return jsonify({"status": "not running"})
+
+@app.route('/vpn/start', methods=['POST'])
+@login_required
+def vpn_start():
+    try:
+        try:
+            container = docker_client.containers.get('vpn_server')
+            if container.status != "running":
+                container.start()
+        except docker.errors.NotFound:
+            # Replace 'myvpnserver:latest' with your VPN server image
+            container = docker_client.containers.run(
+                'myvpnserver:latest',
+                name='vpn_server',
+                detach=True,
+                ports={'1194/tcp': 1194}  # Adjust ports as needed
+            )
+        return jsonify({"status": "started"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/vpn/stop', methods=['POST'])
+@login_required
+def vpn_stop():
+    try:
+        container = docker_client.containers.get('vpn_server')
+        container.stop()
+        return jsonify({"status": "stopped"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Start the RTAD log parser in a daemon thread
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
