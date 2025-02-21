@@ -155,25 +155,30 @@ def check_all_status_route():
     return jsonify(status)
 
 # New RTAD logs API endpoint for retrieving processed log and lastb data
-@app.route('/rtad_lastb', methods=['GET'])
+
+@app.route("/rtad_lastb")
 @login_required
-def get_rtad_lastb():
-    """Gibt die gesammelten fehlgeschlagenen Login-Versuche als JSON zurück."""
-    attempts = rtad_manager.fetch_login_attempts()
+def rtad_lastb():
+    last_id = request.args.get("last_id", default=None, type=int)
+    attempts = fetch_login_attempts()
+    if last_id is not None:
+        # Nur Einträge mit einer ID größer als last_id zurückliefern
+        attempts = [attempt for attempt in attempts if attempt["id"] > last_id]
+    else:
+        # Fallback: letzte 5000 Einträge
+        attempts = attempts[-5000:]
     return jsonify(attempts)
 
-@app.route('/rtad_proxy', methods=['GET'])
+@app.route("/rtad_proxy")
 @login_required
-def get_rtad_proxy():
-    """Gibt die gesammelten HTTP-Error-Logs als JSON zurück."""
-    logs = rtad_manager.fetch_http_error_logs()
+def rtad_proxy():
+    last_id = request.args.get("last_id", default=None, type=int)
+    logs = fetch_http_error_logs()
+    if last_id is not None:
+        logs = [log for log in logs if log["id"] > last_id]
+    else:
+        logs = logs[-5000:]
     return jsonify(logs)
-
-@app.route('/rtad')
-@login_required
-def rtad_view():
-    return render_template('rtad.html')
-
 # Function to continuously run the RTAD log parser
 def start_rtad_log_parser():
     # Instantiate the parser which also sets up the watchdog observer

@@ -1,46 +1,62 @@
 // static/rtad.js
 
+let lastbLastId = null;
+let proxyLastId = null;
+
 function fetchRTADData() {
   // Update rtad_lastb table
-  fetch("/rtad_lastb")
+  let lastbUrl = "/rtad_lastb";
+  if (lastbLastId !== null) {
+    lastbUrl += "?last_id=" + lastbLastId;
+  }
+  fetch(lastbUrl)
     .then((response) => response.json())
     .then((data) => {
-      // Only use the last 5000 entries
-      if (data.length > 5000) {
-        data = data.slice(-5000);
-      }
+      if (data.length === 0) return;
+      // Sortiere die Daten nach ID in aufsteigender Reihenfolge
+      data.sort((a, b) => a.id - b.id);
       const tbody = document.querySelector("#lastbTable tbody");
+      // Bei initialem Laden wird der Inhalt ersetzt
+      if (lastbLastId === null) {
+        tbody.innerHTML = "";
+      }
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         const date = new Date(item.timestamp * 1000);
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.id}</td>
-                    <td>${item.ip_address}</td>
-                    <td>${formattedDate}</td>
-                    <td>${item.user}</td>
-                    <td>${item.failure_reason}</td>
-                `;
+          <td>${item.id}</td>
+          <td>${item.ip_address}</td>
+          <td>${formattedDate}</td>
+          <td>${item.user}</td>
+          <td>${item.failure_reason}</td>
+        `;
         fragment.appendChild(row);
       });
-      // Efficiently update table content
-      tbody.innerHTML = "";
       tbody.appendChild(fragment);
+      // Aktualisiere lastbLastId zum höchsten empfangenen ID-Wert
+      lastbLastId = data[data.length - 1].id;
     })
     .catch((error) => {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
   // Update rtad_proxy table
-  fetch("/rtad_proxy")
+  let proxyUrl = "/rtad_proxy";
+  if (proxyLastId !== null) {
+    proxyUrl += "?last_id=" + proxyLastId;
+  }
+  fetch(proxyUrl)
     .then((response) => response.json())
     .then((data) => {
-      // Only use the last 5000 entries
-      if (data.length > 5000) {
-        data = data.slice(-5000);
-      }
+      if (data.length === 0) return;
+      // Sortiere die Daten nach ID in aufsteigender Reihenfolge
+      data.sort((a, b) => a.id - b.id);
       const tbody = document.querySelector("#proxyTable tbody");
+      if (proxyLastId === null) {
+        tbody.innerHTML = "";
+      }
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         const date = new Date(item.timestamp * 1000);
@@ -59,18 +75,18 @@ function fetchRTADData() {
         }
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.id}</td>
-                    <td>${item.domain}</td>
-                    <td>${item.ip_address}</td>
-                    <td>${formattedDate}</td>
-                    <td>${item.proxy_type}</td>
-                    <td class="${errorClass}">${item.error_code}</td>
-                    <td>${item.url}</td>
-                `;
+          <td>${item.id}</td>
+          <td>${item.domain}</td>
+          <td>${item.ip_address}</td>
+          <td>${formattedDate}</td>
+          <td>${item.proxy_type}</td>
+          <td class="${errorClass}">${item.error_code}</td>
+          <td>${item.url}</td>
+        `;
         fragment.appendChild(row);
       });
-      tbody.innerHTML = "";
       tbody.appendChild(fragment);
+      proxyLastId = data[data.length - 1].id;
     })
     .catch((error) => {
       console.error("Error fetching /rtad_proxy data:", error);
@@ -81,7 +97,7 @@ function refreshRTADData() {
   fetchRTADData();
 }
 
-// Automatically update every 5 seconds
+// Automatisches Update alle 5 Sekunden
 setInterval(fetchRTADData, 5000);
 
 document.addEventListener("DOMContentLoaded", function () {
