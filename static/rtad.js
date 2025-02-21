@@ -35,8 +35,9 @@ function saveSortState() {
 function sortTable(table, column, direction) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
+  // Für lastbTable ist der Timestamp in Spalte 1, für proxyTable in Spalte 2
   const isLastbTable = table.id === "lastbTable";
-  const timestampColumn = isLastbTable ? 2 : 3;
+  const timestampColumn = isLastbTable ? 1 : 2;
 
   const compareFunction = (a, b) => {
     if (column === timestampColumn) {
@@ -94,8 +95,8 @@ function fetchRTADData() {
         const date = new Date(item.timestamp * 1000);
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
+        // ID-Spalte entfernt
         row.innerHTML = `
-                    <td>${item.id}</td>
                     <td>${item.ip_address}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
                     <td>${item.user}</td>
@@ -156,8 +157,8 @@ function fetchRTADData() {
         }
 
         const row = document.createElement("tr");
+        // ID-Spalte entfernt
         row.innerHTML = `
-                    <td>${item.id}</td>
                     <td>${item.domain}</td>
                     <td>${item.ip_address}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
@@ -192,14 +193,12 @@ function initializeSorting() {
   tables.forEach((table) => {
     const headers = table.querySelectorAll("th");
     headers.forEach((header, index) => {
-      // Speichere den Originaltext für jeden Header, falls noch nicht geschehen
       if (!header.dataset.originalText) {
         header.dataset.originalText = header.innerText;
       }
       header.classList.add("sortable");
 
       header.addEventListener("click", () => {
-        // Entferne Sortierklassen und Icons von allen Headern der aktuellen Tabelle
         headers.forEach((h) => {
           h.classList.remove("asc", "desc");
           h.innerHTML = h.dataset.originalText;
@@ -220,11 +219,9 @@ function initializeSorting() {
           direction: direction,
         };
 
-        // Definiere die SVG Icons für auf- und absteigend
         const arrowUp = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M5 0L10 10H0L5 0Z"/></svg>`;
         const arrowDown = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 10L10 0H0Z"/></svg>`;
 
-        // Füge das passende Icon zum geklickten Header hinzu
         header.classList.add(direction);
         header.innerHTML =
           header.dataset.originalText +
