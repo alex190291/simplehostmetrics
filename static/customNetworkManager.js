@@ -23,7 +23,7 @@
   const REFRESH_INTERVAL_MS = 5000;
 
   // ---------------------------
-  // Modal Handling
+  // Modal Handling ------------
   // ---------------------------
   customGraphSettingsBtn.addEventListener("click", openCustomGraphModal);
   closeModalBtn.addEventListener("click", closeCustomGraphModal);
@@ -49,7 +49,7 @@
   }
 
   // ---------------------------
-  // Add Interface Rows
+  // Add Interface Rows --------
   // ---------------------------
   addInterfaceBtn.addEventListener("click", () => {
     const row = document.createElement("div");
@@ -89,7 +89,7 @@
   });
 
   // ---------------------------
-  // Save Graph Config
+  // Save Graph Config ---------
   // ---------------------------
   saveGraphConfigBtn.addEventListener("click", () => {
     const graphName = graphNameInput.value.trim();
@@ -128,9 +128,9 @@
       .catch((err) => console.error("Error saving custom network graph:", err));
   });
 
-  // ---------------------------
-  // Update & Render Custom Graphs
-  // ---------------------------
+  // -------------------------------
+  // Update & Render Custom Graphs -
+  // -------------------------------
   function updateCustomGraphs() {
     const scrollPos = customGraphDisplay.scrollTop;
 

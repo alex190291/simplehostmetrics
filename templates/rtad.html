@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% block title %}RTAD Overview{% endblock %} {% block
-content %}
+{% extends "base.html" %} {% block title %}Real Time Attack Detection{% endblock
+%} {% block content %}
 <div class="hexagons" id="hexagon-container"></div>
 <div class="container">
     <h1>RTAD Overview</h1>
@@ -7,56 +7,47 @@ content %}
         Refresh Now
     </button>
     <!-- Card for /rtad_lastb -->
-    <div class="card" style="width: 100%; margin-bottom: 1.5rem">
+    <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
-            <h2 class="card-title">LastB Login Attempts</h2>
+            <h2 class="card-title">Failed SSHLogin Attempts</h2>
         </div>
-        <div
-            class="detail-view"
-            style="display: block; max-height: 400px; overflow: auto"
-        >
-            <table id="lastbTable" class="sortable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>IP Address</th>
-                        <th>Timestamp</th>
-                        <th>User</th>
-                        <th>Failure Reason</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Data loaded via rtad.js -->
-                </tbody>
-            </table>
-        </div>
+
+        <table id="lastbTable" class="sortable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>IP Address</th>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Failure Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data loaded via rtad.js -->
+            </tbody>
+        </table>
     </div>
     <!-- Card for /rtad_proxy -->
-    <div class="card" style="width: 100%; margin-bottom: 1.5rem">
+    <div class="rtadcard" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
             <h2 class="card-title">Proxy Events</h2>
         </div>
-        <div
-            class="detail-view"
-            style="display: block; max-height: 400px; overflow: auto"
-        >
-            <table id="proxyTable" class="sortable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Domain</th>
-                        <th>IP Address</th>
-                        <th>Timestamp</th>
-                        <th>Proxy Type</th>
-                        <th>Error Code</th>
-                        <th>URL</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Data loaded via rtad.js -->
-                </tbody>
-            </table>
-        </div>
+        <table id="proxyTable" class="sortable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Domain</th>
+                    <th>IP Address</th>
+                    <th>Timestamp</th>
+                    <th>Proxy Type</th>
+                    <th>Error Code</th>
+                    <th>URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data loaded via rtad.js -->
+            </tbody>
+        </table>
     </div>
 </div>
 <!-- Mode Toggle Button -->

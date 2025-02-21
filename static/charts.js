@@ -1,7 +1,7 @@
 // static/charts.js
 
 // -------------------------------
-// Shared X-Axis configuration
+// Shared X-Axis configuration ---
 // -------------------------------
 const sharedXAxisConfig = {
   grid: {
@@ -14,7 +14,7 @@ const sharedXAxisConfig = {
 };
 
 // -------------------------------
-// CPU Charts
+// CPU Charts --------------------
 // -------------------------------
 const cpuCtx = document.getElementById("cpuChart").getContext("2d");
 const cpuChart = new Chart(cpuCtx, {
@@ -80,7 +80,7 @@ const cpuDetailChart = new Chart(cpuDetailCtx, {
 });
 
 // -------------------------------
-// Memory Charts
+// Memory Charts -----------------
 // -------------------------------
 const memCtx = document.getElementById("memoryChart").getContext("2d");
 const memoryBasicChart = new Chart(memCtx, {
@@ -161,7 +161,7 @@ const memoryDetailChart = new Chart(memoryDetailCtx, {
 });
 
 // -------------------------------
-// Disk Charts
+// Disk Charts -------------------
 // -------------------------------
 const diskCtx = document.getElementById("diskChart").getContext("2d");
 const diskBasicChart = new Chart(diskCtx, {
@@ -232,7 +232,7 @@ const diskHistoryChart = new Chart(diskDetailCtx, {
 });
 
 // -------------------------------
-// Network Chart
+// Network Chart -----------------
 // -------------------------------
 const netCtx = document.getElementById("networkChart").getContext("2d");
 const networkChart = new Chart(netCtx, {

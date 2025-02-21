@@ -1,7 +1,7 @@
 // static/animations.js
 
 // -------------------------------
-// Background Hex Animation
+// Background Hex Animation ------
 // -------------------------------
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -29,7 +29,7 @@ function generateHexagons(count) {
 generateHexagons(40);
 
 // -------------------------------
-// Card Expand/Collapse
+// Card Expand/Collapse ----------
 // -------------------------------
 document.querySelectorAll(".card").forEach((card) => {
   card.addEventListener("click", (e) => {

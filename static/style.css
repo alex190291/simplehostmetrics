@@ -444,6 +444,32 @@ button.update-btn {
 .rtad-security-info li {
     margin-bottom: 0.3rem;
 }
+
+/* New RTAD Card Styling */
+/* Same styling as .card but without the click-to-expand effect */
+.rtadcard {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    transition:
+        background 0.3s,
+        border 0.3s,
+        transform 0.3s,
+        box-shadow 0.3s;
+    cursor: default;
+    overflow: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+}
+.rtadcard:hover {
+    transform: scale(1.02) translateZ(0);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 /* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
     width: 8px;
