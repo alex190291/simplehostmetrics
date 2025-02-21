@@ -35,7 +35,7 @@ RE_LOGIN_INVALID = re.compile(
 file_offsets = {}
 file_offsets_lock = threading.Lock()
 
-# Caches für In-Memory Logging (max. 100 Einträge)
+# Caches für In-Memory Logging (max. 500 Einträge)
 login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
@@ -183,7 +183,6 @@ class LogParser:
         try:
             with open(btmp_path, "rb") as fd:
                 buf = fd.read()
-            # Die Funktion utmp.read() iteriert über den binären Stream und liefert Einträge
             for record in utmp.read(buf):
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
@@ -205,8 +204,8 @@ class LogParser:
                 "timestamp": timestamp,
                 "failure_reason": failure_reason
             })
-            # Beschränke den Cache auf maximal 100 Einträge (älteste werden entfernt)
-            if len(login_attempts_cache) > 100:
+            # Cache auf maximal 500 Einträge beschränken
+            if len(login_attempts_cache) > 500:
                 login_attempts_cache.pop(0)
         logging.debug("Gespeicherter fehlgeschlagener Login-Versuch: Benutzer %s, IP %s, Host %s", user, ip_address, host)
 
@@ -222,8 +221,7 @@ class LogParser:
                 "ip_address": ip_address,
                 "domain": domain
             })
-            # Beschränke den Cache auf maximal 100 Einträge
-            if len(http_error_logs_cache) > 100:
+            if len(http_error_logs_cache) > 500:
                 http_error_logs_cache.pop(0)
         logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s",
                       proxy_type, error_code, url, ip_address, domain)
@@ -255,7 +253,6 @@ class LogParser:
 
 def fetch_login_attempts():
     with login_attempts_lock:
-        # Der Cache enthält maximal 100 Einträge
         return list(login_attempts_cache)
 
 def fetch_http_error_logs():
