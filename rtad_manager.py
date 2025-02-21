@@ -170,7 +170,7 @@ class LogParser:
             logging.debug("Keine Übereinstimmung für Login-Versuch in Zeile: %s", line)
 
     def parse_btmp_file(self):
-        logging.debug("Parsing /var/log/btmp using python‑utmp")
+        logging.debug("Parsing /var/log/btmp using utmp.read")
         try:
             import utmp
         except ImportError:
@@ -183,13 +183,16 @@ class LogParser:
             return
 
         try:
-            # Hier wird nun utmp.Utmp anstelle von utmp.UtmpFile verwendet.
-            for record in utmp.Utmp(btmp_path):
-                # Erwartete Felder: record.user, record.host, record.timestamp (oder record.time)
+            with open(btmp_path, "rb") as fd:
+                buf = fd.read()
+            # Nutze die neue API: utmp.read() decodiert den Binärstream und liefert Einträge
+            for record in utmp.read(buf):
+                # Laut Dokumentation enthält jeder Eintrag Attribute wie time und type.
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
-                ip_address = host  # Falls keine separate IP vorhanden ist, nutzen wir den Host-Eintrag
-                logging.debug("Btmp-Eintrag: Benutzer %s, Host/IP %s", user, host)
+                ip_address = host  # Falls keine separate IP vorhanden ist
+                logging.debug("Btmp-Eintrag: Time: %s, Type: %s, User: %s, Host/IP: %s",
+                              record.time, record.type, user, host)
                 self.store_failed_login(user, ip_address, host)
         except Exception as e:
             logging.error("Fehler beim Parsen von /var/log/btmp: %s", e)
