@@ -1,18 +1,3 @@
-// static/charts.js
-
-// -------------------------------
-// Shared X-Axis configuration
-// -------------------------------
-const sharedXAxisConfig = {
-  grid: {
-    display: true,
-    drawTicks: true,
-    tickLength: 5,
-    color: "rgba(255,255,255,0.1)",
-  },
-  ticks: { display: true },
-};
-
 // -------------------------------
 // CPU Charts
 // -------------------------------
@@ -67,7 +52,8 @@ const cpuDetailChart = new Chart(cpuDetailCtx, {
   },
   options: {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
+    aspectRatio: 2,
     plugins: { legend: { display: false } },
     scales: {
       x: sharedXAxisConfig,
@@ -149,7 +135,8 @@ const memoryDetailChart = new Chart(memoryDetailCtx, {
   },
   options: {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
+    aspectRatio: 2,
     plugins: { legend: { display: false } },
     scales: {
       x: sharedXAxisConfig,
@@ -222,7 +209,8 @@ const diskHistoryChart = new Chart(diskDetailCtx, {
   },
   options: {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
+    aspectRatio: 2,
     plugins: { legend: { display: false } },
     scales: {
       x: sharedXAxisConfig,
