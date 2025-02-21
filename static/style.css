@@ -448,6 +448,8 @@ button.update-btn {
 /* New RTAD Card Styling */
 /* Same styling as .card but without the click-to-expand effect */
 .rtadcard {
+    max-height: 800px; /* Limit the height to 800 pixels */
+    overflow-y: auto; /* Enable vertical scrolling if content exceeds 800px */
     background: var(--glass);
     backdrop-filter: blur(10px);
     border-radius: 1rem;
