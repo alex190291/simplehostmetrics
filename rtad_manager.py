@@ -147,12 +147,14 @@ class LogParser:
             else:
                 logging.debug("Keine Übereinstimmung im npm HTTP error log für Zeile: %s", line)
                 return
-        if error_code >= 400:
+        # Konfigurationsparameter: parse_all_logs
+        parse_all = config.get('parse_all_logs', False)
+        if parse_all or error_code >= 400:
             logging.debug("HTTP error log erkannt: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
                           ip_address, domain, url, error_code, proxy_type)
             self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
         else:
-            logging.debug("Zeile entspricht keinem Fehler (Code < 400): %s", line)
+            logging.debug("Zeile entspricht keinem relevanten Status (Code < 400) und parse_all_logs ist false: %s", line)
 
     def process_login_attempt(self, line):
         match = RE_LOGIN_FAILED.search(line)

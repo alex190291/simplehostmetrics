@@ -1,8 +1,11 @@
+# config.yml
 logfiles:
   - path: /data/npm/logs/fallback_access.log
     proxy_type: npm
   - path: /data/npm/logs/fallback_error.log
     proxy_type: npm
+
+parse_all_logs: true
 
 # Security and default admin settings
 secret_key: "S3cUr3K3y!@#123"

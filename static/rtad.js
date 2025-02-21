@@ -1,4 +1,4 @@
-// static/rtad.js
+// rtad.js
 
 let lastbLastId = null;
 let proxyLastId = null;
@@ -141,7 +141,9 @@ function fetchRTADData() {
         const date = new Date(item.timestamp * 1000);
         const formattedDate = date.toLocaleString();
         let errorClass = "";
-        if (item.error_code === 200) {
+        if (item.error_code >= 300 && item.error_code < 400) {
+          errorClass = "status-yellow";
+        } else if (item.error_code === 200) {
           errorClass = "status-green";
         } else if (item.error_code === 500) {
           errorClass = "status-blue";
@@ -190,10 +192,18 @@ function initializeSorting() {
   tables.forEach((table) => {
     const headers = table.querySelectorAll("th");
     headers.forEach((header, index) => {
+      // Speichere den Originaltext für jeden Header, falls noch nicht geschehen
+      if (!header.dataset.originalText) {
+        header.dataset.originalText = header.innerText;
+      }
       header.classList.add("sortable");
 
       header.addEventListener("click", () => {
-        headers.forEach((h) => h.classList.remove("asc", "desc"));
+        // Entferne Sortierklassen und Icons von allen Headern der aktuellen Tabelle
+        headers.forEach((h) => {
+          h.classList.remove("asc", "desc");
+          h.innerHTML = h.dataset.originalText;
+        });
 
         let direction = "asc";
         if (
@@ -210,7 +220,15 @@ function initializeSorting() {
           direction: direction,
         };
 
+        // Definiere die SVG Icons für auf- und absteigend
+        const arrowUp = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M5 0L10 10H0L5 0Z"/></svg>`;
+        const arrowDown = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 10L10 0H0Z"/></svg>`;
+
+        // Füge das passende Icon zum geklickten Header hinzu
         header.classList.add(direction);
+        header.innerHTML =
+          header.dataset.originalText +
+          (direction === "asc" ? arrowUp : arrowDown);
         sortTable(table, index, direction);
         saveSortState();
       });
