@@ -13,7 +13,7 @@ const dateCache = new Map();
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
     let date;
-    // Wenn der Timestamp als Zahl interpretiert werden kann, multipliziere mit 1000, ansonsten direkt parsen
+    // Falls der Timestamp kein numerischer Wert ist, direkt parsen
     if (isNaN(Number(timestamp))) {
       date = new Date(timestamp);
     } else {
@@ -38,7 +38,7 @@ function saveSortState() {
 function sortTable(table, column, direction) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-  // Für lastbTable ist der Timestamp in Spalte 1, für proxyTable in Spalte 2
+  // Bei lastbTable ist der Timestamp in Spalte 1, bei proxyTable in Spalte 2
   const isLastbTable = table.id === "lastbTable";
   const timestampColumn = isLastbTable ? 1 : 2;
 
@@ -83,6 +83,7 @@ function sortTable(table, column, direction) {
 }
 
 function fetchRTADData() {
+  // Lastb-Daten (API gibt hier einen Zeitstempel-String zurück, z. B. "Fri, 21 Feb 2025 16:48:22 GMT")
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
@@ -92,18 +93,17 @@ function fetchRTADData() {
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-
       const tbody = document.querySelector("#lastbTable tbody");
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         let date;
         if (isNaN(Number(item.timestamp))) {
+          // Wenn kein numerischer Wert, direkt als Datum parsen
           date = new Date(item.timestamp);
         } else {
           date = new Date(parseFloat(item.timestamp) * 1000);
         }
-        // Für lastb-Einträge reicht das localeString-Format
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
         row.innerHTML = `
@@ -131,6 +131,7 @@ function fetchRTADData() {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
+  // Proxy-Daten (API gibt hier einen numerischen Timestamp als Float zurück)
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
@@ -140,20 +141,19 @@ function fetchRTADData() {
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-
       const tbody = document.querySelector("#proxyTable tbody");
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
-        let date;
-        if (isNaN(Number(item.timestamp))) {
-          date = new Date(item.timestamp);
-        } else {
-          date = new Date(parseFloat(item.timestamp) * 1000);
-        }
-        // Formatierung inkl. Millisekunden, um Unterschiede sichtbar zu machen:
-        const ms = date.getMilliseconds().toString().padStart(3, "0");
-        const formattedDate = date.toLocaleString() + "." + ms;
+        // Für Proxy-Einträge: Erhalte den ganzzahligen Anteil und den Bruchteil separat
+        const ts = parseFloat(item.timestamp);
+        const seconds = Math.floor(ts);
+        const fraction = ts - seconds; // Bruchteil in Sekunden
+        const date = new Date(seconds * 1000);
+        // Formatiere den Bruchteil mit 6 Dezimalstellen und entferne "0."
+        const fractionStr = fraction.toFixed(6).slice(2);
+        const formattedDate = date.toLocaleString() + "." + fractionStr;
+
         let errorClass = "";
         if (item.error_code >= 300 && item.error_code < 400) {
           errorClass = "status-yellow";
