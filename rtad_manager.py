@@ -42,7 +42,7 @@ login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
 
 # Logging-Konfiguration
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+#logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Konfiguration aus config.yml laden
 with open('config.yml', 'r') as f:
