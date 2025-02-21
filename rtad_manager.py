@@ -30,19 +30,19 @@ RE_LOGIN_INVALID = re.compile(
 )
 
 # ----------------------------
-# Globale Variablen für File-Offset Tracking
+# Globale Variablen für File-Offset Tracking und Caches
 # ----------------------------
 file_offsets = {}
 file_offsets_lock = threading.Lock()
 
-# Thread-sichere Caches für In-Memory Logging
+# Caches für In-Memory Logging (max. 100 Einträge)
 login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
 
-# Logging-Konfiguration
-#logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging-Konfiguration (optional)
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Konfiguration aus config.yml laden
 with open('config.yml', 'r') as f:
@@ -100,7 +100,6 @@ class LogParser:
         """
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.process_log_file, file, line_processor) for file in files]
-            # Warten auf alle Tasks
             for future in futures:
                 future.result()
 
@@ -123,7 +122,7 @@ class LogParser:
                 self.process_files_concurrently(files, self.process_login_attempt)
             else:
                 logging.warning("System-Log-Pfad existiert nicht: %s", log_path)
-        # Statt den Aufruf von lastb zu nutzen, parsen wir direkt /var/log/btmp
+        # Direktes Parsen von /var/log/btmp
         self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
@@ -147,7 +146,6 @@ class LogParser:
             else:
                 logging.debug("Keine Übereinstimmung im npm HTTP error log für Zeile: %s", line)
                 return
-        # Konfigurationsparameter: parse_all_logs
         parse_all = config.get('parse_all_logs', False)
         if parse_all or error_code >= 400:
             logging.debug("HTTP error log erkannt: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
@@ -174,7 +172,7 @@ class LogParser:
         try:
             import utmp
         except ImportError:
-            logging.error("python‑utmp library is not installed. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
+            logging.error("python‑utmp library is not installiert. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
             return
 
         btmp_path = "/var/log/btmp"
@@ -185,12 +183,11 @@ class LogParser:
         try:
             with open(btmp_path, "rb") as fd:
                 buf = fd.read()
-            # Nutze die neue API: utmp.read() decodiert den Binärstream und liefert Einträge
+            # Die Funktion utmp.read() iteriert über den binären Stream und liefert Einträge
             for record in utmp.read(buf):
-                # Laut Dokumentation enthält jeder Eintrag Attribute wie time und type.
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
-                ip_address = host  # Falls keine separate IP vorhanden ist
+                ip_address = host  # Falls keine separate IP vorhanden
                 logging.debug("Btmp-Eintrag: Time: %s, Type: %s, User: %s, Host/IP: %s",
                               record.time, record.type, user, host)
                 self.store_failed_login(user, ip_address, host)
@@ -208,6 +205,9 @@ class LogParser:
                 "timestamp": timestamp,
                 "failure_reason": failure_reason
             })
+            # Beschränke den Cache auf maximal 100 Einträge (älteste werden entfernt)
+            if len(login_attempts_cache) > 100:
+                login_attempts_cache.pop(0)
         logging.debug("Gespeicherter fehlgeschlagener Login-Versuch: Benutzer %s, IP %s, Host %s", user, ip_address, host)
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain):
@@ -222,6 +222,9 @@ class LogParser:
                 "ip_address": ip_address,
                 "domain": domain
             })
+            # Beschränke den Cache auf maximal 100 Einträge
+            if len(http_error_logs_cache) > 100:
+                http_error_logs_cache.pop(0)
         logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s",
                       proxy_type, error_code, url, ip_address, domain)
 
@@ -230,7 +233,6 @@ class LogParser:
         event_handler = FileSystemEventHandler()
         event_handler.on_modified = self.on_modified
         observer = Observer()
-        # Überwache alle in config.yml angegebenen Pfade
         for log_config in self.proxy_logs:
             path = log_config.get('path')
             if os.path.exists(path):
@@ -245,7 +247,6 @@ class LogParser:
         if event.is_directory:
             return
         logging.debug("Watchdog: Änderung in Datei erkannt: %s", event.src_path)
-        # Debounce: Verzögere den Aufruf von parse_log_files, um wiederholte Events zusammenzufassen
         with self.debounce_lock:
             if self.debounce_timer is not None:
                 self.debounce_timer.cancel()
@@ -254,6 +255,7 @@ class LogParser:
 
 def fetch_login_attempts():
     with login_attempts_lock:
+        # Der Cache enthält maximal 100 Einträge
         return list(login_attempts_cache)
 
 def fetch_http_error_logs():
