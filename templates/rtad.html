@@ -6,58 +6,56 @@ content %}
     <button class="update-btn" id="rtadRefreshBtn" onclick="refreshRTADData()">
         Refresh Now
     </button>
-    <div class="grid">
-        <!-- Card für /rtad_lastb -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">LastB Login Attempts</h2>
-            </div>
-            <div
-                class="detail-view"
-                style="display: block; max-height: 400px; overflow: auto"
-            >
-                <table id="lastbTable" class="sortable">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>IP Address</th>
-                            <th>Timestamp</th>
-                            <th>User</th>
-                            <th>Failure Reason</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Daten werden durch rtad.js geladen -->
-                    </tbody>
-                </table>
-            </div>
+    <!-- Card for /rtad_lastb -->
+    <div class="card" style="margin-bottom: 1rem">
+        <div class="card-header">
+            <h2 class="card-title">LastB Login Attempts</h2>
         </div>
-        <!-- Card für /rtad_proxy -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">Proxy Events</h2>
-            </div>
-            <div
-                class="detail-view"
-                style="display: block; max-height: 400px; overflow: auto"
-            >
-                <table id="proxyTable" class="sortable">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Domain</th>
-                            <th>IP Address</th>
-                            <th>Timestamp</th>
-                            <th>Proxy Type</th>
-                            <th>Error Code</th>
-                            <th>URL</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Daten werden durch rtad.js geladen -->
-                    </tbody>
-                </table>
-            </div>
+        <div
+            class="detail-view"
+            style="display: block; max-height: 400px; overflow: auto"
+        >
+            <table id="lastbTable" class="sortable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>IP Address</th>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Failure Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data loaded by rtad.js -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Card for /rtad_proxy -->
+    <div class="card" style="margin-bottom: 1rem">
+        <div class="card-header">
+            <h2 class="card-title">Proxy Events</h2>
+        </div>
+        <div
+            class="detail-view"
+            style="display: block; max-height: 400px; overflow: auto"
+        >
+            <table id="proxyTable" class="sortable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Domain</th>
+                        <th>IP Address</th>
+                        <th>Timestamp</th>
+                        <th>Proxy Type</th>
+                        <th>Error Code</th>
+                        <th>URL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data loaded by rtad.js -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -69,6 +67,6 @@ content %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script src="{{ url_for('static', filename='rtad.js') }}"></script>
-<!-- Sortierbare Tabellen via sorttable.js -->
+<!-- Sortable tables using sorttable.js -->
 <script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
 {% endblock %}
