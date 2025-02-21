@@ -183,9 +183,8 @@ class LogParser:
             return
 
         try:
-            # Utmp liefert uns alle Einträge aus der btmp-Datei
-            for record in utmp.Utmp
-            (btmp_path):
+            # Hier wird nun utmp.Utmp anstelle von utmp.UtmpFile verwendet.
+            for record in utmp.Utmp(btmp_path):
                 # Erwartete Felder: record.user, record.host, record.timestamp (oder record.time)
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
