@@ -5,8 +5,34 @@ import os
 import logging
 import threading
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from threading import Timer
+
+# ----------------------------
+# Prekompilierte Regex-Pattern
+# ----------------------------
+REGEX_ZORAXY = re.compile(
+    r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
+)
+REGEX_NPM = re.compile(
+    r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
+)
+
+# Prekompilierte Regex für Login-Versuche
+RE_LOGIN_FAILED = re.compile(
+    r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
+)
+RE_LOGIN_INVALID = re.compile(
+    r"Invalid user (?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
+)
+
+# ----------------------------
+# Globale Variablen für File-Offset Tracking
+# ----------------------------
+file_offsets = {}
+file_offsets_lock = threading.Lock()
 
 # Thread-sichere Caches für In-Memory Logging
 login_attempts_cache = []
@@ -22,11 +48,19 @@ with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
 def get_log_files(path):
+    """
+    Gibt eine Liste von Log-Dateien zurück.
+    Falls 'path' eine Datei ist, wird diese in eine Liste gepackt.
+    Falls 'path' ein Verzeichnis ist, werden alle darin enthaltenen Dateien zurückgegeben.
+    """
     if os.path.isfile(path):
         return [path]
     elif os.path.isdir(path):
-        return [os.path.join(path, filename) for filename in os.listdir(path)
-                if os.path.isfile(os.path.join(path, filename))]
+        return [
+            os.path.join(path, filename)
+            for filename in os.listdir(path)
+            if os.path.isfile(os.path.join(path, filename))
+        ]
     else:
         return []
 
@@ -34,105 +68,102 @@ class LogParser:
     def __init__(self):
         self.proxy_logs = config.get('logfiles', [])
         logging.debug("LogParser initialisiert mit proxy logs: %s", self.proxy_logs)
+        self.debounce_timer = None
+        self.debounce_lock = threading.Lock()
         self.setup_watchdog()
+
+    def process_log_file(self, file_path, line_processor):
+        """
+        Lese neue Zeilen ab dem letzten bekannten Offset und wende die gegebene line_processor-Funktion auf jede Zeile an.
+        """
+        try:
+            with file_offsets_lock:
+                last_offset = file_offsets.get(file_path, 0)
+            with open(file_path, 'r') as f:
+                f.seek(last_offset)
+                new_data = f.read()
+                new_offset = f.tell()
+            with file_offsets_lock:
+                file_offsets[file_path] = new_offset
+            if new_data:
+                for line in new_data.splitlines():
+                    line = line.strip()
+                    if line:
+                        line_processor(line)
+        except Exception as e:
+            logging.error("Fehler beim Verarbeiten der Datei %s: %s", file_path, e)
+
+    def process_files_concurrently(self, files, line_processor):
+        """
+        Verarbeitet mehrere Dateien parallel mittels ThreadPoolExecutor.
+        """
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.process_log_file, file, line_processor) for file in files]
+            # Warten auf alle Tasks
+            for future in futures:
+                future.result()
 
     def parse_log_files(self):
         logging.debug("Starte parse_log_files")
+        # Verarbeite Proxy-Logs
         for log_config in self.proxy_logs:
             path = log_config.get('path')
             proxy_type = log_config.get('proxy_type')
-            logging.debug("Verarbeite proxy log: %s (Typ: %s)", path, proxy_type)
-            self.parse_proxy_log(path, proxy_type)
-        self.parse_system_logs()
-
-    def parse_proxy_log(self, log_path, proxy_type):
-        if not os.path.exists(log_path):
-            logging.warning("Proxy log-Pfad existiert nicht: %s", log_path)
-            return
-        log_files = get_log_files(log_path)
-        for file in log_files:
-            logging.debug("Verarbeite proxy log-Datei: %s", file)
-            with open(file, 'r') as log_file:
-                for line in log_file:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    logging.debug("Verarbeite Zeile im proxy log: %s", line)
-                    self.process_http_error_log(line, proxy_type)
-
-    def parse_system_logs(self):
-        logging.debug("Verarbeite System-Logs für Login-Versuche")
+            if not os.path.exists(path):
+                logging.warning("Proxy log-Pfad existiert nicht: %s", path)
+                continue
+            files = get_log_files(path)
+            self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
+        # Verarbeite System-Logs
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
-                logging.debug("Verarbeite System-Log: %s", log_path)
-                self.parse_login_attempts(log_path)
+                files = get_log_files(log_path)
+                self.process_files_concurrently(files, self.process_login_attempt)
             else:
                 logging.warning("System-Log-Pfad existiert nicht: %s", log_path)
         self.parse_lastb_output()
 
     def process_http_error_log(self, line, proxy_type):
         if proxy_type == "zoraxy":
-            pattern = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
-        elif proxy_type == "npm":
-            pattern = r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
-        else:
-            logging.debug("Unbekannter proxy_type '%s'. Verwende npm Regex als Standard.", proxy_type)
-            pattern = r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
-        match = re.search(pattern, line)
-        if match:
-            ip_address = match.group("ip")
-            url = match.group("url")
-            error_code = int(match.group("code"))
-            if proxy_type == "zoraxy":
+            match = REGEX_ZORAXY.search(line)
+            if match:
+                ip_address = match.group("ip")
+                url = match.group("url")
+                error_code = int(match.group("code"))
                 domain = match.group("origin")
             else:
+                logging.debug("Keine Übereinstimmung im zoraxy HTTP error log für Zeile: %s", line)
+                return
+        else:
+            match = REGEX_NPM.search(line)
+            if match:
+                ip_address = match.group("ip")
+                url = match.group("url")
+                error_code = int(match.group("code"))
                 domain = match.group("host") if "host" in match.groupdict() else None
-            if error_code >= 400:
-                logging.debug("HTTP error log erkannt: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
-                              ip_address, domain, url, error_code, proxy_type)
-                self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
             else:
-                logging.debug("Zeile entspricht keinem Fehler (Code < 400): %s", line)
-            return
-        logging.debug("Keine Übereinstimmung im HTTP error log für Zeile: %s", line)
+                logging.debug("Keine Übereinstimmung im npm HTTP error log für Zeile: %s", line)
+                return
+        if error_code >= 400:
+            logging.debug("HTTP error log erkannt: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
+                          ip_address, domain, url, error_code, proxy_type)
+            self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
+        else:
+            logging.debug("Zeile entspricht keinem Fehler (Code < 400): %s", line)
 
     def process_login_attempt(self, line):
-        # Angepasst: Extrahiere zusätzlich den Host als Domain, sofern verfügbar
-        pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
-        match = re.search(pattern_failed, line)
+        match = RE_LOGIN_FAILED.search(line)
+        if not match:
+            match = RE_LOGIN_INVALID.search(line)
         if match:
             user = match.group("user")
             ip_address = match.group("ip")
             host = match.group("host") if "host" in match.groupdict() else None
-            logging.debug("Login-Versuch (failed password) erkannt: Benutzer %s, IP %s, Host %s", user, ip_address, host)
+            logging.debug("Login-Versuch erkannt: Benutzer %s, IP %s, Host %s", user, ip_address, host)
             self.store_failed_login(user, ip_address, host)
-            return
-        pattern_invalid = r"Invalid user (?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
-        match = re.search(pattern_invalid, line)
-        if match:
-            user = match.group("user")
-            ip_address = match.group("ip")
-            host = match.group("host") if "host" in match.groupdict() else None
-            logging.debug("Login-Versuch (invalid user) erkannt: Benutzer %s, IP %s, Host %s", user, ip_address, host)
-            self.store_failed_login(user, ip_address, host)
-            return
-        logging.debug("Keine Übereinstimmung für Login-Versuch in Zeile: %s", line)
-
-    def parse_login_attempts(self, log_path):
-        if not os.path.exists(log_path):
-            logging.warning("Login-Versuch Log-Pfad existiert nicht: %s", log_path)
-            return
-        log_files = get_log_files(log_path)
-        for file in log_files:
-            logging.debug("Verarbeite Login-Versuch Log-Datei: %s", file)
-            with open(file, 'r') as log_file:
-                for line in log_file:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    logging.debug("Verarbeite Zeile im System-Log für Login-Versuch: %s", line)
-                    self.process_login_attempt(line)
+        else:
+            logging.debug("Keine Übereinstimmung für Login-Versuch in Zeile: %s", line)
 
     def parse_lastb_output(self):
         logging.debug("Verarbeite Ausgabe von lastb")
@@ -144,10 +175,8 @@ class LogParser:
             output = result.stdout.decode()
             for line in output.splitlines():
                 line = line.strip()
-                if not line:
-                    continue
-                logging.debug("Verarbeite Zeile aus lastb: %s", line)
-                self.process_login_attempt(line)
+                if line:
+                    self.process_login_attempt(line)
         except Exception as e:
             logging.error("Ausnahmefehler bei lastb: %s", e)
 
@@ -163,7 +192,7 @@ class LogParser:
                 "timestamp": timestamp,
                 "failure_reason": failure_reason
             })
-        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch für Benutzer %s von IP %s, Host %s", user, ip_address, host)
+        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch: Benutzer %s, IP %s, Host %s", user, ip_address, host)
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain):
         timestamp = datetime.now().timestamp()
@@ -185,6 +214,7 @@ class LogParser:
         event_handler = FileSystemEventHandler()
         event_handler.on_modified = self.on_modified
         observer = Observer()
+        # Überwache alle in config.yml angegebenen Pfade
         for log_config in self.proxy_logs:
             path = log_config.get('path')
             if os.path.exists(path):
@@ -199,7 +229,12 @@ class LogParser:
         if event.is_directory:
             return
         logging.debug("Watchdog: Änderung in Datei erkannt: %s", event.src_path)
-        self.parse_log_files()
+        # Debounce: Verzögere den Aufruf von parse_log_files, um wiederholte Events zusammenzufassen
+        with self.debounce_lock:
+            if self.debounce_timer is not None:
+                self.debounce_timer.cancel()
+            self.debounce_timer = Timer(1.0, self.parse_log_files)
+            self.debounce_timer.start()
 
 def fetch_login_attempts():
     with login_attempts_lock:
