@@ -3,14 +3,12 @@ import re
 import subprocess
 import os
 import logging
-from datetime import datetime
 import threading
+from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# Entfernt: Datenbankabhängigkeit (get_db_connection) wird nicht mehr benötigt
-
-# Thread-sichere Caches für In-Memory Logging (Lösung 1, Option 4)
+# Thread-sichere Caches für In-Memory Logging
 login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
@@ -24,11 +22,6 @@ with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
 def get_log_files(path):
-    """
-    Gibt eine Liste von Log-Dateien zurück.
-    Falls 'path' eine Datei ist, wird diese in eine Liste gepackt.
-    Falls 'path' ein Verzeichnis ist, werden alle darin enthaltenen Dateien zurückgegeben.
-    """
     if os.path.isfile(path):
         return [path]
     elif os.path.isdir(path):
@@ -91,31 +84,38 @@ class LogParser:
             ip_address = match.group("ip")
             url = match.group("url")
             error_code = int(match.group("code"))
+            if proxy_type == "zoraxy":
+                domain = match.group("origin")
+            else:
+                domain = match.group("host") if "host" in match.groupdict() else None
             if error_code >= 400:
-                logging.debug("HTTP error log erkannt: IP %s, URL %s, Code %s, Proxy %s",
-                              ip_address, url, error_code, proxy_type)
-                self.store_http_error_log(proxy_type, error_code, url, ip_address)
+                logging.debug("HTTP error log erkannt: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
+                              ip_address, domain, url, error_code, proxy_type)
+                self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
             else:
                 logging.debug("Zeile entspricht keinem Fehler (Code < 400): %s", line)
             return
         logging.debug("Keine Übereinstimmung im HTTP error log für Zeile: %s", line)
 
     def process_login_attempt(self, line):
-        pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+) port \d+"
+        # Angepasst: Extrahiere zusätzlich den Host als Domain, sofern verfügbar
+        pattern_failed = r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
         match = re.search(pattern_failed, line)
         if match:
             user = match.group("user")
             ip_address = match.group("ip")
-            logging.debug("Login-Versuch (failed password) erkannt: Benutzer %s, IP %s", user, ip_address)
-            self.store_failed_login(user, ip_address)
+            host = match.group("host") if "host" in match.groupdict() else None
+            logging.debug("Login-Versuch (failed password) erkannt: Benutzer %s, IP %s, Host %s", user, ip_address, host)
+            self.store_failed_login(user, ip_address, host)
             return
-        pattern_invalid = r"Invalid user (?P<user>\S+) from (?P<ip>\S+) port \d+"
+        pattern_invalid = r"Invalid user (?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
         match = re.search(pattern_invalid, line)
         if match:
             user = match.group("user")
             ip_address = match.group("ip")
-            logging.debug("Login-Versuch (invalid user) erkannt: Benutzer %s, IP %s", user, ip_address)
-            self.store_failed_login(user, ip_address)
+            host = match.group("host") if "host" in match.groupdict() else None
+            logging.debug("Login-Versuch (invalid user) erkannt: Benutzer %s, IP %s, Host %s", user, ip_address, host)
+            self.store_failed_login(user, ip_address, host)
             return
         logging.debug("Keine Übereinstimmung für Login-Versuch in Zeile: %s", line)
 
@@ -151,7 +151,7 @@ class LogParser:
         except Exception as e:
             logging.error("Ausnahmefehler bei lastb: %s", e)
 
-    def store_failed_login(self, user, ip_address):
+    def store_failed_login(self, user, ip_address, host):
         timestamp = datetime.now().timestamp()
         failure_reason = "Failed login attempt"
         with login_attempts_lock:
@@ -159,12 +159,13 @@ class LogParser:
                 "id": len(login_attempts_cache) + 1,
                 "user": user,
                 "ip_address": ip_address,
+                "domain": host,
                 "timestamp": timestamp,
                 "failure_reason": failure_reason
             })
-        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch für Benutzer %s von IP %s", user, ip_address)
+        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch für Benutzer %s von IP %s, Host %s", user, ip_address, host)
 
-    def store_http_error_log(self, proxy_type, error_code, url, ip_address):
+    def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain):
         timestamp = datetime.now().timestamp()
         with http_error_logs_lock:
             http_error_logs_cache.append({
@@ -172,9 +173,12 @@ class LogParser:
                 "proxy_type": proxy_type,
                 "error_code": error_code,
                 "timestamp": timestamp,
-                "url": url
+                "url": url,
+                "ip_address": ip_address,
+                "domain": domain
             })
-        logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s", proxy_type, error_code, url)
+        logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s",
+                      proxy_type, error_code, url, ip_address, domain)
 
     def setup_watchdog(self):
         logging.debug("Einrichten des Watchdog Observers")
