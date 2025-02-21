@@ -73,10 +73,10 @@ class LogParser:
     def process_http_error_log(self, line, proxy_type):
         # Wähle Regex basierend auf proxy_type:
         if proxy_type == "zoraxy":
-            # Vorheriger Regex für zoraxy; erfasst 'origin' als Domain.
+            # Vorheriger Regex für zoraxy
             pattern = r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
         elif proxy_type == "npm":
-            # Aktueller Regex für npm; erfasst 'host' als Domain.
+            # Aktueller Regex für npm
             pattern = r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
         else:
             logging.debug("Unknown proxy_type '%s'. Using npm regex as default.", proxy_type)
@@ -85,19 +85,12 @@ class LogParser:
         match = re.search(pattern, line)
         if match:
             ip_address = match.group("ip")
+            url = match.group("url")
             error_code = int(match.group("code"))
-            # Ermittlung des Domain-Werts anhand des proxy_type
-            if proxy_type == "zoraxy":
-                domain = match.group("origin")
-                url = match.group("url")
-            else:  # npm or default
-                domain = match.group("host")
-                url = match.group("url")
-            # Nur speichern, wenn der Error-Code einen Fehler anzeigt (>= 400)
             if error_code >= 400:
-                logging.debug("Matched HTTP error log: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
-                              ip_address, domain, url, error_code, proxy_type)
-                self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
+                logging.debug("Matched HTTP error log: IP %s, URL %s, Code %s, Proxy %s",
+                              ip_address, url, error_code, proxy_type)
+                self.store_http_error_log(proxy_type, error_code, url, ip_address)
             else:
                 logging.debug("HTTP log matched but not an error (code < 400): %s", line)
             return
@@ -167,15 +160,14 @@ class LogParser:
         conn.commit()
         logging.debug("Stored failed login attempt for user %s from IP %s", user, ip_address)
 
-    def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain):
+    def store_http_error_log(self, proxy_type, error_code, url, ip_address):
         timestamp = datetime.now().timestamp()
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''INSERT INTO http_error_logs (proxy_type, error_code, timestamp, url, ip_address, domain)
-                          VALUES (?, ?, ?, ?, ?, ?)''', (proxy_type, error_code, timestamp, url, ip_address, domain))
+        cursor.execute('''INSERT INTO http_error_logs (proxy_type, error_code, timestamp, url)
+                          VALUES (?, ?, ?, ?)''', (proxy_type, error_code, timestamp, url))
         conn.commit()
-        logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s",
-                      proxy_type, error_code, url, ip_address, domain)
+        logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s", proxy_type, error_code, url)
 
     def setup_watchdog(self):
         logging.debug("Setting up watchdog observer")
@@ -226,8 +218,6 @@ def fetch_http_error_logs():
             "proxy_type": row["proxy_type"],
             "error_code": row["error_code"],
             "timestamp": row["timestamp"],
-            "url": row["url"],
-            "ip_address": row["ip_address"],
-            "domain": row["domain"]
+            "url": row["url"]
         })
     return result
