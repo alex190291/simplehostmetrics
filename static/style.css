@@ -491,3 +491,34 @@ button.update-btn {
     scrollbar-width: thin;
     scrollbar-color: var(--primary) var(--bg-color);
 }
+
+/* Sorting of RTAD Tables*/
+.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 1.5rem !important;
+}
+
+.sortable::after {
+    content: "↕";
+    position: absolute;
+    right: 0.5rem;
+    color: var(--text);
+    opacity: 0.3;
+}
+
+.sortable.asc::after {
+    content: "↑";
+    opacity: 1;
+    color: var(--primary);
+}
+
+.sortable.desc::after {
+    content: "↓";
+    opacity: 1;
+    color: var(--primary);
+}
+
+.sortable:hover::after {
+    opacity: 0.8;
+}
