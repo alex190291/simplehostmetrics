@@ -155,12 +155,16 @@ def check_all_status_route():
     return jsonify(status)
 
 # New RTAD logs API endpoint for retrieving processed log and lastb data
+@app.route('/rtad')
+@login_required
+def index():
+    return render_template('rtad.html')
 
 @app.route("/rtad_lastb")
 @login_required
 def rtad_lastb():
     last_id = request.args.get("last_id", default=None, type=int)
-    attempts = fetch_login_attempts()
+    attempts = rtad_manager.fetch_login_attempts()
     if last_id is not None:
         # Nur Einträge mit einer ID größer als last_id zurückliefern
         attempts = [attempt for attempt in attempts if attempt["id"] > last_id]
@@ -173,7 +177,7 @@ def rtad_lastb():
 @login_required
 def rtad_proxy():
     last_id = request.args.get("last_id", default=None, type=int)
-    logs = fetch_http_error_logs()
+    logs = rtad_manager.fetch_http_error_logs()
     if last_id is not None:
         logs = [log for log in logs if log["id"] > last_id]
     else:
