@@ -1,5 +1,3 @@
-/* simplehostmetrics.refac/static/style.css */
-
 :root {
     --bg-color: #0a0a0a;
     --glass: rgba(18, 18, 18, 0.7);
@@ -118,6 +116,20 @@ body {
 .card:hover {
     transform: scale(1.02) translateZ(0);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Chart container height limits */
+.card canvas {
+    max-height: 800px !important;
+}
+
+#cpuChart,
+#cpuDetailChart,
+#memoryChart,
+#memoryDetailChart,
+#diskChart,
+#diskHistoryChart {
+    max-height: 800px !important;
 }
 
 /* RTAD Card */
@@ -262,14 +274,4 @@ button.update-btn {
 /* Table Loading State */
 .table-loading {
     opacity: 0.7;
-    pointer-events: none;
-}
-
-.table-loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 2rem;
-    height: 2
+    pointer-events: none
