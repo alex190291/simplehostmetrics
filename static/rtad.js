@@ -1,78 +1,89 @@
 // static/rtad.js
 
-// Asynchronous function to fetch data from both endpoints concurrently
-async function fetchRTADData() {
-  try {
-    // Fetch both endpoints concurrently
-    const [lastbRes, proxyRes] = await Promise.all([
-      fetch("/rtad_lastb"),
-      fetch("/rtad_proxy"),
-    ]);
-    const [lastbData, proxyData] = await Promise.all([
-      lastbRes.json(),
-      proxyRes.json(),
-    ]);
-
-    // Update the LastB Login Attempts table
-    const lastbTbody = document.querySelector("#lastbTable tbody");
-    lastbTbody.innerHTML = "";
-    lastbData.forEach((item) => {
-      const date = new Date(item.timestamp * 1000);
-      const formattedDate = date.toLocaleString();
-      const row = document.createElement("tr");
-      row.innerHTML = `
-                <td>${item.id}</td>
-                <td>${item.ip_address}</td>
-                <td>${formattedDate}</td>
-                <td>${item.user}</td>
-                <td>${item.failure_reason}</td>
-            `;
-      lastbTbody.appendChild(row);
-    });
-
-    // Update the Proxy Events table with color coding for HTTP events:
-    //  - 200: green, 404/403 and other 400s: red, 500: blue.
-    const proxyTbody = document.querySelector("#proxyTable tbody");
-    proxyTbody.innerHTML = "";
-    proxyData.forEach((item) => {
-      const date = new Date(item.timestamp * 1000);
-      const formattedDate = date.toLocaleString();
-      let errorClass = "";
-      if (item.error_code === 200) {
-        errorClass = "status-green";
-      } else if (item.error_code === 500) {
-        errorClass = "status-blue";
-      } else if (
-        item.error_code === 404 ||
-        item.error_code === 403 ||
-        (item.error_code >= 400 && item.error_code < 500)
-      ) {
-        errorClass = "status-red";
+function fetchRTADData() {
+  // Update rtad_lastb table
+  fetch("/rtad_lastb")
+    .then((response) => response.json())
+    .then((data) => {
+      // Only use the last 5000 entries
+      if (data.length > 5000) {
+        data = data.slice(-5000);
       }
-      const row = document.createElement("tr");
-      row.innerHTML = `
-                <td>${item.id}</td>
-                <td>${item.domain}</td>
-                <td>${item.ip_address}</td>
-                <td>${formattedDate}</td>
-                <td>${item.proxy_type}</td>
-                <td class="${errorClass}">${item.error_code}</td>
-                <td>${item.url}</td>
-            `;
-      proxyTbody.appendChild(row);
+      const tbody = document.querySelector("#lastbTable tbody");
+      const fragment = document.createDocumentFragment();
+      data.forEach((item) => {
+        const date = new Date(item.timestamp * 1000);
+        const formattedDate = date.toLocaleString();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+                    <td>${item.id}</td>
+                    <td>${item.ip_address}</td>
+                    <td>${formattedDate}</td>
+                    <td>${item.user}</td>
+                    <td>${item.failure_reason}</td>
+                `;
+        fragment.appendChild(row);
+      });
+      // Efficiently update table content
+      tbody.innerHTML = "";
+      tbody.appendChild(fragment);
+    })
+    .catch((error) => {
+      console.error("Error fetching /rtad_lastb data:", error);
     });
-  } catch (error) {
-    console.error("Error fetching RTAD data:", error);
-  }
+
+  // Update rtad_proxy table
+  fetch("/rtad_proxy")
+    .then((response) => response.json())
+    .then((data) => {
+      // Only use the last 5000 entries
+      if (data.length > 5000) {
+        data = data.slice(-5000);
+      }
+      const tbody = document.querySelector("#proxyTable tbody");
+      const fragment = document.createDocumentFragment();
+      data.forEach((item) => {
+        const date = new Date(item.timestamp * 1000);
+        const formattedDate = date.toLocaleString();
+        let errorClass = "";
+        if (item.error_code === 200) {
+          errorClass = "status-green";
+        } else if (item.error_code === 500) {
+          errorClass = "status-blue";
+        } else if (
+          item.error_code === 404 ||
+          item.error_code === 403 ||
+          (item.error_code >= 400 && item.error_code < 500)
+        ) {
+          errorClass = "status-red";
+        }
+        const row = document.createElement("tr");
+        row.innerHTML = `
+                    <td>${item.id}</td>
+                    <td>${item.domain}</td>
+                    <td>${item.ip_address}</td>
+                    <td>${formattedDate}</td>
+                    <td>${item.proxy_type}</td>
+                    <td class="${errorClass}">${item.error_code}</td>
+                    <td>${item.url}</td>
+                `;
+        fragment.appendChild(row);
+      });
+      tbody.innerHTML = "";
+      tbody.appendChild(fragment);
+    })
+    .catch((error) => {
+      console.error("Error fetching /rtad_proxy data:", error);
+    });
 }
 
-// Manually triggered refresh
 function refreshRTADData() {
   fetchRTADData();
 }
 
-// Automatic update every 5 seconds without blocking the UI
+// Automatically update every 5 seconds
 setInterval(fetchRTADData, 5000);
 
-// Initial data fetch after DOM is loaded
-document.addEventListener("DOMContentLoaded", fetchRTADData);
+document.addEventListener("DOMContentLoaded", function () {
+  fetchRTADData();
+});

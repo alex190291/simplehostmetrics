@@ -7,7 +7,7 @@ content %}
         Refresh Now
     </button>
     <!-- Card for /rtad_lastb -->
-    <div class="card" style="margin-bottom: 1rem">
+    <div class="card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
             <h2 class="card-title">LastB Login Attempts</h2>
         </div>
@@ -26,13 +26,13 @@ content %}
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Data loaded by rtad.js -->
+                    <!-- Data loaded via rtad.js -->
                 </tbody>
             </table>
         </div>
     </div>
     <!-- Card for /rtad_proxy -->
-    <div class="card" style="margin-bottom: 1rem">
+    <div class="card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
             <h2 class="card-title">Proxy Events</h2>
         </div>
@@ -53,7 +53,7 @@ content %}
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Data loaded by rtad.js -->
+                    <!-- Data loaded via rtad.js -->
                 </tbody>
             </table>
         </div>
@@ -67,6 +67,6 @@ content %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script src="{{ url_for('static', filename='rtad.js') }}"></script>
-<!-- Sortable tables using sorttable.js -->
+<!-- Sortable tables -->
 <script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
 {% endblock %}
