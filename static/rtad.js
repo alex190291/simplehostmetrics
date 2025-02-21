@@ -39,14 +39,20 @@ function sortTable(table, column, direction) {
   const timestampColumn = isLastbTable ? 2 : 3;
 
   const compareFunction = (a, b) => {
-    const aCol = a.children[column].textContent.trim();
-    const bCol = b.children[column].textContent.trim();
-
     if (column === timestampColumn) {
-      const aTime = getParsedDate(aCol);
-      const bTime = getParsedDate(bCol);
+      // Get timestamps from data attributes
+      const aTimestamp = a.children[column].getAttribute("data-timestamp");
+      const bTimestamp = b.children[column].getAttribute("data-timestamp");
+
+      // Convert to numbers for comparison
+      const aTime = Number(aTimestamp) * 1000;
+      const bTime = Number(bTimestamp) * 1000;
+
       return direction === "asc" ? aTime - bTime : bTime - aTime;
     }
+
+    const aCol = a.children[column].textContent.trim();
+    const bCol = b.children[column].textContent.trim();
 
     if (!isNaN(aCol) && !isNaN(bCol)) {
       const aNum = Number(aCol);
