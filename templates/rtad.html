@@ -1,3 +1,4 @@
+<!-- rtad.html -->
 {% extends "base.html" %} {% block title %}RTAD Overview{% endblock %} {% block
 content %}
 <div class="hexagons" id="hexagon-container"></div>
@@ -19,6 +20,7 @@ content %}
                 <thead>
                     <tr>
                         <th>IP Address</th>
+                        <th>Country</th>
                         <th>Timestamp</th>
                         <th>User</th>
                         <th>Failure Reason</th>
@@ -44,6 +46,7 @@ content %}
                     <tr>
                         <th>Domain</th>
                         <th>IP Address</th>
+                        <th>Country</th>
                         <th>Timestamp</th>
                         <th>Proxy Type</th>
                         <th>Error Code</th>
@@ -65,6 +68,5 @@ content %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script src="{{ url_for('static', filename='rtad.js') }}"></script>
-<!-- Sortable tables -->
 <script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
 {% endblock %}

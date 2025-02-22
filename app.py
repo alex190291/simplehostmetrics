@@ -1,3 +1,4 @@
+# app.py
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -170,10 +171,8 @@ def rtad_lastb():
     last_id = request.args.get("last_id", default=None, type=int)
     attempts = rtad_manager.fetch_login_attempts()
     if last_id is not None:
-        # Nur Einträge mit einer ID größer als last_id zurückliefern
         attempts = [attempt for attempt in attempts if attempt["id"] > last_id]
     else:
-        # Fallback: letzte 5000 Einträge
         attempts = attempts[-5000:]
     return jsonify(attempts)
 
@@ -187,13 +186,11 @@ def rtad_proxy():
     else:
         logs = logs[-5000:]
     return jsonify(logs)
+
 # Function to continuously run the RTAD log parser
 def start_rtad_log_parser():
-    # Instantiate the parser which also sets up the watchdog observer
     parser = rtad_manager.LogParser()
-    # Trigger an initial parse to process existing logs
     parser.parse_log_files()
-    # Keep this thread alive to allow watchdog's observer to function
     while True:
         time.sleep(10)
 
@@ -204,4 +201,5 @@ if __name__ == '__main__':
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
+    threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)

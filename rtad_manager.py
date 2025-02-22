@@ -5,6 +5,8 @@ import subprocess
 import os
 import logging
 import threading
+import time
+import requests
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
@@ -40,6 +42,9 @@ login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
+
+# Globaler Cache für IP-Länderinformationen
+ip_country_cache = {}
 
 # Logging-Konfiguration (optional)
 # logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -180,7 +185,6 @@ class LogParser:
                 ip_address = host  # Falls keine separate IP vorhanden
                 logging.debug("Btmp-Eintrag: Time: %s, Type: %s, User: %s, Host/IP: %s",
                               record.time, record.type, user, host)
-                # Übergabe des tatsächlichen Zeitstempels (record.time)
                 self.store_failed_login(user, ip_address, host, timestamp=record.time)
         except Exception as e:
             logging.error("Fehler beim Parsen von /var/log/btmp: %s", e)
@@ -249,3 +253,51 @@ def fetch_login_attempts():
 def fetch_http_error_logs():
     with http_error_logs_lock:
         return list(http_error_logs_cache)
+
+def update_missing_country_info():
+    # Update login_attempts_cache Einträge
+    with login_attempts_lock:
+        for attempt in login_attempts_cache:
+            if "country" not in attempt:
+                ip = attempt["ip_address"]
+                if ip in ip_country_cache:
+                    attempt["country"] = ip_country_cache[ip]
+                else:
+                    try:
+                        response = requests.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=5)
+                        if response.status_code == 200:
+                            data = response.json()
+                            country = data.get("country", "Unknown")
+                        else:
+                            country = "Unknown"
+                    except Exception as e:
+                        logging.error("Error retrieving country for IP %s: %s", ip, e)
+                        country = "Unknown"
+                    ip_country_cache[ip] = country
+                    attempt["country"] = country
+
+    # Update http_error_logs_cache Einträge
+    with http_error_logs_lock:
+        for log in http_error_logs_cache:
+            if "country" not in log:
+                ip = log["ip_address"]
+                if ip in ip_country_cache:
+                    log["country"] = ip_country_cache[ip]
+                else:
+                    try:
+                        response = requests.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=5)
+                        if response.status_code == 200:
+                            data = response.json()
+                            country = data.get("country", "Unknown")
+                        else:
+                            country = "Unknown"
+                    except Exception as e:
+                        logging.error("Error retrieving country for IP %s: %s", ip, e)
+                        country = "Unknown"
+                    ip_country_cache[ip] = country
+                    log["country"] = country
+
+def update_country_info_job():
+    while True:
+        update_missing_country_info()
+        time.sleep(60)

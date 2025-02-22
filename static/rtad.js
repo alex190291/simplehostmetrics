@@ -13,7 +13,6 @@ const dateCache = new Map();
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
     let date;
-    // Falls der Timestamp kein numerischer Wert ist, direkt parsen
     if (isNaN(Number(timestamp))) {
       date = new Date(timestamp);
     } else {
@@ -38,9 +37,8 @@ function saveSortState() {
 function sortTable(table, column, direction) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-  // Bei lastbTable ist der Timestamp in Spalte 1, bei proxyTable in Spalte 2
   const isLastbTable = table.id === "lastbTable";
-  const timestampColumn = isLastbTable ? 1 : 2;
+  const timestampColumn = isLastbTable ? 2 : 3;
 
   const compareFunction = (a, b) => {
     if (column === timestampColumn) {
@@ -83,7 +81,6 @@ function sortTable(table, column, direction) {
 }
 
 function fetchRTADData() {
-  // Lastb-Daten (API gibt hier einen Zeitstempel-String zurück, z. B. "Fri, 21 Feb 2025 16:48:22 GMT")
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
@@ -99,7 +96,6 @@ function fetchRTADData() {
       data.forEach((item) => {
         let date;
         if (isNaN(Number(item.timestamp))) {
-          // Wenn kein numerischer Wert, direkt als Datum parsen
           date = new Date(item.timestamp);
         } else {
           date = new Date(parseFloat(item.timestamp) * 1000);
@@ -108,6 +104,7 @@ function fetchRTADData() {
         const row = document.createElement("tr");
         row.innerHTML = `
                     <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
                     <td>${item.user}</td>
                     <td>${item.failure_reason}</td>
@@ -131,7 +128,6 @@ function fetchRTADData() {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
-  // Proxy-Daten (API gibt hier einen numerischen Timestamp als Float zurück)
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
@@ -145,12 +141,10 @@ function fetchRTADData() {
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
-        // Für Proxy-Einträge: Erhalte den ganzzahligen Anteil und den Bruchteil separat
         const ts = parseFloat(item.timestamp);
         const seconds = Math.floor(ts);
-        const fraction = ts - seconds; // Bruchteil in Sekunden
+        const fraction = ts - seconds;
         const date = new Date(seconds * 1000);
-        // Formatiere den Bruchteil mit 6 Dezimalstellen und entferne "0."
         const fractionStr = fraction.toFixed(6).slice(2);
         const formattedDate = date.toLocaleString() + "." + fractionStr;
 
@@ -173,6 +167,7 @@ function fetchRTADData() {
         row.innerHTML = `
                     <td>${item.domain}</td>
                     <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
                     <td>${item.proxy_type}</td>
                     <td class="${errorClass}">${item.error_code}</td>
