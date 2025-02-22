@@ -109,7 +109,6 @@ body {
 }
 
 .rtad.card {
-    /* same style as .card, but no expansion needed */
     background: var(--glass);
     backdrop-filter: blur(10px);
     border-radius: 1rem;
@@ -228,7 +227,7 @@ button.update-btn {
     background-color: #c0392b;
 }
 
-/* The "detail-view" container inside each card */
+/* detail-view container inside each card */
 .detail-view {
     margin-top: 1rem;
     display: none;
@@ -237,10 +236,10 @@ button.update-btn {
     overflow: auto;
 }
 
-/* Make sure the detail-view for the map is larger */
+/* Map container */
 .map-container {
     width: 100%;
-    height: 600px; /* Force a consistent height for the map card */
+    height: 600px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -252,7 +251,6 @@ button.update-btn {
     width: 100%;
     height: auto;
     object-fit: contain;
-    /* The original aspect ratio is 2000x857 (approx. 2.33:1). */
 }
 
 /* Attack line styling */
