@@ -2,10 +2,9 @@
 
 let lastbLastId = null;
 let proxyLastId = null;
-let currentSort = {
-  table: null,
-  column: null,
-  direction: null,
+let currentSorts = {
+  lastbTable: null,
+  proxyTable: null,
 };
 
 const dateCache = new Map();
@@ -24,14 +23,19 @@ function getParsedDate(timestamp) {
 }
 
 function loadSortState() {
-  const savedSort = localStorage.getItem("tableSortState");
-  if (savedSort) {
-    currentSort = JSON.parse(savedSort);
+  const lastbSort = localStorage.getItem("lastbTableSortState");
+  const proxySort = localStorage.getItem("proxyTableSortState");
+  if (lastbSort) {
+    currentSorts.lastbTable = JSON.parse(lastbSort);
+  }
+  if (proxySort) {
+    currentSorts.proxyTable = JSON.parse(proxySort);
   }
 }
 
-function saveSortState() {
-  localStorage.setItem("tableSortState", JSON.stringify(currentSort));
+function saveSortState(tableId, state) {
+  localStorage.setItem(tableId + "SortState", JSON.stringify(state));
+  currentSorts[tableId] = state;
 }
 
 function sortTable(table, column, direction) {
@@ -114,12 +118,12 @@ function fetchRTADData() {
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
 
-      if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
+      if (currentSorts.lastbTable && currentSorts.lastbTable.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
             document.querySelector("#lastbTable"),
-            currentSort.column,
-            currentSort.direction,
+            currentSorts.lastbTable.column,
+            currentSorts.lastbTable.direction,
           );
         });
       }
@@ -178,12 +182,12 @@ function fetchRTADData() {
       tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
 
-      if (currentSort.table === "#proxyTable" && currentSort.column !== null) {
+      if (currentSorts.proxyTable && currentSorts.proxyTable.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
             document.querySelector("#proxyTable"),
-            currentSort.column,
-            currentSort.direction,
+            currentSorts.proxyTable.column,
+            currentSorts.proxyTable.direction,
           );
         });
       }
@@ -217,16 +221,16 @@ function initializeSorting() {
         });
 
         let direction = "asc";
+        const tableKey = table.id;
         if (
-          currentSort.table === `#${table.id}` &&
-          currentSort.column === index &&
-          currentSort.direction === "asc"
+          currentSorts[tableKey] &&
+          currentSorts[tableKey].column === index &&
+          currentSorts[tableKey].direction === "asc"
         ) {
           direction = "desc";
         }
 
-        currentSort = {
-          table: `#${table.id}`,
+        const newState = {
           column: index,
           direction: direction,
         };
@@ -239,7 +243,7 @@ function initializeSorting() {
           header.dataset.originalText +
           (direction === "asc" ? arrowUp : arrowDown);
         sortTable(table, index, direction);
-        saveSortState();
+        saveSortState(tableKey, newState);
       });
     });
   });
