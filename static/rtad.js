@@ -1,4 +1,5 @@
 // rtad.js
+
 let lastbLastId = null;
 let proxyLastId = null;
 let currentSort = {
@@ -6,163 +7,22 @@ let currentSort = {
   column: null,
   direction: null,
 };
+
 const dateCache = new Map();
 
-// --- Helper: Merge new rows into an existing table without resetting sorting ---
-function mergeRowsIntoTable(
-  tableSelector,
-  newData,
-  rowHtmlGenerator,
-  compareFunction,
-) {
-  const table = document.querySelector(tableSelector);
-  const tbody = table.querySelector("tbody");
-  // Build a set of existing row IDs (assumes each row has a data-id attribute)
-  const existingIds = new Set();
-  Array.from(tbody.querySelectorAll("tr")).forEach((row) => {
-    const id = row.getAttribute("data-id");
-    if (id) existingIds.add(id);
-  });
-
-  newData.forEach((item) => {
-    // Only add rows for entries not already present (assuming item.id is unique)
-    if (!existingIds.has(String(item.id))) {
-      const newRow = document.createElement("tr");
-      newRow.setAttribute("data-id", item.id);
-      newRow.innerHTML = rowHtmlGenerator(item);
-      // Insert the new row into tbody in sorted order
-      insertRowSorted(tbody, newRow, compareFunction);
+function getParsedDate(timestamp) {
+  if (!dateCache.has(timestamp)) {
+    let date;
+    if (isNaN(Number(timestamp))) {
+      date = new Date(timestamp);
+    } else {
+      date = new Date(parseFloat(timestamp) * 1000);
     }
-  });
-}
-
-function insertRowSorted(tbody, newRow, compareFunction) {
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-  let inserted = false;
-  for (let i = 0; i < rows.length; i++) {
-    if (compareFunction(newRow, rows[i]) < 0) {
-      tbody.insertBefore(newRow, rows[i]);
-      inserted = true;
-      break;
-    }
+    dateCache.set(timestamp, date.getTime());
   }
-  if (!inserted) {
-    tbody.appendChild(newRow);
-  }
+  return dateCache.get(timestamp);
 }
 
-// For the lastb table, we compare the timestamp from cell index 2
-function compareRowsByTimestampLastb(rowA, rowB, direction = "asc") {
-  let aTimestamp = rowA.cells[2]
-    ? rowA.cells[2].getAttribute("data-timestamp")
-    : null;
-  let bTimestamp = rowB.cells[2]
-    ? rowB.cells[2].getAttribute("data-timestamp")
-    : null;
-  aTimestamp = aTimestamp ? parseFloat(aTimestamp) : 0;
-  bTimestamp = bTimestamp ? parseFloat(bTimestamp) : 0;
-  return direction === "asc"
-    ? aTimestamp - bTimestamp
-    : bTimestamp - aTimestamp;
-}
-
-// For proxy table, we assume the timestamp is in a cell with a data-timestamp attribute
-function compareRowsByTimestampProxy(rowA, rowB, direction = "asc") {
-  let aTimestamp = rowA.querySelector("[data-timestamp]");
-  let bTimestamp = rowB.querySelector("[data-timestamp]");
-  aTimestamp = aTimestamp
-    ? parseFloat(aTimestamp.getAttribute("data-timestamp"))
-    : 0;
-  bTimestamp = bTimestamp
-    ? parseFloat(bTimestamp.getAttribute("data-timestamp"))
-    : 0;
-  return direction === "asc"
-    ? aTimestamp - bTimestamp
-    : bTimestamp - aTimestamp;
-}
-
-function fetchRTADData() {
-  // --- Update lastb table ---
-  let lastbUrl = "/rtad_lastb";
-  if (lastbLastId !== null) {
-    lastbUrl += "?last_id=" + lastbLastId;
-  }
-  fetch(lastbUrl, { cache: "no-store" })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.length === 0) return;
-      const rowHtmlGenerator = (item) => {
-        let date;
-        if (isNaN(Number(item.timestamp))) {
-          date = new Date(item.timestamp);
-        } else {
-          date = new Date(parseFloat(item.timestamp) * 1000);
-        }
-        const formattedDate = date.toLocaleString();
-        return `
-          <td>${item.ip_address}</td>
-          <td>${item.country || "N/A"}</td>
-          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-          <td>${item.user}</td>
-          <td>${item.failure_reason}</td>
-        `;
-      };
-      mergeRowsIntoTable("#lastbTable", data, rowHtmlGenerator, (a, b) =>
-        compareRowsByTimestampLastb(a, b, currentSort.direction || "asc"),
-      );
-      lastbLastId = data[data.length - 1].id;
-    })
-    .catch((error) => console.error("Error fetching /rtad_lastb data:", error));
-
-  // --- Update proxy table ---
-  let proxyUrl = "/rtad_proxy";
-  if (proxyLastId !== null) {
-    proxyUrl += "?last_id=" + proxyLastId;
-  }
-  fetch(proxyUrl, { cache: "no-store" })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.length === 0) return;
-      const rowHtmlGenerator = (item) => {
-        const ts = parseFloat(item.timestamp);
-        const seconds = Math.floor(ts);
-        const fraction = ts - seconds;
-        const date = new Date(seconds * 1000);
-        const fractionStr = fraction.toFixed(6).slice(2);
-        const formattedDate = date.toLocaleString() + "." + fractionStr;
-        let errorClass = "";
-        if (item.error_code >= 300 && item.error_code < 400) {
-          errorClass = "status-yellow";
-        } else if (item.error_code === 200) {
-          errorClass = "status-green";
-        } else if (item.error_code === 500) {
-          errorClass = "status-blue";
-        } else if (
-          item.error_code === 404 ||
-          item.error_code === 403 ||
-          (item.error_code >= 400 && item.error_code < 500)
-        ) {
-          errorClass = "status-red";
-        }
-        return `
-          <td>${item.domain}</td>
-          <td>${item.ip_address}</td>
-          <td>${item.country || "N/A"}</td>
-          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-          <td>${item.proxy_type}</td>
-          <td class="${errorClass}">${item.error_code}</td>
-          <td>${item.url}</td>
-        `;
-      };
-      mergeRowsIntoTable("#proxyTable", data, rowHtmlGenerator, (a, b) =>
-        compareRowsByTimestampProxy(a, b, currentSort.direction || "asc"),
-      );
-      proxyLastId = data[data.length - 1].id;
-    })
-    .catch((error) => console.error("Error fetching /rtad_proxy data:", error));
-}
-
-// --- Sorting Functions ---
 function loadSortState() {
   const savedSort = localStorage.getItem("tableSortState");
   if (savedSort) {
@@ -177,38 +37,171 @@ function saveSortState() {
 function sortTable(table, column, direction) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-  rows.sort((a, b) => {
-    if (column === 2) {
-      // Timestamp column
-      let aTimestamp = a.cells[column]
-        ? a.cells[column].getAttribute("data-timestamp")
-        : null;
-      let bTimestamp = b.cells[column]
-        ? b.cells[column].getAttribute("data-timestamp")
-        : null;
-      aTimestamp = aTimestamp ? parseFloat(aTimestamp) : 0;
-      bTimestamp = bTimestamp ? parseFloat(bTimestamp) : 0;
-      return direction === "asc"
-        ? aTimestamp - bTimestamp
-        : bTimestamp - aTimestamp;
+  const isLastbTable = table.id === "lastbTable";
+  const timestampColumn = isLastbTable ? 2 : 3;
+
+  const compareFunction = (a, b) => {
+    if (column === timestampColumn) {
+      const aTimestamp = a.children[column].getAttribute("data-timestamp");
+      const bTimestamp = b.children[column].getAttribute("data-timestamp");
+      let aTime, bTime;
+      if (isNaN(Number(aTimestamp))) {
+        aTime = new Date(aTimestamp).getTime();
+      } else {
+        aTime = Number(aTimestamp) * 1000;
+      }
+      if (isNaN(Number(bTimestamp))) {
+        bTime = new Date(bTimestamp).getTime();
+      } else {
+        bTime = Number(bTimestamp) * 1000;
+      }
+      return direction === "asc" ? aTime - bTime : bTime - aTime;
     }
-    const aText = a.children[column].textContent.trim();
-    const bText = b.children[column].textContent.trim();
-    if (!isNaN(aText) && !isNaN(bText)) {
-      return direction === "asc"
-        ? Number(aText) - Number(bText)
-        : Number(bText) - Number(aText);
+
+    const aCol = a.children[column].textContent.trim();
+    const bCol = b.children[column].textContent.trim();
+
+    if (!isNaN(aCol) && !isNaN(bCol)) {
+      const aNum = Number(aCol);
+      const bNum = Number(bCol);
+      return direction === "asc" ? aNum - bNum : bNum - aNum;
     }
+
     return direction === "asc"
-      ? aText.localeCompare(bText)
-      : bText.localeCompare(aText);
-  });
+      ? aCol.localeCompare(bCol)
+      : bCol.localeCompare(aCol);
+  };
+
+  const sortedRows = rows.sort(compareFunction);
+  const fragment = document.createDocumentFragment();
+  sortedRows.forEach((row) => fragment.appendChild(row));
+
   tbody.innerHTML = "";
-  rows.forEach((row) => tbody.appendChild(row));
+  tbody.appendChild(fragment);
+}
+
+function fetchRTADData() {
+  let lastbUrl = "/rtad_lastb";
+  if (lastbLastId !== null) {
+    lastbUrl += "?last_id=" + lastbLastId;
+  }
+
+  fetch(lastbUrl, { cache: "no-store" })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.length === 0) return;
+      const tbody = document.querySelector("#lastbTable tbody");
+      tbody.innerHTML = "";
+      const fragment = document.createDocumentFragment();
+      data.forEach((item) => {
+        let date;
+        if (isNaN(Number(item.timestamp))) {
+          date = new Date(item.timestamp);
+        } else {
+          date = new Date(parseFloat(item.timestamp) * 1000);
+        }
+        const formattedDate = date.toLocaleString();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+                    <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
+                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+                    <td>${item.user}</td>
+                    <td>${item.failure_reason}</td>
+                `;
+        fragment.appendChild(row);
+      });
+      tbody.appendChild(fragment);
+      lastbLastId = data[data.length - 1].id;
+
+      if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
+        requestAnimationFrame(() => {
+          sortTable(
+            document.querySelector("#lastbTable"),
+            currentSort.column,
+            currentSort.direction,
+          );
+        });
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching /rtad_lastb data:", error);
+    });
+
+  let proxyUrl = "/rtad_proxy";
+  if (proxyLastId !== null) {
+    proxyUrl += "?last_id=" + proxyLastId;
+  }
+
+  fetch(proxyUrl, { cache: "no-store" })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.length === 0) return;
+      const tbody = document.querySelector("#proxyTable tbody");
+      tbody.innerHTML = "";
+      const fragment = document.createDocumentFragment();
+      data.forEach((item) => {
+        const ts = parseFloat(item.timestamp);
+        const seconds = Math.floor(ts);
+        const fraction = ts - seconds;
+        const date = new Date(seconds * 1000);
+        const fractionStr = fraction.toFixed(6).slice(2);
+        const formattedDate = date.toLocaleString() + "." + fractionStr;
+
+        let errorClass = "";
+        if (item.error_code >= 300 && item.error_code < 400) {
+          errorClass = "status-yellow";
+        } else if (item.error_code === 200) {
+          errorClass = "status-green";
+        } else if (item.error_code === 500) {
+          errorClass = "status-blue";
+        } else if (
+          item.error_code === 404 ||
+          item.error_code === 403 ||
+          (item.error_code >= 400 && item.error_code < 500)
+        ) {
+          errorClass = "status-red";
+        }
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+                    <td>${item.domain}</td>
+                    <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
+                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+                    <td>${item.proxy_type}</td>
+                    <td class="${errorClass}">${item.error_code}</td>
+                    <td>${item.url}</td>
+                `;
+        fragment.appendChild(row);
+      });
+      tbody.appendChild(fragment);
+      proxyLastId = data[data.length - 1].id;
+
+      if (currentSort.table === "#proxyTable" && currentSort.column !== null) {
+        requestAnimationFrame(() => {
+          sortTable(
+            document.querySelector("#proxyTable"),
+            currentSort.column,
+            currentSort.direction,
+          );
+        });
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching /rtad_proxy data:", error);
+    });
+}
+
+function refreshRTADData() {
+  lastbLastId = null;
+  proxyLastId = null;
+  fetchRTADData();
 }
 
 function initializeSorting() {
   const tables = document.querySelectorAll("#lastbTable, #proxyTable");
+
   tables.forEach((table) => {
     const headers = table.querySelectorAll("th");
     headers.forEach((header, index) => {
@@ -216,11 +209,13 @@ function initializeSorting() {
         header.dataset.originalText = header.innerText;
       }
       header.classList.add("sortable");
+
       header.addEventListener("click", () => {
         headers.forEach((h) => {
           h.classList.remove("asc", "desc");
           h.innerHTML = h.dataset.originalText;
         });
+
         let direction = "asc";
         if (
           currentSort.table === `#${table.id}` &&
@@ -229,13 +224,16 @@ function initializeSorting() {
         ) {
           direction = "desc";
         }
+
         currentSort = {
           table: `#${table.id}`,
           column: index,
           direction: direction,
         };
+
         const arrowUp = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M5 0L10 10H0L5 0Z"/></svg>`;
         const arrowDown = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 10L10 0H0Z"/></svg>`;
+
         header.classList.add(direction);
         header.innerHTML =
           header.dataset.originalText +
