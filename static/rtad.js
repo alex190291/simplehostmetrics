@@ -8,8 +8,6 @@ let currentSort = {
   direction: null,
 };
 
-let lastbEntries = [];
-let proxyEntries = [];
 const dateCache = new Map();
 
 function getParsedDate(timestamp) {
@@ -34,92 +32,6 @@ function loadSortState() {
 
 function saveSortState() {
   localStorage.setItem("tableSortState", JSON.stringify(currentSort));
-}
-
-function renderLastbTable(entries) {
-  const tbody = document.querySelector("#lastbTable tbody");
-  tbody.innerHTML = "";
-  const fragment = document.createDocumentFragment();
-  entries.forEach((item) => {
-    let date;
-    if (isNaN(Number(item.timestamp))) {
-      date = new Date(item.timestamp);
-    } else {
-      date = new Date(parseFloat(item.timestamp) * 1000);
-    }
-    const formattedDate = date.toLocaleString();
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${item.ip_address}</td>
-      <td>${item.country || "N/A"}</td>
-      <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-      <td>${item.user}</td>
-      <td>${item.failure_reason}</td>
-    `;
-    fragment.appendChild(row);
-  });
-  tbody.appendChild(fragment);
-  // After re-render, reapply sort if active.
-  if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
-    requestAnimationFrame(() => {
-      sortTable(
-        document.querySelector("#lastbTable"),
-        currentSort.column,
-        currentSort.direction,
-      );
-    });
-  }
-}
-
-function renderProxyTable(entries) {
-  const tbody = document.querySelector("#proxyTable tbody");
-  tbody.innerHTML = "";
-  const fragment = document.createDocumentFragment();
-  entries.forEach((item) => {
-    const ts = parseFloat(item.timestamp);
-    const seconds = Math.floor(ts);
-    const fraction = ts - seconds;
-    const date = new Date(seconds * 1000);
-    const fractionStr = fraction.toFixed(6).slice(2);
-    const formattedDate = date.toLocaleString() + "." + fractionStr;
-
-    let errorClass = "";
-    if (item.error_code >= 300 && item.error_code < 400) {
-      errorClass = "status-yellow";
-    } else if (item.error_code === 200) {
-      errorClass = "status-green";
-    } else if (item.error_code === 500) {
-      errorClass = "status-blue";
-    } else if (
-      item.error_code === 404 ||
-      item.error_code === 403 ||
-      (item.error_code >= 400 && item.error_code < 500)
-    ) {
-      errorClass = "status-red";
-    }
-
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${item.domain}</td>
-      <td>${item.ip_address}</td>
-      <td>${item.country || "N/A"}</td>
-      <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-      <td>${item.proxy_type}</td>
-      <td class="${errorClass}">${item.error_code}</td>
-      <td>${item.url}</td>
-    `;
-    fragment.appendChild(row);
-  });
-  tbody.appendChild(fragment);
-  if (currentSort.table === "#proxyTable" && currentSort.column !== null) {
-    requestAnimationFrame(() => {
-      sortTable(
-        document.querySelector("#proxyTable"),
-        currentSort.column,
-        currentSort.direction,
-      );
-    });
-  }
 }
 
 function sortTable(table, column, direction) {
@@ -168,47 +80,113 @@ function sortTable(table, column, direction) {
   tbody.appendChild(fragment);
 }
 
-function mergeEntries(existingEntries, newData) {
-  newData.forEach((item) => {
-    // Only add if the item with the same id doesn't already exist.
-    if (!existingEntries.some((entry) => entry.id === item.id)) {
-      existingEntries.push(item);
-    }
-  });
-}
-
 function fetchRTADData() {
-  // Fetch for /rtad_lastb
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
   }
+
   fetch(lastbUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      // Merge new data with existing entries.
-      mergeEntries(lastbEntries, data);
-      // Update the lastbLastId for subsequent incremental fetches.
+      const tbody = document.querySelector("#lastbTable tbody");
+      tbody.innerHTML = "";
+      const fragment = document.createDocumentFragment();
+      data.forEach((item) => {
+        let date;
+        if (isNaN(Number(item.timestamp))) {
+          date = new Date(item.timestamp);
+        } else {
+          date = new Date(parseFloat(item.timestamp) * 1000);
+        }
+        const formattedDate = date.toLocaleString();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+                    <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
+                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+                    <td>${item.user}</td>
+                    <td>${item.failure_reason}</td>
+                `;
+        fragment.appendChild(row);
+      });
+      tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
-      renderLastbTable(lastbEntries);
+
+      if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
+        requestAnimationFrame(() => {
+          sortTable(
+            document.querySelector("#lastbTable"),
+            currentSort.column,
+            currentSort.direction,
+          );
+        });
+      }
     })
     .catch((error) => {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
-  // Fetch for /rtad_proxy
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
   }
+
   fetch(proxyUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      mergeEntries(proxyEntries, data);
+      const tbody = document.querySelector("#proxyTable tbody");
+      tbody.innerHTML = "";
+      const fragment = document.createDocumentFragment();
+      data.forEach((item) => {
+        const ts = parseFloat(item.timestamp);
+        const seconds = Math.floor(ts);
+        const fraction = ts - seconds;
+        const date = new Date(seconds * 1000);
+        const fractionStr = fraction.toFixed(6).slice(2);
+        const formattedDate = date.toLocaleString() + "." + fractionStr;
+
+        let errorClass = "";
+        if (item.error_code >= 300 && item.error_code < 400) {
+          errorClass = "status-yellow";
+        } else if (item.error_code === 200) {
+          errorClass = "status-green";
+        } else if (item.error_code === 500) {
+          errorClass = "status-blue";
+        } else if (
+          item.error_code === 404 ||
+          item.error_code === 403 ||
+          (item.error_code >= 400 && item.error_code < 500)
+        ) {
+          errorClass = "status-red";
+        }
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+                    <td>${item.domain}</td>
+                    <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
+                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+                    <td>${item.proxy_type}</td>
+                    <td class="${errorClass}">${item.error_code}</td>
+                    <td>${item.url}</td>
+                `;
+        fragment.appendChild(row);
+      });
+      tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
-      renderProxyTable(proxyEntries);
+
+      if (currentSort.table === "#proxyTable" && currentSort.column !== null) {
+        requestAnimationFrame(() => {
+          sortTable(
+            document.querySelector("#proxyTable"),
+            currentSort.column,
+            currentSort.direction,
+          );
+        });
+      }
     })
     .catch((error) => {
       console.error("Error fetching /rtad_proxy data:", error);
@@ -216,11 +194,8 @@ function fetchRTADData() {
 }
 
 function refreshRTADData() {
-  // Full refresh: clear global arrays and reset last IDs.
   lastbLastId = null;
   proxyLastId = null;
-  lastbEntries = [];
-  proxyEntries = [];
   fetchRTADData();
 }
 
