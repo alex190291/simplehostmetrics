@@ -1,5 +1,4 @@
 // rtad.js
-
 let lastbLastId = null;
 let proxyLastId = null;
 let currentSort = {
@@ -52,23 +51,31 @@ function insertRowSorted(tbody, newRow, compareFunction) {
   }
 }
 
-// For the lastb table, assume the timestamp is in the third cell (index 2)
+// For the lastb table, we compare the timestamp from cell index 2
 function compareRowsByTimestampLastb(rowA, rowB, direction = "asc") {
-  const aTimestamp = parseFloat(rowA.cells[2].getAttribute("data-timestamp"));
-  const bTimestamp = parseFloat(rowB.cells[2].getAttribute("data-timestamp"));
+  let aTimestamp = rowA.cells[2]
+    ? rowA.cells[2].getAttribute("data-timestamp")
+    : null;
+  let bTimestamp = rowB.cells[2]
+    ? rowB.cells[2].getAttribute("data-timestamp")
+    : null;
+  aTimestamp = aTimestamp ? parseFloat(aTimestamp) : 0;
+  bTimestamp = bTimestamp ? parseFloat(bTimestamp) : 0;
   return direction === "asc"
     ? aTimestamp - bTimestamp
     : bTimestamp - aTimestamp;
 }
 
-// For proxy table, we assume the timestamp is also in a cell with data-timestamp (adjust if needed)
+// For proxy table, we assume the timestamp is in a cell with a data-timestamp attribute
 function compareRowsByTimestampProxy(rowA, rowB, direction = "asc") {
-  const aTimestamp = parseFloat(
-    rowA.querySelector("[data-timestamp]").getAttribute("data-timestamp"),
-  );
-  const bTimestamp = parseFloat(
-    rowB.querySelector("[data-timestamp]").getAttribute("data-timestamp"),
-  );
+  let aTimestamp = rowA.querySelector("[data-timestamp]");
+  let bTimestamp = rowB.querySelector("[data-timestamp]");
+  aTimestamp = aTimestamp
+    ? parseFloat(aTimestamp.getAttribute("data-timestamp"))
+    : 0;
+  bTimestamp = bTimestamp
+    ? parseFloat(bTimestamp.getAttribute("data-timestamp"))
+    : 0;
   return direction === "asc"
     ? aTimestamp - bTimestamp
     : bTimestamp - aTimestamp;
@@ -100,7 +107,6 @@ function fetchRTADData() {
           <td>${item.failure_reason}</td>
         `;
       };
-      // Merge new rows using our compare function for the lastb table
       mergeRowsIntoTable("#lastbTable", data, rowHtmlGenerator, (a, b) =>
         compareRowsByTimestampLastb(a, b, currentSort.direction || "asc"),
       );
@@ -173,12 +179,15 @@ function sortTable(table, column, direction) {
   const rows = Array.from(tbody.querySelectorAll("tr"));
   rows.sort((a, b) => {
     if (column === 2) {
-      const aTimestamp = parseFloat(
-        a.cells[column].getAttribute("data-timestamp"),
-      );
-      const bTimestamp = parseFloat(
-        b.cells[column].getAttribute("data-timestamp"),
-      );
+      // Timestamp column
+      let aTimestamp = a.cells[column]
+        ? a.cells[column].getAttribute("data-timestamp")
+        : null;
+      let bTimestamp = b.cells[column]
+        ? b.cells[column].getAttribute("data-timestamp")
+        : null;
+      aTimestamp = aTimestamp ? parseFloat(aTimestamp) : 0;
+      bTimestamp = bTimestamp ? parseFloat(bTimestamp) : 0;
       return direction === "asc"
         ? aTimestamp - bTimestamp
         : bTimestamp - aTimestamp;
