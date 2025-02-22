@@ -8,6 +8,8 @@ let currentSort = {
   direction: null,
 };
 
+const renderedLastbIDs = new Set();
+const renderedProxyIDs = new Set();
 const dateCache = new Map();
 
 function getParsedDate(timestamp) {
@@ -81,7 +83,7 @@ function sortTable(table, column, direction) {
 }
 
 function fetchRTADData() {
-  // Update for /rtad_lastb with dual approach:
+  // Update for /rtad_lastb with deduplication and sorting:
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
@@ -93,14 +95,18 @@ function fetchRTADData() {
       if (data.length === 0) return;
       const tbody = document.querySelector("#lastbTable tbody");
 
-      // If this is a full refresh (triggered manually), clear the table.
-      // Otherwise, keep existing rows and append new rows.
+      // If this is a full refresh, clear table and reset deduplication set.
       if (lastbLastId === null) {
         tbody.innerHTML = "";
+        renderedLastbIDs.clear();
       }
 
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
+        // Avoid duplicate rows by checking the unique id.
+        if (renderedLastbIDs.has(item.id)) return;
+        renderedLastbIDs.add(item.id);
+
         let date;
         if (isNaN(Number(item.timestamp))) {
           date = new Date(item.timestamp);
@@ -119,7 +125,7 @@ function fetchRTADData() {
         fragment.appendChild(row);
       });
 
-      // Append new rows (or add all rows in a full refresh)
+      // Append new rows
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
 
@@ -138,7 +144,7 @@ function fetchRTADData() {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
-  // Update for /rtad_proxy (unchanged)
+  // Update for /rtad_proxy with deduplication and sorting:
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
@@ -149,9 +155,18 @@ function fetchRTADData() {
     .then((data) => {
       if (data.length === 0) return;
       const tbody = document.querySelector("#proxyTable tbody");
-      tbody.innerHTML = "";
+
+      // For a full refresh, clear table and deduplication set.
+      if (proxyLastId === null) {
+        tbody.innerHTML = "";
+        renderedProxyIDs.clear();
+      }
+
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
+        if (renderedProxyIDs.has(item.id)) return;
+        renderedProxyIDs.add(item.id);
+
         const ts = parseFloat(item.timestamp);
         const seconds = Math.floor(ts);
         const fraction = ts - seconds;
@@ -186,6 +201,7 @@ function fetchRTADData() {
         `;
         fragment.appendChild(row);
       });
+
       tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
 
