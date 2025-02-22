@@ -12,6 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 # ----------------------------
 # Prekompilierte Regex-Pattern
@@ -46,9 +48,6 @@ http_error_logs_lock = threading.Lock()
 # Globaler Cache für IP-Länderinformationen
 ip_country_cache = {}
 
-# Logging-Konfiguration (optional)
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
 # Konfiguration aus config.yml laden
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
@@ -69,6 +68,25 @@ def get_log_files(path):
         ]
     else:
         return []
+
+def get_country(ip):
+    """
+    Ruft die Länderinformation für die gegebene IP-Adresse mit Retry-Mechanismus ab.
+    """
+    session = requests.Session()
+    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500,502,503,504])
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("http://", adapter)
+    try:
+        response = session.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("country", "Unknown")
+        else:
+            return "Unknown"
+    except Exception as e:
+        logging.error("Error retrieving country for IP %s: %s", ip, e)
+        return "Unknown"
 
 class LogParser:
     def __init__(self):
@@ -263,16 +281,7 @@ def update_missing_country_info():
                 if ip in ip_country_cache:
                     attempt["country"] = ip_country_cache[ip]
                 else:
-                    try:
-                        response = requests.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=5)
-                        if response.status_code == 200:
-                            data = response.json()
-                            country = data.get("country", "Unknown")
-                        else:
-                            country = "Unknown"
-                    except Exception as e:
-                        logging.error("Error retrieving country for IP %s: %s", ip, e)
-                        country = "Unknown"
+                    country = get_country(ip)
                     ip_country_cache[ip] = country
                     attempt["country"] = country
 
@@ -284,16 +293,7 @@ def update_missing_country_info():
                 if ip in ip_country_cache:
                     log["country"] = ip_country_cache[ip]
                 else:
-                    try:
-                        response = requests.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=5)
-                        if response.status_code == 200:
-                            data = response.json()
-                            country = data.get("country", "Unknown")
-                        else:
-                            country = "Unknown"
-                    except Exception as e:
-                        logging.error("Error retrieving country for IP %s: %s", ip, e)
-                        country = "Unknown"
+                    country = get_country(ip)
                     ip_country_cache[ip] = country
                     log["country"] = country
 
