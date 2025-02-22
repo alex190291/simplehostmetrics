@@ -160,8 +160,8 @@ def check_all_status_route():
     return jsonify(status)
 
 # New RTAD logs API endpoint for retrieving processed log and lastb data
-@login_required
 @app.route('/rtad')
+@login_required
 def rtad():
     return render_template('rtad.html')
 

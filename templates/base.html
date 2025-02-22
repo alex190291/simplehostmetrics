@@ -25,16 +25,6 @@
                 class="{% if request.path.startswith('/rtad') %}active{% endif %}"
                 >RTAD Overview</a
             >
-            <a
-                href="/proxy"
-                class="{% if request.path.startswith('/proxy') %}active{% endif %}"
-                >Reverse Proxy</a
-            >
-            <a
-                href="/vpn"
-                class="{% if request.path.startswith('/vpn') %}active{% endif %}"
-                >VPN</a
-            >
         </div>
         {% block content %}{% endblock %} {% block scripts %}{% endblock %}
     </body>
