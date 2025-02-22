@@ -93,14 +93,19 @@ def get_country(ip):
 def get_country_cached(ip, ttl=3600):
     """
     Gibt die Länderinformation für eine IP-Adresse zurück, wobei ein TTL-basierter Cache genutzt wird.
+    Wenn der Wert "Unknown" ist, wird ein kürzerer TTL (60 Sekunden) verwendet.
     """
     ip = ip.strip()  # Normalisierung der IP-Adresse
+    unknown_ttl = 60
     with ip_country_cache_lock:
         if ip in ip_country_cache:
             entry = ip_country_cache[ip]
-            if (time.time() - entry["timestamp"]) < ttl:
-                return entry["country"]
-    # Falls nicht im Cache oder abgelaufen, hole neue Daten
+            if entry["country"] != "Unknown":
+                if (time.time() - entry["timestamp"]) < ttl:
+                    return entry["country"]
+            else:
+                if (time.time() - entry["timestamp"]) < unknown_ttl:
+                    return entry["country"]
     country = get_country(ip)
     with ip_country_cache_lock:
         ip_country_cache[ip] = {"country": country, "timestamp": time.time()}
