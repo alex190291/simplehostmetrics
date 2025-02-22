@@ -491,3 +491,21 @@ button.update-btn {
     scrollbar-width: thin;
     scrollbar-color: var(--primary) var(--bg-color);
 }
+
+/* New styles for world map attack visualization */
+.attack-line {
+    stroke-dasharray: 5, 5;
+    animation: glow 1.5s infinite alternate;
+}
+@keyframes glow {
+    from {
+        filter: drop-shadow(0 0 2px white);
+    }
+    to {
+        filter: drop-shadow(0 0 8px white);
+    }
+}
+.server-icon {
+    stroke: black;
+    stroke-width: 1;
+}

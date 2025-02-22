@@ -59,6 +59,28 @@ content %}
             </table>
         </div>
     </div>
+    <!-- New Card for World Map Attack Visualization -->
+    <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
+        <div class="card-header">
+            <h2 class="card-title">Attack World Map</h2>
+        </div>
+        <div
+            class="detail-view"
+            style="
+                display: block;
+                max-height: 600px;
+                overflow: hidden;
+                position: relative;
+            "
+        >
+            <object
+                id="worldMapObject"
+                type="image/svg+xml"
+                data="{{ url_for('static', filename='world.svg') }}"
+                style="width: 100%; height: 100%"
+            ></object>
+        </div>
+    </div>
 </div>
 <!-- Mode Toggle Button -->
 <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">

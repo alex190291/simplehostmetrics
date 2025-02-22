@@ -7,6 +7,7 @@ import time
 import yaml
 import requests
 import docker
+import socket
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
@@ -190,6 +191,19 @@ def rtad_proxy():
     else:
         logs = logs[-5000:]
     return jsonify(logs)
+
+# New endpoint to retrieve the server's geolocation (country code) using the existing geolocation logic
+@app.route("/server_location")
+@login_required
+def server_location():
+    try:
+        # Versuch, die öffentliche IP des Servers zu ermitteln
+        server_ip = requests.get("https://api.ipify.org", timeout=5).text
+    except Exception:
+        server_ip = socket.gethostbyname(socket.gethostname())
+    from rtad_manager import get_country_from_db
+    country = get_country_from_db(server_ip)
+    return jsonify({"ip": server_ip, "country": country})
 
 # Function to continuously run the RTAD log parser
 def start_rtad_log_parser():

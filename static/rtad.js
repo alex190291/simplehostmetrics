@@ -80,6 +80,89 @@ function sortTable(table, column, direction) {
   tbody.appendChild(fragment);
 }
 
+function loadWorldMap() {
+  const worldMapObject = document.getElementById("worldMapObject");
+  worldMapObject.addEventListener("load", function () {
+    const svgDoc = worldMapObject.contentDocument;
+    // Get server location from /server_location endpoint
+    fetch("/server_location")
+      .then((response) => response.json())
+      .then((data) => {
+        const serverCountry = data.country;
+        const countryElem = svgDoc.getElementById(serverCountry);
+        if (countryElem) {
+          const bbox = countryElem.getBBox();
+          const centerX = bbox.x + bbox.width / 2;
+          const centerY = bbox.y + bbox.height / 2;
+          // Place server icon on the map
+          const serverIcon = svgDoc.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle",
+          );
+          serverIcon.setAttribute("cx", centerX);
+          serverIcon.setAttribute("cy", centerY);
+          serverIcon.setAttribute("r", 5);
+          serverIcon.setAttribute("fill", "yellow");
+          serverIcon.setAttribute("class", "server-icon");
+          svgDoc.documentElement.appendChild(serverIcon);
+          // Store server center for use in drawing attack lines
+          window.serverCenter = { x: centerX, y: centerY };
+        }
+      });
+    // Create a group for attack lines if it doesn't exist
+    let linesGroup = svgDoc.getElementById("attack-lines-group");
+    if (!linesGroup) {
+      linesGroup = svgDoc.createElementNS("http://www.w3.org/2000/svg", "g");
+      linesGroup.setAttribute("id", "attack-lines-group");
+      svgDoc.documentElement.appendChild(linesGroup);
+    }
+  });
+}
+
+function drawAttackLine(targetCountry, type) {
+  const worldMapObject = document.getElementById("worldMapObject");
+  if (
+    !worldMapObject ||
+    !worldMapObject.contentDocument ||
+    !window.serverCenter
+  )
+    return;
+  const svgDoc = worldMapObject.contentDocument;
+  const targetElem = svgDoc.getElementById(targetCountry);
+  if (targetElem) {
+    const bbox = targetElem.getBBox();
+    const targetCenter = {
+      x: bbox.x + bbox.width / 2,
+      y: bbox.y + bbox.height / 2,
+    };
+    const linesGroup = svgDoc.getElementById("attack-lines-group");
+    const line = svgDoc.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", window.serverCenter.x);
+    line.setAttribute("y1", window.serverCenter.y);
+    line.setAttribute("x2", targetCenter.x);
+    line.setAttribute("y2", targetCenter.y);
+    // Set stroke color based on type
+    let strokeColor = "red";
+    if (type === "proxy") {
+      strokeColor = "blue";
+    } else if (type === "login") {
+      strokeColor = "red";
+    } else {
+      strokeColor = "white";
+    }
+    line.setAttribute("stroke", strokeColor);
+    line.setAttribute("stroke-width", 2);
+    line.setAttribute("class", "attack-line");
+    linesGroup.appendChild(line);
+    // Remove the line after 3 seconds
+    setTimeout(() => {
+      if (linesGroup.contains(line)) {
+        linesGroup.removeChild(line);
+      }
+    }, 3000);
+  }
+}
+
 function fetchRTADData() {
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
@@ -103,13 +186,17 @@ function fetchRTADData() {
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.ip_address}</td>
-                    <td>${item.country || "N/A"}</td>
-                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.user}</td>
-                    <td>${item.failure_reason}</td>
-                `;
+          <td>${item.ip_address}</td>
+          <td>${item.country || "N/A"}</td>
+          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+          <td>${item.user}</td>
+          <td>${item.failure_reason}</td>
+        `;
         fragment.appendChild(row);
+        // Draw attack line if country is known and not "Unknown"
+        if (item.country && item.country !== "Unknown") {
+          drawAttackLine(item.country, "login");
+        }
       });
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
@@ -165,15 +252,19 @@ function fetchRTADData() {
 
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.domain}</td>
-                    <td>${item.ip_address}</td>
-                    <td>${item.country || "N/A"}</td>
-                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.proxy_type}</td>
-                    <td class="${errorClass}">${item.error_code}</td>
-                    <td>${item.url}</td>
-                `;
+          <td>${item.domain}</td>
+          <td>${item.ip_address}</td>
+          <td>${item.country || "N/A"}</td>
+          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+          <td>${item.proxy_type}</td>
+          <td class="${errorClass}">${item.error_code}</td>
+          <td>${item.url}</td>
+        `;
         fragment.appendChild(row);
+        // Draw attack line if country is known and not "Unknown"
+        if (item.country && item.country !== "Unknown") {
+          drawAttackLine(item.country, "proxy");
+        }
       });
       tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
@@ -248,6 +339,7 @@ function initializeSorting() {
 document.addEventListener("DOMContentLoaded", function () {
   loadSortState();
   initializeSorting();
+  loadWorldMap();
   fetchRTADData();
 });
 
