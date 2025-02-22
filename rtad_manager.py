@@ -1,19 +1,16 @@
-# rtad_manager.py
 import yaml
 import re
-import subprocess
 import os
 import logging
 import threading
 import time
 import requests
+import geoip2.database
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 
 # ----------------------------
 # Prekompilierte Regex-Pattern
@@ -50,44 +47,59 @@ http_error_logs_lock = threading.Lock()
 ip_country_cache = {}
 ip_country_cache_lock = threading.Lock()
 
+# Pfad zur lokalen GeoLite2-Datenbank (passen Sie diesen Pfad ggf. an)
+GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-Country.mmdb'
+
 # Konfiguration aus config.yml laden
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
-def get_log_files(path):
-    """
-    Gibt eine Liste von Log-Dateien zurück.
-    Falls 'path' eine Datei ist, wird diese in eine Liste gepackt.
-    Falls 'path' ein Verzeichnis ist, werden alle darin enthaltenen Dateien zurückgegeben.
-    """
-    if os.path.isfile(path):
-        return [path]
-    elif os.path.isdir(path):
-        return [
-            os.path.join(path, filename)
-            for filename in os.listdir(path)
-            if os.path.isfile(os.path.join(path, filename))
-        ]
-    else:
-        return []
+##############################
+# Funktionen zum automatischen Download der GeoLite2-Datenbank
+##############################
 
-def get_country(ip):
-    """
-    Ruft die Länderinformation für die gegebene IP-Adresse mit einem Retry-Mechanismus ab.
-    """
-    session = requests.Session()
-    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
-    adapter = HTTPAdapter(max_retries=retries)
-    session.mount("http://", adapter)
+def download_geolite2_country_db(db_path):
+    """Lädt die neueste GeoLite2-Country-Datenbank von der angegebenen URL herunter."""
+    url = "https://git.io/GeoLite2-Country.mmdb"
     try:
-        response = session.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("country", "Unknown")
-        else:
-            return "Unknown"
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        with open(db_path, "wb") as f:
+            f.write(response.content)
+        logging.info("GeoLite2-Country-Datenbank erfolgreich nach %s heruntergeladen.", db_path)
     except Exception as e:
-        logging.error("Error retrieving country for IP %s: %s", ip, e)
+        logging.error("Fehler beim Herunterladen der GeoLite2-Country-Datenbank: %s", e)
+
+def ensure_geolite2_db(db_path, max_age_seconds=86400):
+    """
+    Stellt sicher, dass die GeoLite2-Datenbank vorhanden und nicht älter als max_age_seconds ist.
+    Standardmäßig beträgt die maximale Dateialterung 1 Tag (86400 Sekunden).
+    """
+    if os.path.exists(db_path):
+        age = time.time() - os.path.getmtime(db_path)
+        if age < max_age_seconds:
+            logging.info("GeoLite2-Datenbank ist aktuell (Alter: %s Sekunden).", age)
+            return
+        else:
+            logging.info("GeoLite2-Datenbank ist älter als %s Sekunden (Alter: %s); wird neu heruntergeladen.", max_age_seconds, age)
+    else:
+        logging.info("GeoLite2-Datenbank nicht gefunden; wird heruntergeladen.")
+    download_geolite2_country_db(db_path)
+
+##############################
+# GeoIP Lookup Funktionen unter Verwendung der lokalen GeoLite2-Datenbank
+##############################
+
+def get_country_from_db(ip):
+    """Ermittelt den Ländercode für die gegebene IP-Adresse mittels der lokalen GeoLite2-Datenbank."""
+    ip = ip.strip()
+    ensure_geolite2_db(GEOIP_DB_PATH)  # Sicherstellen, dass die DB vorhanden und aktuell ist
+    try:
+        with geoip2.database.Reader(GEOIP_DB_PATH) as reader:
+            response = reader.country(ip)
+            return response.country.iso_code if response and response.country.iso_code else "Unknown"
+    except Exception as e:
+        logging.error("Fehler beim Datenbank-Lookup für IP %s: %s", ip, e)
         return "Unknown"
 
 def get_country_cached(ip, ttl=3600):
@@ -95,7 +107,7 @@ def get_country_cached(ip, ttl=3600):
     Gibt die Länderinformation für eine IP-Adresse zurück, wobei ein TTL-basierter Cache genutzt wird.
     Wenn der Wert "Unknown" ist, wird ein kürzerer TTL (60 Sekunden) verwendet.
     """
-    ip = ip.strip()  # Normalisierung der IP-Adresse
+    ip = ip.strip()
     unknown_ttl = 60
     with ip_country_cache_lock:
         if ip in ip_country_cache:
@@ -106,10 +118,14 @@ def get_country_cached(ip, ttl=3600):
             else:
                 if (time.time() - entry["timestamp"]) < unknown_ttl:
                     return entry["country"]
-    country = get_country(ip)
+    country = get_country_from_db(ip)
     with ip_country_cache_lock:
         ip_country_cache[ip] = {"country": country, "timestamp": time.time()}
     return country
+
+##############################
+# Restliche Logik bleibt unverändert
+##############################
 
 class LogParser:
     def __init__(self):
@@ -209,7 +225,7 @@ class LogParser:
         try:
             import utmp
         except ImportError:
-            logging.error("python‑utmp library is not installiert. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
+            logging.error("python‑utmp library ist nicht installiert. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
             return
 
         btmp_path = "/var/log/btmp"
@@ -296,14 +312,11 @@ def fetch_http_error_logs():
         return list(http_error_logs_cache)
 
 def update_missing_country_info():
-    # Update login_attempts_cache Einträge
     with login_attempts_lock:
         for attempt in login_attempts_cache:
-            # Wenn noch kein Ländereintrag vorhanden ist oder "Unknown" vorliegt, dann updaten
             if "country" not in attempt or attempt.get("country") == "Unknown":
                 ip = attempt["ip_address"].strip()
                 attempt["country"] = get_country_cached(ip)
-    # Update http_error_logs_cache Einträge
     with http_error_logs_lock:
         for log in http_error_logs_cache:
             if "country" not in log or log.get("country") == "Unknown":
