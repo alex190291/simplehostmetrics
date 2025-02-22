@@ -1,3 +1,4 @@
+```html simplehostmetrics/templates/rtad.html
 <!-- rtad.html -->
 {% extends "base.html" %} {% block title %}RTAD Overview{% endblock %} {% block
 content %}
@@ -7,7 +8,6 @@ content %}
     <button class="update-btn" id="rtadRefreshBtn" onclick="refreshRTADData()">
         Refresh Now
     </button>
-
     <!-- Card for /rtad_lastb -->
     <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
@@ -33,7 +33,6 @@ content %}
             </table>
         </div>
     </div>
-
     <!-- Card for /rtad_proxy -->
     <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
@@ -61,22 +60,7 @@ content %}
             </table>
         </div>
     </div>
-
-    <!-- New Card for World Map Attack Visualization -->
-    <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
-        <div class="card-header">
-            <h2 class="card-title">Attack World Map</h2>
-        </div>
-        <div class="detail-view map-container" style="display: block">
-            <object
-                id="worldMapObject"
-                type="image/svg+xml"
-                data="{{ url_for('static', filename='world.svg') }}"
-            ></object>
-        </div>
-    </div>
 </div>
-
 <!-- Mode Toggle Button -->
 <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">
     💡
@@ -86,4 +70,4 @@ content %}
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script src="{{ url_for('static', filename='rtad.js') }}"></script>
 <script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
-{% endblock %}
+{% endblock %} ```

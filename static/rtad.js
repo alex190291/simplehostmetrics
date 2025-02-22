@@ -1,26 +1,5 @@
+```js simplehostmetrics/static/rtad.js
 // rtad.js
-
-/**
- * A simple dictionary that maps ISO codes (like "CA") to
- * the class or ID used in the SVG (like "Canada").
- * Expand this as needed.
- */
-const COUNTRY_MAP = {
-  US: "US",
-  CA: "Canada",
-  AU: "Australia",
-  AR: "Argentina",
-  RU: "RU",
-  DE: "DE",
-  FR: "FR",
-  ES: "ES",
-  GB: "GB", // If the SVG had "GB" or "UK"
-  UK: "GB", // or some fallback
-  CN: "CN",
-  IN: "IN",
-  BR: "BR",
-  MX: "MX",
-};
 
 let lastbLastId = null;
 let proxyLastId = null;
@@ -102,182 +81,37 @@ function sortTable(table, column, direction) {
   tbody.appendChild(fragment);
 }
 
-function loadWorldMap() {
-  const worldMapObject = document.getElementById("worldMapObject");
-  if (!worldMapObject) return;
-
-  worldMapObject.addEventListener("load", () => {
-    const svgDoc = worldMapObject.contentDocument;
-    if (!svgDoc) return;
-
-    // Force the SVG to preserve aspect ratio and center itself
-    svgDoc.documentElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
-
-    // Attempt to fetch server location
-    fetch("/server_location")
-      .then((response) => response.json())
-      .then((data) => {
-        const rawServerCountry = data.country; // e.g. "US", "CA", ...
-        let mappedCountry = COUNTRY_MAP[rawServerCountry] || rawServerCountry;
-
-        // Attempt to find an element with ID = mappedCountry
-        let countryElem = svgDoc.getElementById(mappedCountry);
-
-        // If not found, try class
-        if (!countryElem) {
-          const elems = svgDoc.getElementsByClassName(mappedCountry);
-          if (elems && elems.length > 0) {
-            countryElem = elems[0];
-          }
-        }
-
-        let centerX, centerY;
-        if (countryElem) {
-          // Found a path or group
-          const bbox = countryElem.getBBox();
-          centerX = bbox.x + bbox.width / 2;
-          centerY = bbox.y + bbox.height / 2;
-        } else {
-          // Fallback: center of the entire viewBox
-          const vb = svgDoc.documentElement
-            .getAttribute("viewBox")
-            .split(" ")
-            .map(parseFloat);
-          centerX = vb[2] / 2;
-          centerY = vb[3] / 2;
-        }
-
-        // Place server icon
-        const serverIcon = svgDoc.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "circle",
-        );
-        serverIcon.setAttribute("cx", centerX);
-        serverIcon.setAttribute("cy", centerY);
-        serverIcon.setAttribute("r", 5);
-        serverIcon.setAttribute("fill", "yellow");
-        serverIcon.setAttribute("class", "server-icon");
-        svgDoc.documentElement.appendChild(serverIcon);
-
-        // Store server center for drawing lines
-        window.serverCenter = { x: centerX, y: centerY };
-      })
-      .catch((err) => {
-        console.error("Failed to fetch server location:", err);
-      });
-
-    // Create a group for attack lines if it doesn't exist
-    let linesGroup = svgDoc.getElementById("attack-lines-group");
-    if (!linesGroup) {
-      linesGroup = svgDoc.createElementNS("http://www.w3.org/2000/svg", "g");
-      linesGroup.setAttribute("id", "attack-lines-group");
-      svgDoc.documentElement.appendChild(linesGroup);
-    }
-  });
-}
-
-/**
- * Draw an attack line from serverCenter to the target country path.
- * Uses the COUNTRY_MAP for fallback to class or ID.
- */
-function drawAttackLine(targetCountry, type) {
-  const worldMapObject = document.getElementById("worldMapObject");
-  if (
-    !worldMapObject ||
-    !worldMapObject.contentDocument ||
-    !window.serverCenter
-  ) {
-    return;
-  }
-
-  const svgDoc = worldMapObject.contentDocument;
-  const mapped = COUNTRY_MAP[targetCountry] || targetCountry;
-
-  let targetElem = svgDoc.getElementById(mapped);
-  if (!targetElem) {
-    const altElems = svgDoc.getElementsByClassName(mapped);
-    if (altElems && altElems.length > 0) {
-      targetElem = altElems[0];
-    }
-  }
-
-  if (!targetElem) {
-    // No matching path => bail out
-    return;
-  }
-
-  const bbox = targetElem.getBBox();
-  const targetCenter = {
-    x: bbox.x + bbox.width / 2,
-    y: bbox.y + bbox.height / 2,
-  };
-
-  const linesGroup = svgDoc.getElementById("attack-lines-group");
-  if (!linesGroup) return;
-
-  const line = svgDoc.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", window.serverCenter.x);
-  line.setAttribute("y1", window.serverCenter.y);
-  line.setAttribute("x2", targetCenter.x);
-  line.setAttribute("y2", targetCenter.y);
-
-  let strokeColor = "red";
-  if (type === "proxy") {
-    strokeColor = "blue";
-  } else if (type === "login") {
-    strokeColor = "red";
-  } else {
-    strokeColor = "white";
-  }
-
-  line.setAttribute("stroke", strokeColor);
-  line.setAttribute("stroke-width", 2);
-  line.setAttribute("class", "attack-line");
-  linesGroup.appendChild(line);
-
-  // Remove line after 3 seconds
-  setTimeout(() => {
-    if (linesGroup.contains(line)) {
-      linesGroup.removeChild(line);
-    }
-  }, 3000);
-}
-
-/**
- * Fetch the RTAD data from /rtad_lastb and /rtad_proxy, draw lines for last 50 events.
- */
 function fetchRTADData() {
-  // SSH login attempts
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
   }
+
   fetch(lastbUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-
       const tbody = document.querySelector("#lastbTable tbody");
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
-
       data.forEach((item) => {
-        const dateVal = isNaN(Number(item.timestamp))
-          ? new Date(item.timestamp)
-          : new Date(parseFloat(item.timestamp) * 1000);
-        const formattedDate = dateVal.toLocaleString();
-
+        let date;
+        if (isNaN(Number(item.timestamp))) {
+          date = new Date(item.timestamp);
+        } else {
+          date = new Date(parseFloat(item.timestamp) * 1000);
+        }
+        const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${item.ip_address}</td>
-          <td>${item.country || "N/A"}</td>
-          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-          <td>${item.user}</td>
-          <td>${item.failure_reason}</td>
-        `;
+                    <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
+                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+                    <td>${item.user}</td>
+                    <td>${item.failure_reason}</td>
+                `;
         fragment.appendChild(row);
       });
-
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
 
@@ -290,33 +124,23 @@ function fetchRTADData() {
           );
         });
       }
-
-      // Animate last 50 lines
-      const eventsToAnimate = data.slice(-50);
-      eventsToAnimate.forEach((item) => {
-        if (item.country && item.country !== "Unknown") {
-          drawAttackLine(item.country, "login");
-        }
-      });
     })
     .catch((error) => {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
-  // Proxy events
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
   }
+
   fetch(proxyUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-
       const tbody = document.querySelector("#proxyTable tbody");
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
-
       data.forEach((item) => {
         const ts = parseFloat(item.timestamp);
         const seconds = Math.floor(ts);
@@ -342,17 +166,16 @@ function fetchRTADData() {
 
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${item.domain}</td>
-          <td>${item.ip_address}</td>
-          <td>${item.country || "N/A"}</td>
-          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-          <td>${item.proxy_type}</td>
-          <td class="${errorClass}">${item.error_code}</td>
-          <td>${item.url}</td>
-        `;
+                    <td>${item.domain}</td>
+                    <td>${item.ip_address}</td>
+                    <td>${item.country || "N/A"}</td>
+                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+                    <td>${item.proxy_type}</td>
+                    <td class="${errorClass}">${item.error_code}</td>
+                    <td>${item.url}</td>
+                `;
         fragment.appendChild(row);
       });
-
       tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
 
@@ -365,14 +188,6 @@ function fetchRTADData() {
           );
         });
       }
-
-      // Animate last 50 lines
-      const eventsToAnimate = data.slice(-50);
-      eventsToAnimate.forEach((item) => {
-        if (item.country && item.country !== "Unknown") {
-          drawAttackLine(item.country, "proxy");
-        }
-      });
     })
     .catch((error) => {
       console.error("Error fetching /rtad_proxy data:", error);
@@ -387,6 +202,7 @@ function refreshRTADData() {
 
 function initializeSorting() {
   const tables = document.querySelectorAll("#lastbTable, #proxyTable");
+
   tables.forEach((table) => {
     const headers = table.querySelectorAll("th");
     headers.forEach((header, index) => {
@@ -394,6 +210,7 @@ function initializeSorting() {
         header.dataset.originalText = header.innerText;
       }
       header.classList.add("sortable");
+
       header.addEventListener("click", () => {
         headers.forEach((h) => {
           h.classList.remove("asc", "desc");
@@ -422,7 +239,6 @@ function initializeSorting() {
         header.innerHTML =
           header.dataset.originalText +
           (direction === "asc" ? arrowUp : arrowDown);
-
         sortTable(table, index, direction);
         saveSortState();
       });
@@ -430,11 +246,11 @@ function initializeSorting() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", function () {
   loadSortState();
   initializeSorting();
-  loadWorldMap();
   fetchRTADData();
 });
 
 setInterval(fetchRTADData, 5000);
+```
