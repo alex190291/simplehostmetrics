@@ -26,7 +26,7 @@ function mergeRowsIntoTable(
   });
 
   newData.forEach((item) => {
-    // Only add rows for entries not already present
+    // Only add rows for entries not already present (assuming item.id is unique)
     if (!existingIds.has(String(item.id))) {
       const newRow = document.createElement("tr");
       newRow.setAttribute("data-id", item.id);
@@ -52,9 +52,17 @@ function insertRowSorted(tbody, newRow, compareFunction) {
   }
 }
 
-// Compare two rows based on the timestamp (in a cell with a data-timestamp attribute)
-// Adjust the direction ("asc" or "desc") as needed.
-function compareRowsByTimestamp(rowA, rowB, direction = "asc") {
+// For the lastb table, assume the timestamp is in the third cell (index 2)
+function compareRowsByTimestampLastb(rowA, rowB, direction = "asc") {
+  const aTimestamp = parseFloat(rowA.cells[2].getAttribute("data-timestamp"));
+  const bTimestamp = parseFloat(rowB.cells[2].getAttribute("data-timestamp"));
+  return direction === "asc"
+    ? aTimestamp - bTimestamp
+    : bTimestamp - aTimestamp;
+}
+
+// For proxy table, we assume the timestamp is also in a cell with data-timestamp (adjust if needed)
+function compareRowsByTimestampProxy(rowA, rowB, direction = "asc") {
   const aTimestamp = parseFloat(
     rowA.querySelector("[data-timestamp]").getAttribute("data-timestamp"),
   );
@@ -66,7 +74,6 @@ function compareRowsByTimestamp(rowA, rowB, direction = "asc") {
     : bTimestamp - aTimestamp;
 }
 
-// --- Data Fetching and Row Merging ---
 function fetchRTADData() {
   // --- Update lastb table ---
   let lastbUrl = "/rtad_lastb";
@@ -77,7 +84,6 @@ function fetchRTADData() {
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      // Row HTML generator for lastb table
       const rowHtmlGenerator = (item) => {
         let date;
         if (isNaN(Number(item.timestamp))) {
@@ -94,9 +100,9 @@ function fetchRTADData() {
           <td>${item.failure_reason}</td>
         `;
       };
-      // Merge new rows (sorted by timestamp using the current sort direction, defaulting to "asc")
+      // Merge new rows using our compare function for the lastb table
       mergeRowsIntoTable("#lastbTable", data, rowHtmlGenerator, (a, b) =>
-        compareRowsByTimestamp(a, b, currentSort.direction || "asc"),
+        compareRowsByTimestampLastb(a, b, currentSort.direction || "asc"),
       );
       lastbLastId = data[data.length - 1].id;
     })
@@ -143,7 +149,7 @@ function fetchRTADData() {
         `;
       };
       mergeRowsIntoTable("#proxyTable", data, rowHtmlGenerator, (a, b) =>
-        compareRowsByTimestamp(a, b, currentSort.direction || "asc"),
+        compareRowsByTimestampProxy(a, b, currentSort.direction || "asc"),
       );
       proxyLastId = data[data.length - 1].id;
     })
@@ -167,12 +173,11 @@ function sortTable(table, column, direction) {
   const rows = Array.from(tbody.querySelectorAll("tr"));
   rows.sort((a, b) => {
     if (column === 2) {
-      // Assuming timestamp is in column 2
       const aTimestamp = parseFloat(
-        a.children[column].getAttribute("data-timestamp"),
+        a.cells[column].getAttribute("data-timestamp"),
       );
       const bTimestamp = parseFloat(
-        b.children[column].getAttribute("data-timestamp"),
+        b.cells[column].getAttribute("data-timestamp"),
       );
       return direction === "asc"
         ? aTimestamp - bTimestamp
