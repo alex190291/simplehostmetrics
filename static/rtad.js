@@ -81,6 +81,7 @@ function sortTable(table, column, direction) {
 }
 
 function fetchRTADData() {
+  // Update for /rtad_lastb with dual approach:
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
@@ -91,7 +92,13 @@ function fetchRTADData() {
     .then((data) => {
       if (data.length === 0) return;
       const tbody = document.querySelector("#lastbTable tbody");
-      tbody.innerHTML = "";
+
+      // If this is a full refresh (triggered manually), clear the table.
+      // Otherwise, keep existing rows and append new rows.
+      if (lastbLastId === null) {
+        tbody.innerHTML = "";
+      }
+
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
         let date;
@@ -103,17 +110,20 @@ function fetchRTADData() {
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.ip_address}</td>
-                    <td>${item.country || "N/A"}</td>
-                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.user}</td>
-                    <td>${item.failure_reason}</td>
-                `;
+          <td>${item.ip_address}</td>
+          <td>${item.country || "N/A"}</td>
+          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+          <td>${item.user}</td>
+          <td>${item.failure_reason}</td>
+        `;
         fragment.appendChild(row);
       });
+
+      // Append new rows (or add all rows in a full refresh)
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
 
+      // Reapply sort if active
       if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
@@ -128,6 +138,7 @@ function fetchRTADData() {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
+  // Update for /rtad_proxy (unchanged)
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
@@ -165,14 +176,14 @@ function fetchRTADData() {
 
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.domain}</td>
-                    <td>${item.ip_address}</td>
-                    <td>${item.country || "N/A"}</td>
-                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.proxy_type}</td>
-                    <td class="${errorClass}">${item.error_code}</td>
-                    <td>${item.url}</td>
-                `;
+          <td>${item.domain}</td>
+          <td>${item.ip_address}</td>
+          <td>${item.country || "N/A"}</td>
+          <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+          <td>${item.proxy_type}</td>
+          <td class="${errorClass}">${item.error_code}</td>
+          <td>${item.url}</td>
+        `;
         fragment.appendChild(row);
       });
       tbody.appendChild(fragment);
