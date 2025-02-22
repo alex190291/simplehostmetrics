@@ -45,8 +45,10 @@ http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
 
-# Globaler Cache für IP-Länderinformationen
+# Globaler Cache für IP-Länderinformationen mit TTL-Unterstützung
+# Struktur: { normalized_ip: {"country": str, "timestamp": float} }
 ip_country_cache = {}
+ip_country_cache_lock = threading.Lock()
 
 # Konfiguration aus config.yml laden
 with open('config.yml', 'r') as f:
@@ -71,10 +73,10 @@ def get_log_files(path):
 
 def get_country(ip):
     """
-    Ruft die Länderinformation für die gegebene IP-Adresse mit Retry-Mechanismus ab.
+    Ruft die Länderinformation für die gegebene IP-Adresse mit einem Retry-Mechanismus ab.
     """
     session = requests.Session()
-    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500,502,503,504])
+    retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retries)
     session.mount("http://", adapter)
     try:
@@ -87,6 +89,22 @@ def get_country(ip):
     except Exception as e:
         logging.error("Error retrieving country for IP %s: %s", ip, e)
         return "Unknown"
+
+def get_country_cached(ip, ttl=3600):
+    """
+    Gibt die Länderinformation für eine IP-Adresse zurück, wobei ein TTL-basierter Cache genutzt wird.
+    """
+    ip = ip.strip()  # Normalisierung der IP-Adresse
+    with ip_country_cache_lock:
+        if ip in ip_country_cache:
+            entry = ip_country_cache[ip]
+            if (time.time() - entry["timestamp"]) < ttl:
+                return entry["country"]
+    # Falls nicht im Cache oder abgelaufen, hole neue Daten
+    country = get_country(ip)
+    with ip_country_cache_lock:
+        ip_country_cache[ip] = {"country": country, "timestamp": time.time()}
+    return country
 
 class LogParser:
     def __init__(self):
@@ -276,26 +294,16 @@ def update_missing_country_info():
     # Update login_attempts_cache Einträge
     with login_attempts_lock:
         for attempt in login_attempts_cache:
-            if "country" not in attempt:
-                ip = attempt["ip_address"]
-                if ip in ip_country_cache:
-                    attempt["country"] = ip_country_cache[ip]
-                else:
-                    country = get_country(ip)
-                    ip_country_cache[ip] = country
-                    attempt["country"] = country
-
+            # Wenn noch kein Ländereintrag vorhanden ist oder "Unknown" vorliegt, dann updaten
+            if "country" not in attempt or attempt.get("country") == "Unknown":
+                ip = attempt["ip_address"].strip()
+                attempt["country"] = get_country_cached(ip)
     # Update http_error_logs_cache Einträge
     with http_error_logs_lock:
         for log in http_error_logs_cache:
-            if "country" not in log:
-                ip = log["ip_address"]
-                if ip in ip_country_cache:
-                    log["country"] = ip_country_cache[ip]
-                else:
-                    country = get_country(ip)
-                    ip_country_cache[ip] = country
-                    log["country"] = country
+            if "country" not in log or log.get("country") == "Unknown":
+                ip = log["ip_address"].strip()
+                log["country"] = get_country_cached(ip)
 
 def update_country_info_job():
     while True:
