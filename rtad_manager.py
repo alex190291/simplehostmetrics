@@ -54,6 +54,15 @@ GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-Country.mmdb'
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
+def get_log_files(path):
+    if os.path.isfile(path):
+        return [path]
+    elif os.path.isdir(path):
+        return [os.path.join(path, filename) for filename in os.listdir(path)
+                if os.path.isfile(os.path.join(path, filename))]
+    else:
+        return []
+
 ##############################
 # Funktionen zum automatischen Download der GeoLite2-Datenbank
 ##############################
