@@ -308,4 +308,4 @@ def update_missing_country_info():
 def update_country_info_job():
     while True:
         update_missing_country_info()
-        time.sleep(60)
+        time.sleep(10)

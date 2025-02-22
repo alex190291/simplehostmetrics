@@ -168,10 +168,12 @@ def rtad():
 @app.route("/rtad_lastb")
 @login_required
 def rtad_lastb():
+    # Force an update of country info before returning data
+    rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     attempts = rtad_manager.fetch_login_attempts()
     if last_id is not None:
-        attempts = [attempt for attempt in attempts if attempt["id"] > last_id]
+        attempts = [attempt for attempt in attempts if attempt.get("id", 0) > last_id]
     else:
         attempts = attempts[-5000:]
     return jsonify(attempts)
@@ -179,10 +181,12 @@ def rtad_lastb():
 @app.route("/rtad_proxy")
 @login_required
 def rtad_proxy():
+    # Force an update of country info before returning data
+    rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     logs = rtad_manager.fetch_http_error_logs()
     if last_id is not None:
-        logs = [log for log in logs if log["id"] > last_id]
+        logs = [log for log in logs if log.get("id", 0) > last_id]
     else:
         logs = logs[-5000:]
     return jsonify(logs)
