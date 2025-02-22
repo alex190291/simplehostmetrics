@@ -1,0 +1,35 @@
+{% extends "base.html" %} {% block title %}Attack Map{% endblock %} {% block
+content %}
+<div class="hexagons" id="hexagon-container"></div>
+<div class="container">
+    <h1>Attack Map</h1>
+    <div
+        id="map"
+        style="
+            width: 100%;
+            height: 600px;
+            margin: 1.5rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        "
+    ></div>
+</div>
+
+<!-- Mode Toggle Button -->
+<button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">
+    💡
+</button>
+{% endblock %} {% block scripts %}
+<!-- Optional existing scripts -->
+<script src="{{ url_for('static', filename='animations.js') }}"></script>
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
+
+<!-- Leaflet local include (CSS & JS) -->
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='leaflet/leaflet.css') }}"
+/>
+<script src="{{ url_for('static', filename='leaflet/leaflet.js') }}"></script>
+
+<!-- Our custom map logic -->
+<script src="{{ url_for('static', filename='map.js') }}"></script>
+{% endblock %}
