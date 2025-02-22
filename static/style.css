@@ -1,7 +1,4 @@
-```css simplehostmetrics/static/style.css
 /* simplehostmetrics.refac/static/style.css */
-/* Unverändert außer dass wir nun eine 494.7x265.7-SVG verwenden. */
-
 :root {
     --bg-color: #0a0a0a;
     --glass: rgba(18, 18, 18, 0.7);
@@ -492,4 +489,3 @@ button.update-btn {
     scrollbar-width: thin;
     scrollbar-color: var(--primary) var(--bg-color);
 }
-```

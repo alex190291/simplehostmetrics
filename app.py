@@ -1,4 +1,3 @@
-```py simplehostmetrics/app.py
 # app.py
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
@@ -208,4 +207,3 @@ if __name__ == '__main__':
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)
-```

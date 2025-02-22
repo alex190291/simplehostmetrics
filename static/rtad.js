@@ -1,4 +1,3 @@
-```js simplehostmetrics/static/rtad.js
 // rtad.js
 
 let lastbLastId = null;
@@ -253,4 +252,3 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 setInterval(fetchRTADData, 5000);
-```

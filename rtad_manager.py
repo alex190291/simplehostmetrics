@@ -1,4 +1,3 @@
-```py simplehostmetrics/rtad_manager.py
 import yaml
 import re
 import os
@@ -337,4 +336,3 @@ def update_country_info_job():
     while True:
         update_missing_country_info()
         time.sleep(10)
-```
