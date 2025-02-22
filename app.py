@@ -35,7 +35,7 @@ with open('config.yml', 'r') as f:
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = config_data.get('secret_key', 'default-secret-key')
 app.config['SECURITY_PASSWORD_SALT'] = config_data.get('security_password_salt', 'default-salt')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stats.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../stats.db'
 
 # Secure password hashing configuration
 app.config['SECURITY_PASSWORD_HASH'] = 'bcrypt'
