@@ -197,7 +197,7 @@ def rtad_proxy():
 @login_required
 def server_location():
     try:
-        # Versuch, die öffentliche IP des Servers zu ermitteln
+        # Versuche, die öffentliche IP des Servers zu ermitteln
         server_ip = requests.get("https://api.ipify.org", timeout=5).text
     except Exception:
         server_ip = socket.gethostbyname(socket.gethostname())

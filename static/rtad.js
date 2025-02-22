@@ -89,25 +89,36 @@ function loadWorldMap() {
       .then((response) => response.json())
       .then((data) => {
         const serverCountry = data.country;
-        const countryElem = svgDoc.getElementById(serverCountry);
+        let countryElem = null;
+        if (serverCountry) {
+          countryElem = svgDoc.getElementById(serverCountry);
+        }
+        let centerX, centerY;
         if (countryElem) {
           const bbox = countryElem.getBBox();
-          const centerX = bbox.x + bbox.width / 2;
-          const centerY = bbox.y + bbox.height / 2;
-          // Place server icon on the map
-          const serverIcon = svgDoc.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "circle",
-          );
-          serverIcon.setAttribute("cx", centerX);
-          serverIcon.setAttribute("cy", centerY);
-          serverIcon.setAttribute("r", 5);
-          serverIcon.setAttribute("fill", "yellow");
-          serverIcon.setAttribute("class", "server-icon");
-          svgDoc.documentElement.appendChild(serverIcon);
-          // Store server center for use in drawing attack lines
-          window.serverCenter = { x: centerX, y: centerY };
+          centerX = bbox.x + bbox.width / 2;
+          centerY = bbox.y + bbox.height / 2;
+        } else {
+          // Fallback: center of the SVG based on viewBox
+          const viewBox = svgDoc.documentElement
+            .getAttribute("viewBox")
+            .split(" ");
+          centerX = parseFloat(viewBox[2]) / 2;
+          centerY = parseFloat(viewBox[3]) / 2;
         }
+        // Place server icon on the map
+        const serverIcon = svgDoc.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "circle",
+        );
+        serverIcon.setAttribute("cx", centerX);
+        serverIcon.setAttribute("cy", centerY);
+        serverIcon.setAttribute("r", 5);
+        serverIcon.setAttribute("fill", "yellow");
+        serverIcon.setAttribute("class", "server-icon");
+        svgDoc.documentElement.appendChild(serverIcon);
+        // Store server center for use in drawing attack lines
+        window.serverCenter = { x: centerX, y: centerY };
       });
     // Create a group for attack lines if it doesn't exist
     let linesGroup = svgDoc.getElementById("attack-lines-group");
@@ -164,11 +175,11 @@ function drawAttackLine(targetCountry, type) {
 }
 
 function fetchRTADData() {
+  // Process /rtad_lastb data
   let lastbUrl = "/rtad_lastb";
   if (lastbLastId !== null) {
     lastbUrl += "?last_id=" + lastbLastId;
   }
-
   fetch(lastbUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
@@ -193,14 +204,9 @@ function fetchRTADData() {
           <td>${item.failure_reason}</td>
         `;
         fragment.appendChild(row);
-        // Draw attack line if country is known and not "Unknown"
-        if (item.country && item.country !== "Unknown") {
-          drawAttackLine(item.country, "login");
-        }
       });
       tbody.appendChild(fragment);
       lastbLastId = data[data.length - 1].id;
-
       if (currentSort.table === "#lastbTable" && currentSort.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
@@ -210,16 +216,23 @@ function fetchRTADData() {
           );
         });
       }
+      // Draw attack lines for the last 50 events
+      const eventsToAnimate = data.slice(-50);
+      eventsToAnimate.forEach((item) => {
+        if (item.country && item.country !== "Unknown") {
+          drawAttackLine(item.country, "login");
+        }
+      });
     })
     .catch((error) => {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
+  // Process /rtad_proxy data
   let proxyUrl = "/rtad_proxy";
   if (proxyLastId !== null) {
     proxyUrl += "?last_id=" + proxyLastId;
   }
-
   fetch(proxyUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
@@ -234,7 +247,6 @@ function fetchRTADData() {
         const date = new Date(seconds * 1000);
         const fractionStr = fraction.toFixed(6).slice(2);
         const formattedDate = date.toLocaleString() + "." + fractionStr;
-
         let errorClass = "";
         if (item.error_code >= 300 && item.error_code < 400) {
           errorClass = "status-yellow";
@@ -249,7 +261,6 @@ function fetchRTADData() {
         ) {
           errorClass = "status-red";
         }
-
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${item.domain}</td>
@@ -261,14 +272,9 @@ function fetchRTADData() {
           <td>${item.url}</td>
         `;
         fragment.appendChild(row);
-        // Draw attack line if country is known and not "Unknown"
-        if (item.country && item.country !== "Unknown") {
-          drawAttackLine(item.country, "proxy");
-        }
       });
       tbody.appendChild(fragment);
       proxyLastId = data[data.length - 1].id;
-
       if (currentSort.table === "#proxyTable" && currentSort.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
@@ -278,6 +284,13 @@ function fetchRTADData() {
           );
         });
       }
+      // Draw attack lines for the last 50 events
+      const eventsToAnimate = data.slice(-50);
+      eventsToAnimate.forEach((item) => {
+        if (item.country && item.country !== "Unknown") {
+          drawAttackLine(item.country, "proxy");
+        }
+      });
     })
     .catch((error) => {
       console.error("Error fetching /rtad_proxy data:", error);
@@ -292,7 +305,6 @@ function refreshRTADData() {
 
 function initializeSorting() {
   const tables = document.querySelectorAll("#lastbTable, #proxyTable");
-
   tables.forEach((table) => {
     const headers = table.querySelectorAll("th");
     headers.forEach((header, index) => {
@@ -300,13 +312,11 @@ function initializeSorting() {
         header.dataset.originalText = header.innerText;
       }
       header.classList.add("sortable");
-
       header.addEventListener("click", () => {
         headers.forEach((h) => {
           h.classList.remove("asc", "desc");
           h.innerHTML = h.dataset.originalText;
         });
-
         let direction = "asc";
         if (
           currentSort.table === `#${table.id}` &&
@@ -315,16 +325,13 @@ function initializeSorting() {
         ) {
           direction = "desc";
         }
-
         currentSort = {
           table: `#${table.id}`,
           column: index,
           direction: direction,
         };
-
         const arrowUp = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M5 0L10 10H0L5 0Z"/></svg>`;
         const arrowDown = `<svg width="10" height="10" viewBox="0 0 10 10" fill="var(--text)" xmlns="http://www.w3.org/2000/svg"><path d="M0 0L5 10L10 0H0Z"/></svg>`;
-
         header.classList.add(direction);
         header.innerHTML =
           header.dataset.originalText +
