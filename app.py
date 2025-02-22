@@ -20,7 +20,7 @@ from models import db, User, Role, CustomNetworkGraph
 import stats
 import docker_manager
 from custom_network import custom_network_bp
-from database import initialize_database, load_history
+from database import initialize_database, load_history, get_country_centroid
 
 NPM_API_URL = "http://npm.ganjagaming.de/api"
 docker_client = docker.from_env()
@@ -190,6 +190,66 @@ def rtad_proxy():
     else:
         logs = logs[-5000:]
     return jsonify(logs)
+
+# -----------------------------
+# New Attack Map route + data
+# -----------------------------
+@app.route('/attack_map')
+@login_required
+def attack_map():
+    return render_template('map.html')
+
+@app.route('/api/attack_map_data')
+@login_required
+def attack_map_data():
+    """
+    Combine /rtad_lastb and /rtad_proxy data, then attach latitude/longitude
+    from country_centroids in the database.
+    """
+    # Force country info resolution in rtad_manager
+    rtad_manager.update_missing_country_info()
+
+    login_data = rtad_manager.fetch_login_attempts()
+    proxy_data = rtad_manager.fetch_http_error_logs()
+    results = []
+
+    # Merge login attempts
+    for item in login_data:
+        country_code = item.get("country", "Unknown")
+        lat, lon = get_country_centroid(country_code)
+        results.append({
+            "ip_address": item.get("ip_address"),
+            "country": country_code,
+            "lat": lat,
+            "lon": lon,
+            "timestamp": item.get("timestamp"),
+            "type": "login",
+            "user": item.get("user"),
+            "failure_reason": item.get("failure_reason", "")
+        })
+
+    # Merge proxy logs
+    for item in proxy_data:
+        country_code = item.get("country", "Unknown")
+        lat, lon = get_country_centroid(country_code)
+        results.append({
+            "ip_address": item.get("ip_address"),
+            "country": country_code,
+            "lat": lat,
+            "lon": lon,
+            "timestamp": item.get("timestamp"),
+            "type": "proxy",
+            "domain": item.get("domain"),
+            "error_code": item.get("error_code"),
+            "url": item.get("url"),
+            "proxy_type": item.get("proxy_type", "")
+        })
+
+    return jsonify(results)
+
+# -----------------------------
+# Background Threads
+# -----------------------------
 
 # Function to continuously run the RTAD log parser
 def start_rtad_log_parser():

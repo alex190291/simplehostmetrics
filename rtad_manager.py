@@ -133,10 +133,6 @@ def get_country_cached(ip, ttl=3600):
         ip_country_cache[ip] = {"country": country, "timestamp": time.time()}
     return country
 
-##############################
-# Restliche Logik bleibt unverändert
-##############################
-
 class LogParser:
     def __init__(self):
         self.proxy_logs = config.get('logfiles', [])

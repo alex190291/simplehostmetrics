@@ -22,27 +22,44 @@ def initialize_database():
     cursor.execute("CREATE TABLE IF NOT EXISTS net_history (interface TEXT, timestamp REAL, input REAL, output REAL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS custom_network_graphs (id INTEGER PRIMARY KEY, graph_name TEXT, interfaces TEXT)")
 
-    # RTAD-bezogene Tabellen (auskommentiert)
-    # cursor.execute('''CREATE TABLE IF NOT EXISTS login_attempts (
-    #                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #                        user TEXT,
-    #                        ip_address TEXT,
-    #                        timestamp REAL,
-    #                        failure_reason TEXT
-    #                    )''')
-    #
-    # cursor.execute('''CREATE TABLE IF NOT EXISTS http_error_logs (
-    #                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #                        proxy_type TEXT,
-    #                        error_code INTEGER,
-    #                        timestamp REAL,
-    #                        url TEXT
-    #                    )''')
+    # Create table for country centroids
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS country_centroids (
+            country_code TEXT PRIMARY KEY,
+            lat REAL,
+            lon REAL
+        )
+    """)
+
+    # Insert statements for country centroids (no placeholders, single multi-value insert).
+    # Extend as needed for more countries. 'INSERT OR IGNORE' ensures no duplicates if table already populated.
+    cursor.execute("""
+        INSERT OR IGNORE INTO country_centroids (country_code, lat, lon)
+        VALUES
+        ('US', 37.0902, -95.7129),
+        ('CN', 35.8617, 104.1954),
+        ('NL', 52.1326, 5.2913),
+        ('GB', 55.3781, -3.4360),
+        ('DE', 51.1657, 10.4515),
+        ('FR', 46.2276, 2.2137),
+        ('RU', 61.5240, 105.3188),
+        ('CA', 56.1304, -106.3468),
+        ('BR', -14.2350, -51.9253),
+        ('AU', -25.2744, 133.7751),
+        ('JP', 36.2048, 138.2529),
+        ('IN', 20.5937, 78.9629),
+        ('SG', 1.3521, 103.8198),
+        ('KR', 35.9078, 127.7669),
+        ('ZA', -30.5595, 22.9375),
+        ('SE', 60.1282, 18.6435),
+        ('CH', 46.8182, 8.2275),
+        ('AT', 47.5162, 14.5501),
+        ('BE', 50.5039, 4.4699),
+        ('DK', 56.2639, 9.5018)
+    """)
 
     conn.commit()
     conn.close()
-
-
 
 def load_history(cached_data):
     from datetime import datetime
@@ -128,3 +145,21 @@ def load_history(cached_data):
         if len(cached_data['network_history'][iface]) > MAX_HISTORY:
             cached_data['network_history'][iface] = cached_data['network_history'][iface][-MAX_HISTORY:]
     conn.close()
+
+def get_country_centroid(country_code):
+    """
+    Returns (lat, lon) for the given country_code from the country_centroids table.
+    If the country is not in the table, returns (None, None).
+    """
+    if not country_code or country_code == "Unknown":
+        return (None, None)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    row = cursor.execute(
+        "SELECT lat, lon FROM country_centroids WHERE country_code = ?",
+        (country_code.upper(),)
+    ).fetchone()
+    conn.close()
+    if row:
+        return (row["lat"], row["lon"])
+    return (None, None)
