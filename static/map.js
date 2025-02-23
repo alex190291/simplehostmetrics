@@ -3,88 +3,100 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initialize Leaflet map
   const map = L.map("map").setView([20, 0], 2);
 
+  // OpenStreetMap tile layer
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 18,
   }).addTo(map);
 
-  // Cache für bereits abgefragte Stadtkoordinaten
-  const cityCache = {};
+  // Create marker cluster group with spiderfy options
+  const markers = L.markerClusterGroup({
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+  });
 
-  /**
-   * Ermittelt über Nominatim die Koordinaten für die angegebene Stadt und das Land.
-   * Liefert ein Promise, das entweder {lat, lon} oder null zurückgibt.
-   */
-  async function getCityCoords(city, country) {
-    const cacheKey = `${city},${country}`;
-    if (cityCache[cacheKey]) {
-      return cityCache[cacheKey];
-    }
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(
-        city,
-      )}&country=${encodeURIComponent(country)}&format=json&limit=1`;
-      const response = await fetch(url, {
-        headers: { "User-Agent": "simplehostmetrics-app" },
-      });
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        cityCache[cacheKey] = { lat, lon };
-        return { lat, lon };
+  // Cache for city coordinates to avoid repeated geocoding
+  const cityCoordinatesCache = {};
+
+  // Function to get city coordinates using Nominatim geocoding API
+  function getCityCoordinates(city, country) {
+    return new Promise((resolve, reject) => {
+      const cacheKey = `${city},${country}`;
+      if (cityCoordinatesCache[cacheKey]) {
+        resolve(cityCoordinatesCache[cacheKey]);
+      } else {
+        const query = encodeURIComponent(`${city}, ${country}`);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+        fetch(url, { headers: { "User-Agent": "SimpleHostMetrics/1.0" } })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data && data.length > 0) {
+              const coords = {
+                lat: parseFloat(data[0].lat),
+                lon: parseFloat(data[0].lon),
+              };
+              cityCoordinatesCache[cacheKey] = coords;
+              resolve(coords);
+            } else {
+              resolve(null);
+            }
+          })
+          .catch((err) => {
+            console.error("Error geocoding city:", err);
+            resolve(null);
+          });
       }
-      return null;
-    } catch (error) {
-      console.error("Geocoding error:", error);
-      return null;
-    }
+    });
   }
 
-  /**
-   * Fügt einen Marker zum Map-Objekt hinzu.
-   * Verwendet Stadtkoordinaten, falls vorhanden, ansonsten die vom API gelieferten Länderkontur-Koordinaten.
-   */
-  async function addMarker(item) {
-    // Standardkoordinaten aus der API (Ländermittelpunkt)
-    let coords = { lat: item.lat, lon: item.lon };
-
-    // Wenn eine Stadt angegeben ist, versuchen wir deren Koordinaten zu ermitteln
-    if (item.city && item.city !== "Unknown" && item.city.trim() !== "") {
-      const cityCoords = await getCityCoords(item.city, item.country);
-      if (cityCoords) {
-        coords = cityCoords;
-      }
-    }
-
-    const marker = L.marker([coords.lat, coords.lon]).addTo(map);
-    const typeLabel =
-      item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
-    const popupContent = `
-      <b>${typeLabel}</b><br />
-      IP: ${item.ip_address || "N/A"}<br />
-      Country: ${item.country || "Unknown"}<br />
-      City: ${item.city || "Unknown"}<br />
-      ${
-        item.type === "login"
-          ? `User: ${item.user || ""}<br />Reason: ${item.failure_reason || ""}`
-          : `Domain: ${item.domain || ""}<br />Error: ${item.error_code || ""}<br />URL: ${item.url || ""}`
-      }
-      <br />
-      Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
-    `;
-    marker.bindPopup(popupContent);
-  }
-
-  // Abrufen der kombinierten Attack Map Daten und Platzieren der Marker
+  // Fetch combined data from our /api/attack_map_data endpoint
   fetch("/api/attack_map_data")
     .then((response) => response.json())
     .then((data) => {
-      data.forEach((item) => {
-        if (item.lat !== null && item.lon !== null) {
-          addMarker(item);
-        }
+      // Process each item: falls eine Stadt angegeben ist, deren Koordinaten abrufen
+      const promises = data.map((item) => {
+        return new Promise((resolve) => {
+          if (item.city && item.city !== "Unknown") {
+            getCityCoordinates(item.city, item.country).then((coords) => {
+              if (coords) {
+                item.lat = coords.lat;
+                item.lon = coords.lon;
+              }
+              resolve(item);
+            });
+          } else {
+            resolve(item);
+          }
+        });
+      });
+
+      Promise.all(promises).then((updatedData) => {
+        updatedData.forEach((item) => {
+          if (item.lat !== null && item.lon !== null) {
+            const typeLabel =
+              item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
+            const popupContent = `
+              <b>${typeLabel}</b><br />
+              IP: ${item.ip_address || "N/A"}<br />
+              Country: ${item.country || "Unknown"}<br />
+              City: ${item.city || "Unknown"}<br />
+              ${
+                item.type === "login"
+                  ? `User: ${item.user || ""}<br />Reason: ${item.failure_reason || ""}`
+                  : `Domain: ${item.domain || ""}<br />Error: ${item.error_code || ""}<br />URL: ${item.url || ""}`
+              }
+              <br />
+              Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
+            `;
+            const marker = L.marker([item.lat, item.lon]).bindPopup(
+              popupContent,
+            );
+            markers.addLayer(marker);
+          }
+        });
+        map.addLayer(markers);
       });
     })
     .catch((err) => console.error("Error loading attack map data:", err));
