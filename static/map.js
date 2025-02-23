@@ -1,20 +1,34 @@
 // map.js
 document.addEventListener("DOMContentLoaded", async function () {
+  // Leaflet-Map initialisieren
   const map = L.map("map", {
     center: [20, 0],
     zoom: 2,
   });
 
+  // Grundlegend: OSM-Layer
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: "Map data © OpenStreetMap contributors",
   }).addTo(map);
 
+  // Prüfen, ob <body> nicht in Light Mode ist. Falls nicht, map in Dark Mode.
+  if (!document.body.classList.contains("light-mode")) {
+    map.getContainer().classList.add("dark-mode");
+  }
+
+  // Klick-Listener für Mode-Umschalter
   const toggleButton = document.getElementById("modeToggle");
   toggleButton.addEventListener("click", () => {
-    map.getContainer().classList.toggle("dark-mode");
+    // Falls Body im Light Mode ist -> Dark Mode von Map entfernen, sonst hinzufügen
+    if (document.body.classList.contains("light-mode")) {
+      map.getContainer().classList.remove("dark-mode");
+    } else {
+      map.getContainer().classList.add("dark-mode");
+    }
   });
 
+  // Marker-Cluster-Setup
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
@@ -69,12 +83,34 @@ document.addEventListener("DOMContentLoaded", async function () {
     return marker;
   }
 
-  // Globales Mapping: key -> marker
+  // Globale Map für Key->Marker
   const markerMap = new Map();
-  // Neue Events, die innerhalb dieser Schwelle (in ms) eintreffen, werden animiert
+  // Neue Events innerhalb dieser Schwelle (ms) werden animiert
   const NEW_EVENT_THRESHOLD = 3000;
+  // Maximale Markerzahl
+  const MAX_MARKERS = 1000;
+
+  // Ältesten Marker entfernen, wenn über Grenze
+  function removeOldestMarker() {
+    let oldestKey = null;
+    let oldestTime = Infinity;
+    for (const [key, markerObj] of markerMap.entries()) {
+      const [timestampStr] = key.split("-");
+      const eventTime = new Date(timestampStr).getTime();
+      if (eventTime < oldestTime) {
+        oldestTime = eventTime;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey) {
+      const oldestMarker = markerMap.get(oldestKey);
+      markers.removeLayer(oldestMarker);
+      markerMap.delete(oldestKey);
+    }
+  }
 
   async function fetchData() {
+    // Keine neuen Daten abrufen, wenn Cluster "aufgespreizt" ist
     if (markers._spiderfied) {
       setTimeout(fetchData, 1000);
       return;
@@ -84,17 +120,20 @@ document.addEventListener("DOMContentLoaded", async function () {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      // Array zur Speicherung der neu hinzugefügten Marker (für Animation)
       const newMarkersForAnimation = [];
 
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
-          // Erzeugen eines eindeutigen Schlüssels (ggf. anpassen, falls vorhanden: item.id)
           const key = `${item.timestamp}-${item.ip_address}`;
           if (!markerMap.has(key)) {
+            // LIMIT: Bei Überschreitung ältesten Eintrag entfernen
+            if (markerMap.size >= MAX_MARKERS) {
+              removeOldestMarker();
+            }
             const marker = createMarker(item);
             markerMap.set(key, marker);
             markers.addLayer(marker);
+
             const eventTime = new Date(item.timestamp).getTime();
             if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
               newMarkersForAnimation.push(marker);
@@ -103,7 +142,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
       });
 
-      // Animieren der Cluster, welche neue Marker enthalten
+      // Clustern mit Animation, falls neue Marker dazukamen
       setTimeout(() => {
         const animatedClusters = new Set();
         newMarkersForAnimation.forEach((marker) => {

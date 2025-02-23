@@ -1,18 +1,11 @@
 // static/theme.js
 document.addEventListener("DOMContentLoaded", () => {
-  const mapElement = document.getElementById("map");
-  // Dark Mode standardmäßig aktivieren
-  if (!document.body.classList.contains("light-mode")) {
-    mapElement.classList.add("dark-mode");
-  }
-
   const modeToggle = document.getElementById("modeToggle");
+
+  // Standardmäßig bleibt die Seite im Dark Mode (keine "light-mode"-Klasse auf <body>).
+  // Bei Klick wird ausschließlich der Body zwischen Dark/Light gewechselt.
+  // Die Karte selbst wird in map.js entsprechend synchronisiert.
   modeToggle.addEventListener("click", () => {
     document.body.classList.toggle("light-mode");
-    if (document.body.classList.contains("light-mode")) {
-      mapElement.classList.remove("dark-mode");
-    } else {
-      mapElement.classList.add("dark-mode");
-    }
   });
 });
