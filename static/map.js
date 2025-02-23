@@ -1,21 +1,26 @@
-// map.js
+// simplehostmetrics/static/map.js
+
 document.addEventListener("DOMContentLoaded", function () {
-  // Initialize Leaflet map
   const map = L.map("map").setView([20, 0], 2);
 
+  // OSM Tile-Layer (wir nutzen den CSS-Invert-Filter für den Dark Mode)
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 18,
   }).addTo(map);
 
-  // Cache für bereits abgefragte Stadtkoordinaten
+  // Erzeuge MarkerClusterGroup
+  const markerCluster = L.markerClusterGroup({
+    showCoverageOnHover: false,
+    spiderfyOnEveryZoom: true,
+    maxClusterRadius: 50,
+  });
+
+  // Cache für Stadtkoordinaten
   const cityCache = {};
 
-  /**
-   * Ermittelt über Nominatim die Koordinaten für die angegebene Stadt und das Land.
-   * Liefert ein Promise, das entweder {lat, lon} oder null zurückgibt.
-   */
+  // Ermittelt über Nominatim die Koordinaten für Stadt und Land
   async function getCityCoords(city, country) {
     const cacheKey = `${city},${country}`;
     if (cityCache[cacheKey]) {
@@ -42,15 +47,26 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /**
-   * Fügt einen Marker zum Map-Objekt hinzu.
-   * Verwendet Stadtkoordinaten, falls vorhanden, ansonsten die vom API gelieferten Länderkontur-Koordinaten.
-   */
-  async function addMarker(item) {
-    // Standardkoordinaten aus der API (Ländermittelpunkt)
-    let coords = { lat: item.lat, lon: item.lon };
+  // Bestimmt Markerfarbe anhand von error_code oder Typ
+  function getMarkerColor(item) {
+    if (item.error_code) {
+      switch (item.error_code) {
+        case "403":
+          return "orange";
+        case "404":
+          return "yellow";
+        case "500":
+          return "red";
+        default:
+          return "gray";
+      }
+    }
+    return item.type === "login" ? "blue" : "green";
+  }
 
-    // Wenn eine Stadt angegeben ist, versuchen wir deren Koordinaten zu ermitteln
+  // Fügt einen Marker hinzu – nutzt Stadtkoordinaten, falls vorhanden
+  async function addMarker(item) {
+    let coords = { lat: item.lat, lon: item.lon };
     if (item.city && item.city !== "Unknown" && item.city.trim() !== "") {
       const cityCoords = await getCityCoords(item.city, item.country);
       if (cityCoords) {
@@ -58,7 +74,16 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    const marker = L.marker([coords.lat, coords.lon]).addTo(map);
+    const color = getMarkerColor(item);
+    const circleMarker = L.circleMarker([coords.lat, coords.lon], {
+      radius: 6,
+      fillColor: color,
+      color: "#000",
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 0.9,
+    });
+
     const typeLabel =
       item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
     const popupContent = `
@@ -74,10 +99,11 @@ document.addEventListener("DOMContentLoaded", function () {
       <br />
       Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
     `;
-    marker.bindPopup(popupContent);
+    circleMarker.bindPopup(popupContent);
+    markerCluster.addLayer(circleMarker);
   }
 
-  // Abrufen der kombinierten Attack Map Daten und Platzieren der Marker
+  // Abrufen der Attack Map Daten und Marker hinzufügen
   fetch("/api/attack_map_data")
     .then((response) => response.json())
     .then((data) => {
@@ -86,6 +112,7 @@ document.addEventListener("DOMContentLoaded", function () {
           addMarker(item);
         }
       });
+      map.addLayer(markerCluster);
     })
     .catch((err) => console.error("Error loading attack map data:", err));
 });

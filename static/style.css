@@ -489,3 +489,8 @@ button.update-btn {
     scrollbar-width: thin;
     scrollbar-color: var(--primary) var(--bg-color);
 }
+
+/* Dark mode für die Map per invertiertem CSS-Filter */
+.dark-invert {
+    filter: invert(90%) hue-rotate(180deg);
+}
