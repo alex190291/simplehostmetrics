@@ -28,24 +28,22 @@ document.addEventListener("DOMContentLoaded", async function () {
     autoUnspiderfy: true,
   });
 
-  // Event-Listener: Schließt einen spiderfied Cluster, wenn dessen Zentrum angeklickt wird
+  // Variable zur Steuerung, ob ein Cluster geöffnet ist
+  let clusterOpen = false;
+
+  // Event-Listener zum Setzen und Zurücksetzen der Cluster-Öffnung
+  markers.on("spiderfied", function () {
+    clusterOpen = true;
+  });
+  markers.on("unspiderfied", function () {
+    clusterOpen = false;
+  });
+
+  // Schließt einen spiderfied Cluster, wenn dessen Zentrum angeklickt wird
   markers.on("clusterclick", function (a) {
     if (markers._spiderfied === a.layer) {
       markers.unspiderfy();
     }
-  });
-
-  // Variable für den automatischen Datenabruf
-  let autoFetchInterval = setInterval(fetchData, 1000);
-
-  // Deaktivieren des Datenabrufs, wenn ein Cluster geöffnet wird
-  markers.on("spiderfied", function () {
-    clearInterval(autoFetchInterval);
-  });
-
-  // Reaktivieren des Datenabrufs, wenn der Cluster geschlossen wird
-  markers.on("unspiderfied", function () {
-    autoFetchInterval = setInterval(fetchData, 1000);
   });
 
   // Minimalistische Marker-Icons für SSH (login) und Proxy-Events mit unterschiedlichen Farben
@@ -79,7 +77,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function addMarker(item) {
-    // Auswahl des Icons anhand des Ereignistyps: SSH (login) oder Proxy
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([item.lat, item.lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -95,13 +92,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     markers.addLayer(marker);
   }
 
-  // Funktion zum Laden der Daten
   async function fetchData() {
+    // Neue Daten werden nicht abgerufen, solange ein Cluster geöffnet ist
+    if (clusterOpen) return;
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      // Vor jedem Datenabruf alle existierenden Marker entfernen, um Duplikate zu vermeiden
+      // Vor jedem Abruf alle existierenden Marker entfernen, um Duplikate zu vermeiden
       markers.clearLayers();
 
       data.forEach((item) => {
@@ -114,7 +112,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  // MarkerCluster Gruppe zur Karte hinzufügen und initial Daten laden
   map.addLayer(markers);
   await fetchData();
+
+  // Dynamische Aktualisierung der Daten alle 1000ms (1 Sekunde)
+  setInterval(fetchData, 1000);
 });
