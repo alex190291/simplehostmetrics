@@ -1,4 +1,3 @@
-// map.js
 document.addEventListener("DOMContentLoaded", function () {
   // Initialize Leaflet map
   const map = L.map("map").setView([20, 0], 2);
@@ -10,53 +9,94 @@ document.addEventListener("DOMContentLoaded", function () {
     maxZoom: 18,
   }).addTo(map);
 
-  // Create marker cluster group
-  // spiderfyOnEveryZoom: wenn man hineinzoomt, werden Marker aufgespreizt
-  // spiderfyOnMaxZoom: bei Klick auf den Cluster
+  // Create marker cluster group (spiderfies on max zoom or when needed)
   const markers = L.markerClusterGroup({
     spiderfyOnMaxZoom: true,
-    spiderfyOnEveryZoom: true,
     showCoverageOnHover: false,
     zoomToBoundsOnClick: true,
   });
 
-  // Cache für City-Koordinaten, damit wir nicht jedes Mal erneut geocoden
-  const cityCoordinatesCache = {};
+  // Cache für erfolgreich ermittelte Koordinaten, damit wir nicht immer erneut geocoden:
+  const locationCache = new Map();
+  // Key könnte z. B. "City|Country" sein oder nur "Country" bei unbekannter Stadt
 
   /**
-   * Ruft Koordinaten via Nominatim ab.
-   * city und country sind Strings, z. B. city="Berlin", country="DE"
+   * Führt eine Geocoding-Anfrage an Nominatim durch
+   * @param {string} query - Suchstring, z. B. "Berlin, Germany" oder "DE"
+   * @returns {Promise<{lat: number, lon: number} | null>}
    */
-  function getCityCoordinates(city, country) {
-    return new Promise((resolve, reject) => {
-      const cacheKey = `${city},${country}`;
-      if (cityCoordinatesCache[cacheKey]) {
-        // Bereits im Cache
-        resolve(cityCoordinatesCache[cacheKey]);
+  function nominatimGeocode(query) {
+    return new Promise((resolve) => {
+      if (!query || query === "Unknown") {
+        // Unbekannt -> kein passender Ort
+        resolve(null);
         return;
       }
-      // Request an Nominatim
-      const query = encodeURIComponent(`${city}, ${country}`);
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
-
+      if (locationCache.has(query)) {
+        // Schonmal geocodet
+        resolve(locationCache.get(query));
+        return;
+      }
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query,
+      )}&limit=1`;
+      // Achtung: Nominatim verlangt einen aussagekräftigen User-Agent
       fetch(url, { headers: { "User-Agent": "SimpleHostMetrics/1.0" } })
-        .then((response) => response.json())
+        .then((res) => res.json())
         .then((data) => {
-          if (data && data.length > 0) {
+          if (Array.isArray(data) && data.length > 0) {
             const coords = {
               lat: parseFloat(data[0].lat),
               lon: parseFloat(data[0].lon),
             };
-            cityCoordinatesCache[cacheKey] = coords;
+            locationCache.set(query, coords);
             resolve(coords);
           } else {
             resolve(null);
           }
         })
-        .catch((err) => {
-          console.error("Error geocoding city:", err);
+        .catch(() => {
           resolve(null);
         });
+    });
+  }
+
+  /**
+   * Ermittelt Koordinaten abhängig von city/country:
+   * 1. Falls city != "Unknown", geocode "City, Country"
+   * 2. Sonst geocode nur "Country"
+   * 3. Fallback: (0,0), wenn alles fehlschlägt
+   */
+  function getCoordinates(city, country) {
+    return new Promise((resolve) => {
+      // Versuch 1: City + Country
+      if (city && city !== "Unknown") {
+        const combined = `${city}, ${country}`;
+        nominatimGeocode(combined).then((coordsCity) => {
+          if (coordsCity) {
+            resolve(coordsCity);
+          } else {
+            // Versuch 2: Nur Country
+            nominatimGeocode(country).then((coordsCountry) => {
+              if (coordsCountry) {
+                resolve(coordsCountry);
+              } else {
+                // Fallback: (0,0)
+                resolve({ lat: 0, lon: 0 });
+              }
+            });
+          }
+        });
+      } else {
+        // City unknown -> nur Country
+        nominatimGeocode(country).then((coordsCountry) => {
+          if (coordsCountry) {
+            resolve(coordsCountry);
+          } else {
+            resolve({ lat: 0, lon: 0 });
+          }
+        });
+      }
     });
   }
 
@@ -64,58 +104,46 @@ document.addEventListener("DOMContentLoaded", function () {
   fetch("/api/attack_map_data")
     .then((response) => response.json())
     .then((data) => {
-      // Wir starten pro Item einen Promise:
-      const promises = data.map((item) => {
+      // Pro Eintrag Koordinaten bestimmen
+      const tasks = data.map((item) => {
         return new Promise((resolve) => {
-          // item.lat und item.lon enthalten bereits
-          // die Land-Koordinaten, falls der Server sie liefert.
+          const city = item.city || "Unknown";
+          const country = item.country || "Unknown";
 
-          // Falls city bekannt, versuchen wir City-Koordinaten
-          if (item.city && item.city !== "Unknown") {
-            getCityCoordinates(item.city, item.country).then((coords) => {
-              if (coords) {
-                // City erfolgreich geocodet -> überschreiben
-                item.lat = coords.lat;
-                item.lon = coords.lon;
-              }
-              // Bei Misserfolg oder kein city -> alte lat/lon bleiben bestehen
-              resolve(item);
-            });
-          } else {
-            // city ist unbekannt, wir behalten item.lat/item.lon
+          getCoordinates(city, country).then((coords) => {
+            item.lat = coords.lat;
+            item.lon = coords.lon;
             resolve(item);
-          }
+          });
         });
       });
 
-      // Warten bis alle Geocoding-Aufgaben erledigt sind
-      Promise.all(promises).then((finalData) => {
-        // Jetzt Marker hinzufügen
+      Promise.all(tasks).then((finalData) => {
+        // Marker hinzufügen
         finalData.forEach((item) => {
-          // Nur Marker setzen, wenn lat/lon vorhanden
-          if (item.lat !== null && item.lon !== null) {
-            const typeLabel =
-              item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
-            const popupContent = `
-              <b>${typeLabel}</b><br />
-              IP: ${item.ip_address || "N/A"}<br />
-              Country: ${item.country || "Unknown"}<br />
-              City: ${item.city || "Unknown"}<br />
-              ${
-                item.type === "login"
-                  ? `User: ${item.user || ""}<br />Reason: ${item.failure_reason || ""}`
-                  : `Domain: ${item.domain || ""}<br />Error: ${item.error_code || ""}<br />URL: ${item.url || ""}`
-              }
-              <br />
-              Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
-            `;
-            const marker = L.marker([item.lat, item.lon]).bindPopup(
-              popupContent,
-            );
-            markers.addLayer(marker);
-          }
+          // Wir haben jetzt in jedem Fall lat/lon (mind. 0,0)
+          // Falls Sie 0,0 ausblenden wollen, müssten Sie hier filtern.
+          const typeLabel =
+            item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
+          const popupContent = `
+            <b>${typeLabel}</b><br />
+            IP: ${item.ip_address || "N/A"}<br />
+            Country: ${item.country || "Unknown"}<br />
+            City: ${item.city || "Unknown"}<br />
+            ${
+              item.type === "login"
+                ? `User: ${item.user || ""}<br />Reason: ${item.failure_reason || ""}`
+                : `Domain: ${item.domain || ""}<br />Error: ${item.error_code || ""}<br />URL: ${item.url || ""}`
+            }
+            <br />
+            Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
+          `;
+          // Falls man (0,0) wirklich nicht als Marker anzeigen will, könnte man prüfen:
+          // if (item.lat === 0 && item.lon === 0 && item.country === "Unknown") ...
+          const marker = L.marker([item.lat, item.lon]).bindPopup(popupContent);
+          markers.addLayer(marker);
         });
-        // Marker-Cluster dem Map-Objekt hinzufügen
+        // MarkerCluster in die Karte
         map.addLayer(markers);
       });
     })
