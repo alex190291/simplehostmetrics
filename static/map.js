@@ -25,8 +25,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: false, // Cluster bleiben geöffnet, bis sie explizit geschlossen werden
+    autoUnspiderfy: false, // Option setzen
   });
+  // Überschreiben der internen _unspiderfy Methode, damit geöffnete Cluster nicht automatisch schließen:
+  markers._unspiderfy = function () {};
 
   // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
@@ -44,7 +46,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       return cityCache[cacheKey];
     }
     try {
-      const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json&limit=1`;
+      const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(
+        city,
+      )}&country=${encodeURIComponent(country)}&format=json&limit=1`;
       const response = await fetch(url, {
         headers: { "User-Agent": "simplehostmetrics-app" },
       });
@@ -113,6 +117,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Erste Datenabfrage
   await fetchData();
 
-  // Optional: Wiederholte Datenabfrage, ohne die Cluster zurückzusetzen
+  // Optional: Wiederholte Datenabfrage ohne Cluster-Reset
   // setInterval(fetchData, 30000);
 });
