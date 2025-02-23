@@ -101,5 +101,5 @@ document.addEventListener("DOMContentLoaded", async function () {
   map.addLayer(markers);
   await fetchData();
   // Optional: Wiederholte Datenabfrage ohne Cluster-Reset
-  // setInterval(fetchData, 30000);
+  setInterval(fetchData, 5000);
 });
