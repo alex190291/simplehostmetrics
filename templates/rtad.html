@@ -3,10 +3,33 @@ content %}
 <div class="hexagons" id="hexagon-container"></div>
 <div class="container">
     <h1>RealTime Attack Dashboard</h1>
+
+    <!-- Attack Map Card -->
+    <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
+        <div class="card-header">
+            <h2 class="card-title">Attack Map</h2>
+        </div>
+        <!-- Container für Leaflet-Karte -->
+        <div
+            class="detail-view"
+            style="display: block; max-height: 600px; overflow: auto"
+        >
+            <div
+                id="map"
+                style="
+                    width: 100%;
+                    height: 600px;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                "
+            ></div>
+        </div>
+    </div>
+
     <button class="update-btn" id="rtadRefreshBtn" onclick="refreshRTADData()">
         Refresh Now
     </button>
-    <!-- Card for /rtad_lastb -->
+
+    <!-- Vorhandene SSH-Login-Card -->
     <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
             <h2 class="card-title">Login Attempts over SSH</h2>
@@ -26,13 +49,12 @@ content %}
                         <th>Failure Reason</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- Data loaded via rtad.js -->
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
-    <!-- Card for /rtad_proxy -->
+
+    <!-- Vorhandene Proxy-Events-Card -->
     <div class="rtad card" style="width: 100%; margin-bottom: 1.5rem">
         <div class="card-header">
             <h2 class="card-title">Proxy Events</h2>
@@ -54,20 +76,38 @@ content %}
                         <th>URL</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- Data loaded via rtad.js -->
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
 </div>
-<!-- Mode Toggle Button -->
+<!-- Mode Toggle Button (falls gewünscht) -->
 <button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">
     💡
 </button>
 {% endblock %} {% block scripts %}
+<!-- Bereits enthaltene Scripts -->
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script src="{{ url_for('static', filename='rtad.js') }}"></script>
 <script src="https://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>
+
+<!-- Leaflet + MarkerCluster Einbindung -->
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='leaflet/leaflet.css') }}"
+/>
+<script src="{{ url_for('static', filename='leaflet/leaflet.js') }}"></script>
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+/>
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<!-- Unsere Map-Logik (ex-map.js) -->
+<script src="{{ url_for('static', filename='map.js') }}"></script>
 {% endblock %}

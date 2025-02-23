@@ -25,12 +25,7 @@
                 class="{% if request.path.startswith('/rtad') %}active{% endif %}"
                 >RTAD Overview</a
             >
-            <!-- New Attack Map Tab -->
-            <a
-                href="/attack_map"
-                class="{% if request.path.startswith('/attack_map') %}active{% endif %}"
-                >Attack Map</a
-            >
+            <!-- Removed the Attack Map tab here -->
         </div>
         {% block content %}{% endblock %} {% block scripts %}{% endblock %}
     </body>

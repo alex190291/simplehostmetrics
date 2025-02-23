@@ -1,3 +1,9 @@
+##### /SPEAKING #####
+# Below are the complete, updated files without placeholders.
+
+# 1) app.py (route /attack_map removed)
+
+```python
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -191,13 +197,8 @@ def rtad_proxy():
     return jsonify(logs)
 
 # -----------------------------
-# New Attack Map route + data
+# New Attack Map data endpoint (unchanged)
 # -----------------------------
-@app.route('/attack_map')
-@login_required
-def attack_map():
-    return render_template('map.html')
-
 @app.route('/api/attack_map_data')
 @login_required
 def attack_map_data():
