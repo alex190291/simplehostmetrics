@@ -490,7 +490,13 @@ button.update-btn {
     scrollbar-color: var(--primary) var(--bg-color);
 }
 
-/* Nur die Tile Pane der Karte wird im Dark Mode invertiert */
+/* Dark Mode nur auf die Tile Pane anwenden */
 #map.dark-mode .leaflet-tile-pane {
     filter: invert(90%) hue-rotate(180deg);
+}
+
+/* Text in Markerclusters im Dark Mode schwarz halten */
+#map.dark-mode .marker-cluster,
+#map.dark-mode .marker-cluster div {
+    color: #000 !important;
 }
