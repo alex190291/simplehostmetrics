@@ -6,6 +6,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     zoom: 2,
   });
 
+  // Dark Mode standardmäßig aktivieren
+  map.getContainer().classList.add("dark-map");
+
   // OSM-Tiles
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
@@ -80,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Rekursive Funktion zur Datenabfrage alle 1000ms
   async function fetchData() {
-    // Wenn ein Cluster geöffnet ist, keine neuen Daten abrufen
+    // Wenn ein Cluster (spiderfied) geöffnet ist, pausieren wir den Datenabruf
     if (markers._spiderfied) {
       setTimeout(fetchData, 1000);
       return;
@@ -89,7 +92,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      // Vor jedem Update werden alle Marker entfernt, um Duplikate zu vermeiden
+      // Vor jedem Update alle Marker entfernen, um Duplikate zu vermeiden
       markers.clearLayers();
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
