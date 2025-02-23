@@ -6,9 +6,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     zoom: 2,
   });
 
-  // Dark Mode standardmäßig aktivieren
-  map.getContainer().classList.add("dark-map");
-
   // OSM-Tiles
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
@@ -18,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Dark Mode Toggle Button
   const toggleButton = document.getElementById("modeToggle");
   toggleButton.addEventListener("click", () => {
-    map.getContainer().classList.toggle("dark-map");
+    map.getContainer().classList.toggle("dark-mode");
   });
 
   // Marker Cluster Gruppe mit aktivierter Auto-Unspiderfy-Funktion
@@ -65,7 +62,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  async function addMarker(item) {
+  // Array zur Speicherung der Marker, die als "neu" gelten
+  let newMarkers = [];
+  // Schwellenwert (in Millisekunden) – Events, die innerhalb dieser Zeitspanne zum Datenabruf eingegangen sind, werden als neu betrachtet
+  const NEW_EVENT_THRESHOLD = 3000;
+
+  async function addMarker(item, fetchTime) {
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([item.lat, item.lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -79,29 +81,53 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     markers.addLayer(marker);
+
+    // Prüfen, ob das Event als "neu" gilt
+    const eventTime = new Date(item.timestamp).getTime();
+    if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
+      newMarkers.push(marker);
+    }
   }
 
-  // Rekursive Funktion zur Datenabfrage alle 1000ms
   async function fetchData() {
-    // Wenn ein Cluster (spiderfied) geöffnet ist, pausieren wir den Datenabruf
+    // Wenn ein Cluster geöffnet ist, pausieren wir den Datenabruf
     if (markers._spiderfied) {
       setTimeout(fetchData, 1000);
       return;
     }
+    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
       // Vor jedem Update alle Marker entfernen, um Duplikate zu vermeiden
       markers.clearLayers();
+      newMarkers = []; // Reset für neue Marker
+
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
-          addMarker(item);
+          addMarker(item, fetchTime);
         }
       });
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
+
+    // Kurze Verzögerung, um sicherzustellen, dass das Clustering abgeschlossen ist
+    setTimeout(() => {
+      const animatedClusters = new Set();
+      newMarkers.forEach((marker) => {
+        const parent = markers.getVisibleParent(marker);
+        if (parent && parent._icon && !animatedClusters.has(parent)) {
+          parent._icon.classList.add("animate-cluster");
+          animatedClusters.add(parent);
+          setTimeout(() => {
+            parent._icon.classList.remove("animate-cluster");
+          }, 500); // Dauer der Animation (500ms)
+        }
+      });
+    }, 500);
+
     setTimeout(fetchData, 1000);
   }
 
