@@ -500,3 +500,13 @@ button.update-btn {
 #map.dark-mode .marker-cluster div {
     color: #000 !important;
 }
+
+/* Marker-Popups im Dark Mode: schwarzer Hintergrund, weiße Schrift */
+#map.dark-mode .leaflet-popup-content-wrapper {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+#map.dark-mode .leaflet-popup-tip {
+    background: #000 !important;
+}
