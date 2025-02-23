@@ -23,23 +23,12 @@ content %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 
-<!-- Leaflet CSS & JS -->
+<!-- Leaflet local include (CSS & JS) -->
 <link
     rel="stylesheet"
     href="{{ url_for('static', filename='leaflet/leaflet.css') }}"
 />
 <script src="{{ url_for('static', filename='leaflet/leaflet.js') }}"></script>
-
-<!-- MarkerCluster: CSS + JS -->
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
-/>
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
-/>
-<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
 <!-- Our custom map logic -->
 <script src="{{ url_for('static', filename='map.js') }}"></script>
