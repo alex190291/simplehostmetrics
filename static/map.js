@@ -35,6 +35,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
+  // Variable für den automatischen Datenabruf
+  let autoFetchInterval = setInterval(fetchData, 30000);
+
+  // Deaktivieren des Datenabrufs, wenn ein Cluster geöffnet wird
+  markers.on("spiderfied", function () {
+    clearInterval(autoFetchInterval);
+  });
+
+  // Reaktivieren des Datenabrufs, wenn der Cluster geschlossen wird
+  markers.on("unspiderfied", function () {
+    autoFetchInterval = setInterval(fetchData, 30000);
+  });
+
   // Minimalistische Marker-Icons für SSH (login) und Proxy-Events mit unterschiedlichen Farben
   const loginIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#f55;"></div>',
@@ -82,11 +95,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     markers.addLayer(marker);
   }
 
-  // Funktion zum Laden der Daten (ohne komplettes Zurücksetzen der Clustergruppe)
+  // Funktion zum Laden der Daten
   async function fetchData() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
+
+      // Vor jedem Datenabruf alle existierenden Marker entfernen, um Duplikate zu vermeiden
+      markers.clearLayers();
+
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
           addMarker(item);
@@ -100,6 +117,4 @@ document.addEventListener("DOMContentLoaded", async function () {
   // MarkerCluster Gruppe zur Karte hinzufügen und initial Daten laden
   map.addLayer(markers);
   await fetchData();
-  // Optional: Wiederholte Datenabfrage ohne Cluster-Reset
-  setInterval(fetchData, 5000);
 });
