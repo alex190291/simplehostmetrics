@@ -1,6 +1,6 @@
 // map.js
 document.addEventListener("DOMContentLoaded", async function () {
-  // Karte initialisieren
+  // Leaflet Karte initialisieren
   const map = L.map("map", {
     center: [20, 0],
     zoom: 2,
@@ -21,15 +21,16 @@ document.addEventListener("DOMContentLoaded", async function () {
     map.getContainer().classList.toggle("dark-map");
   });
 
-  // Marker Cluster Gruppe (autoUnspiderfy deaktiviert)
+  // Marker Cluster Gruppe mit deaktiviertem automatischen Unspiderfy
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: false,
   });
-  map.addLayer(markers);
+  // Überschreiben der internen _unspiderfy Methode, damit geöffnete Cluster nicht automatisch schließen:
+  markers._unspiderfy = function () {};
 
-  // Minimalistisches Marker-Icon
+  // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#f55;"></div>',
     iconSize: [10, 10],
@@ -82,51 +83,40 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Erstellt einen Marker basierend auf dem API-Eintrag.
-  // Falls lat/lon nicht vorhanden sind, wird mittels Geocoding anhand von city und country der Marker gesetzt.
-  async function createMarker(item) {
-    let coords = null;
-    if (item.city && item.city.trim() !== "" && item.city !== "Unknown") {
+  async function addMarker(item) {
+    let coords = { lat: item.lat, lon: item.lon };
+    if (item.city && item.city !== "Unknown" && item.city.trim() !== "") {
       const cityCoords = await getCityCoords(item.city, item.country);
       if (cityCoords) {
         coords = cityCoords;
-      } else {
-        // Geocoding schlug fehl, Marker überspringen
-        return null;
       }
-    } else {
-      // Keine gültige Stadt, Marker überspringen
-      return null;
     }
     const marker = L.marker([coords.lat, coords.lon], { icon: circleIcon });
     marker.bindPopup(createPopup(item));
-    return marker;
+    markers.addLayer(marker);
   }
 
-  // Batch-Update: Alle Marker werden gesammelt, die Clustergruppe gelöscht und dann in einem Schritt neu befüllt.
+  // Funktion zum Laden der Daten (ohne komplettes Zurücksetzen der Clustergruppe)
   async function fetchData() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-      // Alle Marker asynchron erstellen
-      const markerPromises = data.map((item) => createMarker(item));
-      const markersArray = await Promise.all(markerPromises);
-      // Filtere fehlgeschlagene Marker heraus
-      const newMarkers = markersArray.filter((marker) => marker !== null);
-      // Update nur, wenn gültige Marker vorliegen
-      if (newMarkers.length > 0) {
-        markers.clearLayers();
-        markers.addLayers(newMarkers);
-        markers.refreshClusters();
-      }
+      data.forEach((item) => {
+        if (item.lat !== null && item.lon !== null) {
+          addMarker(item);
+        }
+      });
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
   }
 
+  // MarkerCluster Gruppe zur Karte hinzufügen
+  map.addLayer(markers);
+
   // Erste Datenabfrage
   await fetchData();
 
-  // Optional: Wiederholte Datenabfrage in regelmäßigen Intervallen
+  // Optional: Wiederholte Datenabfrage ohne Cluster-Reset
   // setInterval(fetchData, 30000);
 });
