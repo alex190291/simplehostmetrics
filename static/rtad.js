@@ -42,7 +42,9 @@ function sortTable(table, column, direction) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
   const isLastbTable = table.id === "lastbTable";
-  const timestampColumn = isLastbTable ? 2 : 3;
+  // For lastbTable: [IP, Country, City, Timestamp, User, Failure Reason] -> timestamp index 3
+  // For proxyTable: [Domain, IP, Country, City, Timestamp, Proxy Type, Error Code, URL] -> timestamp index 4
+  const timestampColumn = isLastbTable ? 3 : 4;
 
   const compareFunction = (a, b) => {
     if (column === timestampColumn) {
@@ -109,9 +111,10 @@ function fetchRTADData() {
         row.innerHTML = `
                     <td>${item.ip_address}</td>
                     <td>${item.country || "N/A"}</td>
+                    <td>${item.city || "N/A"}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.user}</td>
-                    <td>${item.failure_reason}</td>
+                    <td>${item.user || ""}</td>
+                    <td>${item.failure_reason || ""}</td>
                 `;
         fragment.appendChild(row);
       });
@@ -169,13 +172,14 @@ function fetchRTADData() {
 
         const row = document.createElement("tr");
         row.innerHTML = `
-                    <td>${item.domain}</td>
-                    <td>${item.ip_address}</td>
+                    <td>${item.domain || ""}</td>
+                    <td>${item.ip_address || ""}</td>
                     <td>${item.country || "N/A"}</td>
+                    <td>${item.city || "N/A"}</td>
                     <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.proxy_type}</td>
-                    <td class="${errorClass}">${item.error_code}</td>
-                    <td>${item.url}</td>
+                    <td>${item.proxy_type || ""}</td>
+                    <td class="${errorClass}">${item.error_code || ""}</td>
+                    <td>${item.url || ""}</td>
                 `;
         fragment.appendChild(row);
       });
@@ -243,7 +247,7 @@ function initializeSorting() {
           header.dataset.originalText +
           (direction === "asc" ? arrowUp : arrowDown);
         sortTable(table, index, direction);
-        saveSortState(tableKey, newState);
+        saveSortState(table.id, newState);
       });
     });
   });
