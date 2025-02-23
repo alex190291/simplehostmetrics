@@ -490,7 +490,7 @@ button.update-btn {
     scrollbar-color: var(--primary) var(--bg-color);
 }
 
-/* Dark mode für die Map per invertiertem CSS-Filter */
-.dark-invert {
-    filter: invert(100%) hue-rotate(180deg);
+/* Nur die Tile Pane der Karte wird im Dark Mode invertiert */
+#map.dark-mode .leaflet-tile-pane {
+    filter: invert(90%) hue-rotate(180deg);
 }

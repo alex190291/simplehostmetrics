@@ -1,19 +1,18 @@
 // static/theme.js
-
 document.addEventListener("DOMContentLoaded", () => {
   const mapElement = document.getElementById("map");
-  // Standardmäßig Dark Mode aktivieren, wenn nicht im Light Mode
+  // Dark Mode standardmäßig aktivieren
   if (!document.body.classList.contains("light-mode")) {
-    mapElement.classList.add("dark-invert");
+    mapElement.classList.add("dark-mode");
   }
 
   const modeToggle = document.getElementById("modeToggle");
   modeToggle.addEventListener("click", () => {
     document.body.classList.toggle("light-mode");
     if (document.body.classList.contains("light-mode")) {
-      mapElement.classList.remove("dark-invert");
+      mapElement.classList.remove("dark-mode");
     } else {
-      mapElement.classList.add("dark-invert");
+      mapElement.classList.add("dark-mode");
     }
   });
 });
