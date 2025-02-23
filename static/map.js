@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     maxClusterRadius: 40,
     autoUnspiderfy: false,
   });
+  map.addLayer(markers);
 
   // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
@@ -94,26 +95,29 @@ document.addEventListener("DOMContentLoaded", async function () {
     return marker;
   }
 
-  // Funktion zum Batch-Update der Marker
+  // Batch-Update der Marker: Alle neuen Marker werden gesammelt und in einem Schritt hinzugefügt
   async function fetchData() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-      const newMarkers = [];
-      for (const item of data) {
-        if (item.lat !== null && item.lon !== null) {
-          newMarkers.push(await createMarker(item));
-        }
+      // Filtere nur Elemente mit gültigen Koordinaten
+      const validItems = data.filter(
+        (item) => item.lat !== null && item.lon !== null,
+      );
+      // Erstelle alle Marker als Promises und warte auf deren Fertigstellung
+      const newMarkers = await Promise.all(
+        validItems.map((item) => createMarker(item)),
+      );
+      // Falls neue Marker vorliegen, aktualisiere die Clustergruppe in einem Batch
+      if (newMarkers.length > 0) {
+        markers.clearLayers();
+        markers.addLayers(newMarkers);
+        markers.refreshClusters();
       }
-      // Alle neuen Marker werden in einem Aufruf hinzugefügt
-      markers.addLayers(newMarkers);
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
   }
-
-  // MarkerCluster Gruppe zur Karte hinzufügen
-  map.addLayer(markers);
 
   // Erste Datenabfrage
   await fetchData();
