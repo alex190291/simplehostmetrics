@@ -1,4 +1,3 @@
-# simplehostmetrics/app.py
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -14,8 +13,8 @@ from flask_security.utils import hash_password
 
 import rtad_manager
 
-# Import our models (User, Role, CustomNetworkGraph, AttackEntry, GeoCache defined in models.py)
-from models import db, User, Role, CustomNetworkGraph, AttackEntry, GeoCache
+# Import our models (User, Role, CustomNetworkGraph defined in models.py)
+from models import db, User, Role, CustomNetworkGraph
 
 import stats
 import docker_manager
@@ -59,7 +58,7 @@ user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
 with app.app_context():
-    # Create tables for User, Role, CustomNetworkGraph, AttackEntry, GeoCache, etc.
+    # Create tables for User, Role, CustomNetworkGraph, etc.
     db.create_all()
 
     # Load default admin credentials from config file
@@ -71,7 +70,7 @@ with app.app_context():
         user_datastore.create_user(
             email=default_admin_email,
             password=hash_password(default_admin_password),
-            first_login=True
+            first_login=True  # Mark as first login so user must update credentials
         )
         db.session.commit()
 
@@ -105,6 +104,7 @@ def require_user_update():
 def index():
     return render_template('index.html')
 
+# User Management Tab for updating credentials on first login
 @app.route('/user-management', methods=['GET', 'POST'])
 @login_required
 def user_management():
@@ -158,6 +158,7 @@ def check_all_status_route():
     status = docker_manager.get_all_status()
     return jsonify(status)
 
+# New RTAD logs API endpoint for retrieving processed log and lastb data
 @app.route('/rtad')
 @login_required
 def rtad():
@@ -166,6 +167,7 @@ def rtad():
 @app.route("/rtad_lastb")
 @login_required
 def rtad_lastb():
+    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     attempts = rtad_manager.fetch_login_attempts()
@@ -178,6 +180,7 @@ def rtad_lastb():
 @app.route("/rtad_proxy")
 @login_required
 def rtad_proxy():
+    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     logs = rtad_manager.fetch_http_error_logs()
@@ -187,67 +190,36 @@ def rtad_proxy():
         logs = logs[-5000:]
     return jsonify(logs)
 
+# -----------------------------
+# New Attack Map route + data
+# -----------------------------
 @app.route('/attack_map')
 @login_required
 def attack_map():
     return render_template('map.html')
 
-def geocode_city_country(city, country):
-    """
-    Retrieve latitude and longitude for a given city and country.
-    Check the GeoCache first; if not found, query Nominatim and store the result.
-    """
-    cache = GeoCache.query.filter_by(city=city, country=country).first()
-    if cache:
-        return cache.lat, cache.lon
-    try:
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {
-            "city": city,
-            "country": country,
-            "format": "json",
-            "limit": 1
-        }
-        headers = {"User-Agent": "simplehostmetrics-app"}
-        response = requests.get(url, params=params, headers=headers, timeout=10)
-        data = response.json()
-        if data and len(data) > 0:
-            lat = float(data[0]["lat"])
-            lon = float(data[0]["lon"])
-            new_cache = GeoCache(city=city, country=country, lat=lat, lon=lon)
-            db.session.add(new_cache)
-            db.session.commit()
-            return lat, lon
-    except Exception as e:
-        print("Geocoding error:", e)
-    return None, None
-
 @app.route('/api/attack_map_data')
 @login_required
 def attack_map_data():
     """
-    Combine RTAD login and proxy data, then attach latitude/longitude using server-side geocoding.
-    If a valid city is provided, use its coordinates; otherwise, fallback to the country centroid.
+    Combine /rtad_lastb and /rtad_proxy data, then attach latitude/longitude
+    from country_centroids in the database.
     """
+    # Force country and city info resolution in rtad_manager
     rtad_manager.update_missing_country_info()
+
     login_data = rtad_manager.fetch_login_attempts()
     proxy_data = rtad_manager.fetch_http_error_logs()
     results = []
 
-    # Process login attempts
+    # Merge login attempts
     for item in login_data:
-        city = item.get("city", "Unknown")
-        country = item.get("country", "Unknown")
-        if city != "Unknown" and city.strip():
-            lat, lon = geocode_city_country(city, country)
-            if lat is None or lon is None:
-                lat, lon = get_country_centroid(country)
-        else:
-            lat, lon = get_country_centroid(country)
+        country_code = item.get("country", "Unknown")
+        lat, lon = get_country_centroid(country_code)
         results.append({
             "ip_address": item.get("ip_address"),
-            "country": country,
-            "city": city,
+            "country": country_code,
+            "city": item.get("city", "Unknown"),
             "lat": lat,
             "lon": lon,
             "timestamp": item.get("timestamp"),
@@ -256,20 +228,14 @@ def attack_map_data():
             "failure_reason": item.get("failure_reason", "")
         })
 
-    # Process proxy logs
+    # Merge proxy logs
     for item in proxy_data:
-        city = item.get("city", "Unknown")
-        country = item.get("country", "Unknown")
-        if city != "Unknown" and city.strip():
-            lat, lon = geocode_city_country(city, country)
-            if lat is None or lon is None:
-                lat, lon = get_country_centroid(country)
-        else:
-            lat, lon = get_country_centroid(country)
+        country_code = item.get("country", "Unknown")
+        lat, lon = get_country_centroid(country_code)
         results.append({
             "ip_address": item.get("ip_address"),
-            "country": country,
-            "city": city,
+            "country": country_code,
+            "city": item.get("city", "Unknown"),
             "lat": lat,
             "lon": lon,
             "timestamp": item.get("timestamp"),
@@ -282,12 +248,18 @@ def attack_map_data():
 
     return jsonify(results)
 
+# -----------------------------
+# Background Threads
+# -----------------------------
+
+# Function to continuously run the RTAD log parser
 def start_rtad_log_parser():
     parser = rtad_manager.LogParser()
     parser.parse_log_files()
     while True:
         time.sleep(10)
 
+# Start the RTAD log parser in a daemon thread
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
 if __name__ == '__main__':
