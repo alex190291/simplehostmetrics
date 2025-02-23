@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: false, // Option setzen
+    autoUnspiderfy: false,
   });
   // Überschreiben der internen _unspiderfy Methode, damit geöffnete Cluster nicht automatisch schließen:
   markers._unspiderfy = function () {};
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           ? `User: ${item.user || ""}<br>Reason: ${item.failure_reason || ""}`
           : `Domain: ${item.domain || ""}<br>Error: ${item.error_code || ""}<br>URL: ${item.url || ""}`
       }
-      <br>Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
+      <br>Timestamp: ${new Date(item.timestamp).toLocaleString()}
     `;
   }
 
