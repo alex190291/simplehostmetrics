@@ -45,6 +45,12 @@ GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-City.mmdb'
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
+# Hilfsfunktion zur einheitlichen Formatierung von Zeitstempeln im ISO-8601-Format
+def get_formatted_timestamp(ts=None):
+    if ts is None:
+        ts = time.time()
+    return datetime.fromtimestamp(ts).isoformat()
+
 def get_log_files(path):
     if os.path.isfile(path):
         return [path]
@@ -241,8 +247,8 @@ class LogParser:
             logging.error("Fehler beim Parsen von /var/log/btmp: %s", e)
 
     def store_failed_login(self, user, ip_address, host, timestamp=None):
-        if timestamp is None:
-            timestamp = datetime.now().timestamp()
+        # Einheitliches Zeitformat mittels ISO-8601
+        timestamp = get_formatted_timestamp(timestamp)
         with login_attempts_lock:
             login_attempts_cache.append({
                 "user": user,
@@ -258,8 +264,8 @@ class LogParser:
                       user, ip_address, host, timestamp)
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
-        if timestamp is None:
-            timestamp = datetime.now().timestamp()
+        # Einheitliches Zeitformat mittels ISO-8601
+        timestamp = get_formatted_timestamp(timestamp)
         with http_error_logs_lock:
             http_error_logs_cache.append({
                 "proxy_type": proxy_type,

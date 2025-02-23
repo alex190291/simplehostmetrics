@@ -11,12 +11,8 @@ const dateCache = new Map();
 
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
-    let date;
-    if (isNaN(Number(timestamp))) {
-      date = new Date(timestamp);
-    } else {
-      date = new Date(parseFloat(timestamp) * 1000);
-    }
+    // Da alle Timestamps nun im ISO‑8601‑Format vorliegen, wird direkt geparst
+    const date = new Date(timestamp);
     dateCache.set(timestamp, date.getTime());
   }
   return dateCache.get(timestamp);
@@ -50,17 +46,8 @@ function sortTable(table, column, direction) {
     if (column === timestampColumn) {
       const aTimestamp = a.children[column].getAttribute("data-timestamp");
       const bTimestamp = b.children[column].getAttribute("data-timestamp");
-      let aTime, bTime;
-      if (isNaN(Number(aTimestamp))) {
-        aTime = new Date(aTimestamp).getTime();
-      } else {
-        aTime = Number(aTimestamp) * 1000;
-      }
-      if (isNaN(Number(bTimestamp))) {
-        bTime = new Date(bTimestamp).getTime();
-      } else {
-        bTime = Number(bTimestamp) * 1000;
-      }
+      const aTime = getParsedDate(aTimestamp);
+      const bTime = getParsedDate(bTimestamp);
       return direction === "asc" ? aTime - bTime : bTime - aTime;
     }
 
@@ -100,12 +87,8 @@ function fetchRTADData() {
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
-        let date;
-        if (isNaN(Number(item.timestamp))) {
-          date = new Date(item.timestamp);
-        } else {
-          date = new Date(parseFloat(item.timestamp) * 1000);
-        }
+        // Da der Timestamp jetzt im ISO‑8601‑Format vorliegt, kann direkt ein Date-Objekt erzeugt werden
+        const date = new Date(item.timestamp);
         const formattedDate = date.toLocaleString();
         const row = document.createElement("tr");
         row.innerHTML = `
@@ -148,12 +131,9 @@ function fetchRTADData() {
       tbody.innerHTML = "";
       const fragment = document.createDocumentFragment();
       data.forEach((item) => {
-        const ts = parseFloat(item.timestamp);
-        const seconds = Math.floor(ts);
-        const fraction = ts - seconds;
-        const date = new Date(seconds * 1000);
-        const fractionStr = fraction.toFixed(6).slice(2);
-        const formattedDate = date.toLocaleString() + "." + fractionStr;
+        // Hier wird ebenfalls direkt das ISO‑8601 Datum verarbeitet
+        const date = new Date(item.timestamp);
+        const formattedDate = date.toLocaleString();
 
         let errorClass = "";
         if (item.error_code >= 300 && item.error_code < 400) {
