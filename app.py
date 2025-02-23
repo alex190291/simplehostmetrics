@@ -1,9 +1,4 @@
-##### /SPEAKING #####
-# Below are the complete, updated files without placeholders.
 
-# 1) app.py (route /attack_map removed)
-
-```python
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
