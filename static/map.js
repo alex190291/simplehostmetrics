@@ -21,25 +21,36 @@ document.addEventListener("DOMContentLoaded", async function () {
     map.getContainer().classList.toggle("dark-map");
   });
 
-  // Marker Cluster Gruppe (autoUnspiderfy deaktiviert)
+  // Marker Cluster Gruppe mit autoUnspiderfy deaktiviert
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: false,
   });
 
-  // Klick-Handler: Cluster schließen nur, wenn wirklich auf den Kartenhintergrund geklickt wird
+  // Klick-Handler für die Karte: Nur wenn ein echter Linksklick auf den Kartenhintergrund erfolgt und ein Cluster geöffnet ist,
+  // wird nach 300ms Verzögerung das Unspiderfying ausgelöst.
   map.on("click", function (e) {
-    const target = e.originalEvent.target;
+    // Nur echte, linke Klicks berücksichtigen
     if (
-      !target.closest(".leaflet-marker-icon") &&
-      !target.closest(".marker-cluster") &&
-      !target.closest(".leaflet-popup")
+      !e.originalEvent ||
+      !e.originalEvent.isTrusted ||
+      e.originalEvent.button !== 0
     ) {
-      // Leichte Verzögerung, um ungewollte Schließungen zu verhindern
-      setTimeout(() => {
-        markers.unspiderfy();
-      }, 100);
+      return;
+    }
+    // Nur wenn ein Cluster spiderfied ist
+    if (markers._spiderfied) {
+      const target = e.originalEvent.target;
+      if (
+        !target.closest(".leaflet-marker-icon") &&
+        !target.closest(".marker-cluster") &&
+        !target.closest(".leaflet-popup")
+      ) {
+        setTimeout(() => {
+          markers.unspiderfy();
+        }, 300);
+      }
     }
   });
 
