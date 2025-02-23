@@ -1,4 +1,3 @@
-# app.py
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -168,7 +167,7 @@ def rtad():
 @app.route("/rtad_lastb")
 @login_required
 def rtad_lastb():
-    # Force an update of country info before returning data
+    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     attempts = rtad_manager.fetch_login_attempts()
@@ -181,7 +180,7 @@ def rtad_lastb():
 @app.route("/rtad_proxy")
 @login_required
 def rtad_proxy():
-    # Force an update of country info before returning data
+    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     logs = rtad_manager.fetch_http_error_logs()
@@ -206,7 +205,7 @@ def attack_map_data():
     Combine /rtad_lastb and /rtad_proxy data, then attach latitude/longitude
     from country_centroids in the database.
     """
-    # Force country info resolution in rtad_manager
+    # Force country and city info resolution in rtad_manager
     rtad_manager.update_missing_country_info()
 
     login_data = rtad_manager.fetch_login_attempts()
@@ -220,6 +219,7 @@ def attack_map_data():
         results.append({
             "ip_address": item.get("ip_address"),
             "country": country_code,
+            "city": item.get("city", "Unknown"),
             "lat": lat,
             "lon": lon,
             "timestamp": item.get("timestamp"),
@@ -235,6 +235,7 @@ def attack_map_data():
         results.append({
             "ip_address": item.get("ip_address"),
             "country": country_code,
+            "city": item.get("city", "Unknown"),
             "lat": lat,
             "lon": lon,
             "timestamp": item.get("timestamp"),

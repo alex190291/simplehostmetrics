@@ -1,4 +1,3 @@
-# rtad_manager.py
 import yaml
 import re
 import os
@@ -13,16 +12,13 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer
 
-# ----------------------------
 # Prekompilierte Regex-Pattern
-# ----------------------------
 REGEX_ZORAXY = re.compile(
     r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
 )
 REGEX_NPM = re.compile(
     r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
 )
-
 # Prekompilierte Regex für Login-Versuche
 RE_LOGIN_FAILED = re.compile(
     r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
@@ -31,26 +27,20 @@ RE_LOGIN_INVALID = re.compile(
     r"Invalid user (?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
 )
 
-# ----------------------------
 # Globale Variablen für File-Offset Tracking und Caches
-# ----------------------------
 file_offsets = {}
 file_offsets_lock = threading.Lock()
-
 # Caches für In-Memory Logging (max. 500 Einträge)
 login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
-
-# Globaler Cache für IP-Länderinformationen mit TTL-Unterstützung
-# Struktur: { normalized_ip: {"country": str, "timestamp": float} }
+# Globaler Cache für IP-Länder- und Städteinformationen mit TTL-Unterstützung
+# Struktur: { normalized_ip: {"country": str, "city": str, "timestamp": float} }
 ip_country_cache = {}
 ip_country_cache_lock = threading.Lock()
-
-# Pfad zur lokalen GeoLite2-Datenbank (passen Sie diesen Pfad ggf. an)
-GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-Country.mmdb'
-
+# Pfad zur lokalen GeoLite2-Datenbank (verwenden Sie GeoLite2-City.mmdb)
+GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-City.mmdb'
 # Konfiguration aus config.yml laden
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
@@ -67,18 +57,17 @@ def get_log_files(path):
 ##############################
 # Funktionen zum automatischen Download der GeoLite2-Datenbank
 ##############################
-
 def download_geolite2_country_db(db_path):
-    """Lädt die neueste GeoLite2-Country-Datenbank von der angegebenen URL herunter."""
-    url = "https://git.io/GeoLite2-Country.mmdb"
+    """Lädt die neueste GeoLite2-City-Datenbank von der angegebenen URL herunter."""
+    url = "https://git.io/GeoLite2-City.mmdb"
     try:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         with open(db_path, "wb") as f:
             f.write(response.content)
-        logging.info("GeoLite2-Country-Datenbank erfolgreich nach %s heruntergeladen.", db_path)
+        logging.info("GeoLite2-City-Datenbank erfolgreich nach %s heruntergeladen.", db_path)
     except Exception as e:
-        logging.error("Fehler beim Herunterladen der GeoLite2-Country-Datenbank: %s", e)
+        logging.error("Fehler beim Herunterladen der GeoLite2-City-Datenbank: %s", e)
 
 def ensure_geolite2_db(db_path, max_age_seconds=86400):
     """
@@ -99,39 +88,40 @@ def ensure_geolite2_db(db_path, max_age_seconds=86400):
 ##############################
 # GeoIP Lookup Funktionen unter Verwendung der lokalen GeoLite2-Datenbank
 ##############################
-
-def get_country_from_db(ip):
-    """Ermittelt den Ländercode für die gegebene IP-Adresse mittels der lokalen GeoLite2-Datenbank."""
+def get_geo_info_from_db(ip):
+    """Ermittelt den Ländercode und Stadtnamen für die gegebene IP-Adresse mittels der lokalen GeoLite2-City-Datenbank."""
     ip = ip.strip()
     ensure_geolite2_db(GEOIP_DB_PATH)  # Sicherstellen, dass die DB vorhanden und aktuell ist
     try:
         with geoip2.database.Reader(GEOIP_DB_PATH) as reader:
-            response = reader.country(ip)
-            return response.country.iso_code if response and response.country.iso_code else "Unknown"
+            response = reader.city(ip)
+            country = response.country.iso_code if response and response.country.iso_code else "Unknown"
+            city = response.city.name if response and response.city.name else "Unknown"
+            return {"country": country, "city": city}
     except Exception as e:
         logging.error("Fehler beim Datenbank-Lookup für IP %s: %s", ip, e)
-        return "Unknown"
+        return {"country": "Unknown", "city": "Unknown"}
 
-def get_country_cached(ip, ttl=3600):
+def get_geo_info_cached(ip, ttl=3600):
     """
-    Gibt die Länderinformation für eine IP-Adresse zurück, wobei ein TTL-basierter Cache genutzt wird.
-    Wenn der Wert "Unknown" ist, wird ein kürzerer TTL (60 Sekunden) verwendet.
+    Gibt die Länder- und Städteinformationen für eine IP-Adresse zurück, wobei ein TTL-basierter Cache genutzt wird.
+    Wenn die Werte "Unknown" sind, wird ein kürzerer TTL (60 Sekunden) verwendet.
     """
     ip = ip.strip()
     unknown_ttl = 60
     with ip_country_cache_lock:
         if ip in ip_country_cache:
             entry = ip_country_cache[ip]
-            if entry["country"] != "Unknown":
+            if entry["country"] != "Unknown" and entry["city"] != "Unknown":
                 if (time.time() - entry["timestamp"]) < ttl:
-                    return entry["country"]
+                    return {"country": entry["country"], "city": entry["city"]}
             else:
                 if (time.time() - entry["timestamp"]) < unknown_ttl:
-                    return entry["country"]
-    country = get_country_from_db(ip)
+                    return {"country": entry["country"], "city": entry["city"]}
+    info = get_geo_info_from_db(ip)
     with ip_country_cache_lock:
-        ip_country_cache[ip] = {"country": country, "timestamp": time.time()}
-    return country
+        ip_country_cache[ip] = {"country": info["country"], "city": info["city"], "timestamp": time.time()}
+    return info
 
 class LogParser:
     def __init__(self):
@@ -233,12 +223,10 @@ class LogParser:
         except ImportError:
             logging.error("python‑utmp library ist nicht installiert. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
             return
-
         btmp_path = "/var/log/btmp"
         if not os.path.exists(btmp_path):
             logging.warning("Datei /var/log/btmp existiert nicht.")
             return
-
         try:
             with open(btmp_path, "rb") as fd:
                 buf = fd.read()
@@ -260,7 +248,9 @@ class LogParser:
                 "user": user,
                 "ip_address": ip_address,
                 "timestamp": timestamp,
-                "failure_reason": "Failed login attempt"
+                "failure_reason": "Failed login attempt",
+                "country": "Unknown",
+                "city": "Unknown"
             })
             if len(login_attempts_cache) > 500:
                 login_attempts_cache.pop(0)
@@ -277,7 +267,9 @@ class LogParser:
                 "timestamp": timestamp,
                 "url": url,
                 "ip_address": ip_address,
-                "domain": domain
+                "domain": domain,
+                "country": "Unknown",
+                "city": "Unknown"
             })
             if len(http_error_logs_cache) > 500:
                 http_error_logs_cache.pop(0)
@@ -320,14 +312,16 @@ def fetch_http_error_logs():
 def update_missing_country_info():
     with login_attempts_lock:
         for attempt in login_attempts_cache:
-            if "country" not in attempt or attempt.get("country") == "Unknown":
-                ip = attempt["ip_address"].strip()
-                attempt["country"] = get_country_cached(ip)
+            ip = attempt["ip_address"].strip()
+            info = get_geo_info_cached(ip)
+            attempt["country"] = info["country"]
+            attempt["city"] = info["city"]
     with http_error_logs_lock:
         for log in http_error_logs_cache:
-            if "country" not in log or log.get("country") == "Unknown":
-                ip = log["ip_address"].strip()
-                log["country"] = get_country_cached(ip)
+            ip = log["ip_address"].strip()
+            info = get_geo_info_cached(ip)
+            log["country"] = info["country"]
+            log["city"] = info["city"]
 
 def update_country_info_job():
     while True:
