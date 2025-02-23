@@ -492,7 +492,7 @@ button.update-btn {
 
 /* Dark Mode nur auf die Tile Pane anwenden */
 #map.dark-mode .leaflet-tile-pane {
-    filter: invert(90%) hue-rotate(180deg);
+    filter: invert(100%) hue-rotate(180deg);
 }
 
 /* Text in Markerclusters im Dark Mode schwarz halten */
