@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: false,
+    autoUnspiderfy: true,
   });
   // Überschreiben der internen _unspiderfy Methode, damit geöffnete Cluster nicht automatisch schließen:
   markers._unspiderfy = function () {};
