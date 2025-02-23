@@ -511,7 +511,7 @@ button.update-btn {
     background: #000 !important;
 }
 
-/* Animationseffekt für Cluster, wenn neue Events eintreffen */
+/* Animationseffekt für Cluster bei neuen Events */
 .animate-cluster {
     animation: clusterBounce 0.5s ease;
 }
