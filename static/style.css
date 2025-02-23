@@ -492,5 +492,5 @@ button.update-btn {
 
 /* Dark mode für die Map per invertiertem CSS-Filter */
 .dark-invert {
-    filter: invert(90%) hue-rotate(180deg);
+    filter: invert(100%) hue-rotate(180deg);
 }
