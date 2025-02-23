@@ -10,70 +10,89 @@ document.addEventListener("DOMContentLoaded", function () {
     maxZoom: 18,
   }).addTo(map);
 
-  // Create marker cluster group with spiderfy options
+  // Create marker cluster group
+  // spiderfyOnEveryZoom: wenn man hineinzoomt, werden Marker aufgespreizt
+  // spiderfyOnMaxZoom: bei Klick auf den Cluster
   const markers = L.markerClusterGroup({
     spiderfyOnMaxZoom: true,
+    spiderfyOnEveryZoom: true,
     showCoverageOnHover: false,
     zoomToBoundsOnClick: true,
   });
 
-  // Cache for city coordinates to avoid repeated geocoding
+  // Cache für City-Koordinaten, damit wir nicht jedes Mal erneut geocoden
   const cityCoordinatesCache = {};
 
-  // Function to get city coordinates using Nominatim geocoding API
+  /**
+   * Ruft Koordinaten via Nominatim ab.
+   * city und country sind Strings, z. B. city="Berlin", country="DE"
+   */
   function getCityCoordinates(city, country) {
     return new Promise((resolve, reject) => {
       const cacheKey = `${city},${country}`;
       if (cityCoordinatesCache[cacheKey]) {
+        // Bereits im Cache
         resolve(cityCoordinatesCache[cacheKey]);
-      } else {
-        const query = encodeURIComponent(`${city}, ${country}`);
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
-        fetch(url, { headers: { "User-Agent": "SimpleHostMetrics/1.0" } })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data && data.length > 0) {
-              const coords = {
-                lat: parseFloat(data[0].lat),
-                lon: parseFloat(data[0].lon),
-              };
-              cityCoordinatesCache[cacheKey] = coords;
-              resolve(coords);
-            } else {
-              resolve(null);
-            }
-          })
-          .catch((err) => {
-            console.error("Error geocoding city:", err);
-            resolve(null);
-          });
+        return;
       }
+      // Request an Nominatim
+      const query = encodeURIComponent(`${city}, ${country}`);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+
+      fetch(url, { headers: { "User-Agent": "SimpleHostMetrics/1.0" } })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data && data.length > 0) {
+            const coords = {
+              lat: parseFloat(data[0].lat),
+              lon: parseFloat(data[0].lon),
+            };
+            cityCoordinatesCache[cacheKey] = coords;
+            resolve(coords);
+          } else {
+            resolve(null);
+          }
+        })
+        .catch((err) => {
+          console.error("Error geocoding city:", err);
+          resolve(null);
+        });
     });
   }
 
-  // Fetch combined data from our /api/attack_map_data endpoint
+  // Daten vom Server laden
   fetch("/api/attack_map_data")
     .then((response) => response.json())
     .then((data) => {
-      // Process each item: falls eine Stadt angegeben ist, deren Koordinaten abrufen
+      // Wir starten pro Item einen Promise:
       const promises = data.map((item) => {
         return new Promise((resolve) => {
+          // item.lat und item.lon enthalten bereits
+          // die Land-Koordinaten, falls der Server sie liefert.
+
+          // Falls city bekannt, versuchen wir City-Koordinaten
           if (item.city && item.city !== "Unknown") {
             getCityCoordinates(item.city, item.country).then((coords) => {
               if (coords) {
+                // City erfolgreich geocodet -> überschreiben
                 item.lat = coords.lat;
                 item.lon = coords.lon;
               }
+              // Bei Misserfolg oder kein city -> alte lat/lon bleiben bestehen
               resolve(item);
             });
           } else {
+            // city ist unbekannt, wir behalten item.lat/item.lon
             resolve(item);
           }
         });
       });
 
-      Promise.all(promises).then((updatedData) => {
-        updatedData.forEach((item) => {
+      // Warten bis alle Geocoding-Aufgaben erledigt sind
+      Promise.all(promises).then((finalData) => {
+        // Jetzt Marker hinzufügen
+        finalData.forEach((item) => {
+          // Nur Marker setzen, wenn lat/lon vorhanden
           if (item.lat !== null && item.lon !== null) {
             const typeLabel =
               item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
@@ -96,6 +115,7 @@ document.addEventListener("DOMContentLoaded", function () {
             markers.addLayer(marker);
           }
         });
+        // Marker-Cluster dem Map-Objekt hinzufügen
         map.addLayer(markers);
       });
     })
