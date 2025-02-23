@@ -32,14 +32,18 @@ document.addEventListener("DOMContentLoaded", async function () {
   markers.on("clusterclick", function (a) {
     if (markers._spiderfied === a.layer) {
       markers.unspiderfy();
-      // Optionale Verhinderung des Standard-Zoomverhaltens:
-      // a.originalEvent && a.originalEvent.stopPropagation();
     }
   });
 
-  // Minimalistisches Marker-Icon mittels Leaflet.divIcon
-  const circleIcon = L.divIcon({
+  // Minimalistische Marker-Icons für SSH (login) und Proxy-Events mit unterschiedlichen Farben
+  const loginIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#f55;"></div>',
+    iconSize: [10, 10],
+    className: "minimal-marker",
+  });
+
+  const proxyIcon = L.divIcon({
+    html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#55f;"></div>',
     iconSize: [10, 10],
     className: "minimal-marker",
   });
@@ -62,8 +66,9 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function addMarker(item) {
-    // Direkte Verwendung der im Item enthaltenen Koordinaten
-    const marker = L.marker([item.lat, item.lon], { icon: circleIcon });
+    // Auswahl des Icons anhand des Ereignistyps: SSH (login) oder Proxy
+    const icon = item.type === "login" ? loginIcon : proxyIcon;
+    const marker = L.marker([item.lat, item.lon], { icon: icon });
     marker.bindPopup(createPopup(item));
     markers.addLayer(marker);
   }
@@ -83,12 +88,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  // MarkerCluster Gruppe zur Karte hinzufügen
+  // MarkerCluster Gruppe zur Karte hinzufügen und initial Daten laden
   map.addLayer(markers);
-
-  // Erste Datenabfrage
   await fetchData();
-
   // Optional: Wiederholte Datenabfrage ohne Cluster-Reset
   // setInterval(fetchData, 30000);
 });
