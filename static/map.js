@@ -21,14 +21,18 @@ document.addEventListener("DOMContentLoaded", async function () {
     map.getContainer().classList.toggle("dark-map");
   });
 
-  // Marker Cluster Gruppe mit deaktiviertem automatischen Unspiderfy
+  // Marker Cluster Gruppe ohne Überschreiben von _unspiderfy,
+  // damit wir das Schließen der Cluster manuell steuern können.
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: true,
+    autoUnspiderfy: false,
   });
-  // Überschreiben der internen _unspiderfy Methode, damit geöffnete Cluster nicht automatisch schließen:
-  markers._unspiderfy = function () {};
+
+  // Hinzufügen eines Klick-Handlers an die Karte, um offene Cluster zu schließen
+  map.on("click", function () {
+    markers.unspiderfy();
+  });
 
   // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
