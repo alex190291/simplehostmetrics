@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   // Variable für den automatischen Datenabruf
-  let autoFetchInterval = setInterval(fetchData, 30000);
+  let autoFetchInterval = setInterval(fetchData, 1000);
 
   // Deaktivieren des Datenabrufs, wenn ein Cluster geöffnet wird
   markers.on("spiderfied", function () {
@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Reaktivieren des Datenabrufs, wenn der Cluster geschlossen wird
   markers.on("unspiderfied", function () {
-    autoFetchInterval = setInterval(fetchData, 30000);
+    autoFetchInterval = setInterval(fetchData, 1000);
   });
 
   // Minimalistische Marker-Icons für SSH (login) und Proxy-Events mit unterschiedlichen Farben
