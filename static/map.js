@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: true,
+    autoUnspiderfy: false,
   });
 
   // Variable zur Steuerung, ob ein Cluster geöffnet ist
