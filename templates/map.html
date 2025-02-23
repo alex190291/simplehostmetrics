@@ -23,13 +23,24 @@ content %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
 
-<!-- Leaflet local include (CSS & JS) -->
+<!-- Leaflet Core (lokale Einbindung) -->
 <link
     rel="stylesheet"
     href="{{ url_for('static', filename='leaflet/leaflet.css') }}"
 />
 <script src="{{ url_for('static', filename='leaflet/leaflet.js') }}"></script>
 
-<!-- Our custom map logic -->
+<!-- MarkerCluster Plugin via CDN -->
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+/>
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<!-- Unsere eigene Map-Logik -->
 <script src="{{ url_for('static', filename='map.js') }}"></script>
 {% endblock %}
