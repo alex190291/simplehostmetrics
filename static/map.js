@@ -15,21 +15,20 @@ document.addEventListener("DOMContentLoaded", async function () {
     },
   ).addTo(map);
 
-  // CSS-Filter für Dark Mode toggeln
+  // Dark Mode Toggle Button
   const toggleButton = document.getElementById("modeToggle");
   toggleButton.addEventListener("click", () => {
-    // Wir fügen oder entfernen eine Klasse, die den Filter anwendet
     map.getContainer().classList.toggle("dark-map");
   });
 
-  // Marker Cluster Gruppe erstellen
-  // (CDN in HTML einbinden: leaflet.markercluster.js + passende CSS)
+  // Marker Cluster Gruppe mit deaktiviertem automatischen Unspiderfy
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
+    autoUnspiderfy: false, // Cluster bleiben geöffnet, bis sie explizit geschlossen werden
   });
 
-  // Minimalistische Marker per Leaflet.divIcon
+  // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#f55;"></div>',
     iconSize: [10, 10],
@@ -45,9 +44,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       return cityCache[cacheKey];
     }
     try {
-      const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(
-        city,
-      )}&country=${encodeURIComponent(country)}&format=json&limit=1`;
+      const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json&limit=1`;
       const response = await fetch(url, {
         headers: { "User-Agent": "simplehostmetrics-app" },
       });
@@ -68,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   function createPopup(item) {
     const typeLabel =
       item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
-    const content = `
+    return `
       <b>${typeLabel}</b><br>
       IP: ${item.ip_address || "N/A"}<br>
       Country: ${item.country || "Unknown"}<br>
@@ -80,7 +77,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
       <br>Timestamp: ${new Date(item.timestamp * 1000).toLocaleString()}
     `;
-    return content;
   }
 
   async function addMarker(item) {
@@ -96,15 +92,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     markers.addLayer(marker);
   }
 
-  // Funktion zum Datenladen (wird bei Bedarf erneut aufgerufen)
+  // Funktion zum Laden der Daten (ohne komplettes Zurücksetzen der Clustergruppe)
   async function fetchData() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-
-      // Hier kein komplettes Clear der Clustergruppe, um geöffnete Cluster zu erhalten:
-      // Man könnte aber alte Einträge tracken oder differenzbasiert entfernen/hinzufügen.
-      // Als Minimalbeispiel werden Marker nur hinzugefügt (für echte Lösungen hier differenzieren).
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
           addMarker(item);
@@ -115,12 +107,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  // MarkerCluster hinzfügen
+  // MarkerCluster Gruppe zur Karte hinzufügen
   map.addLayer(markers);
 
-  // Erste Datenabruf
+  // Erste Datenabfrage
   await fetchData();
 
-  // Beispiel: wiederholter Datenabruf ohne vollständiges Cluster-Reset
+  // Optional: Wiederholte Datenabfrage, ohne die Cluster zurückzusetzen
   // setInterval(fetchData, 30000);
 });
