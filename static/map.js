@@ -21,14 +21,21 @@ document.addEventListener("DOMContentLoaded", async function () {
     map.getContainer().classList.toggle("dark-map");
   });
 
-  // Marker Cluster Gruppe mit deaktiviertem automatischen Unspiderfy
+  // Marker Cluster Gruppe mit aktivierter Auto-Unspiderfy-Funktion
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: false,
+    autoUnspiderfy: true,
   });
-  // Überschreiben der internen _unspiderfy Methode, damit geöffnete Cluster nicht automatisch schließen:
-  markers._unspiderfy = function () {};
+
+  // Event-Listener: Schließt einen spiderfied Cluster, wenn dessen Zentrum angeklickt wird
+  markers.on("clusterclick", function (a) {
+    if (markers._spiderfied === a.layer) {
+      markers.unspiderfy();
+      // Optionale Verhinderung des Standard-Zoomverhaltens:
+      // a.originalEvent && a.originalEvent.stopPropagation();
+    }
+  });
 
   // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
