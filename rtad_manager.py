@@ -1,3 +1,4 @@
+# simplehostmetrics/rtad_manager.py
 import yaml
 import re
 import os
@@ -233,7 +234,7 @@ class LogParser:
             for record in utmp.read(buf):
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
-                ip_address = host  # Falls keine separate IP vorhanden
+                ip_address = host
                 logging.debug("Btmp-Eintrag: Time: %s, Type: %s, User: %s, Host/IP: %s",
                               record.time, record.type, user, host)
                 self.store_failed_login(user, ip_address, host, timestamp=record.time)
