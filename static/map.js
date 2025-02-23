@@ -21,21 +21,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     map.getContainer().classList.toggle("dark-map");
   });
 
-  // Marker Cluster Gruppe ohne Überschreiben der internen _unspiderfy-Methode
+  // Marker Cluster Gruppe (autoUnspiderfy deaktiviert)
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: false,
   });
 
-  // Klick-Handler für die Karte: Nur wenn nicht auf Marker/Popup geklickt wurde, sollen Cluster geschlossen werden
+  // Klick-Handler: Cluster schließen nur, wenn wirklich auf den Kartenhintergrund geklickt wird
   map.on("click", function (e) {
     const target = e.originalEvent.target;
     if (
       !target.closest(".leaflet-marker-icon") &&
+      !target.closest(".marker-cluster") &&
       !target.closest(".leaflet-popup")
     ) {
-      markers.unspiderfy();
+      // Leichte Verzögerung, um ungewollte Schließungen zu verhindern
+      setTimeout(() => {
+        markers.unspiderfy();
+      }, 100);
     }
   });
 
