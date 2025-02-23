@@ -70,6 +70,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([item.lat, item.lon], { icon: icon });
     marker.bindPopup(createPopup(item));
+
+    // Popup beim Hover anzeigen und wieder schließen
+    marker.on("mouseover", function () {
+      this.openPopup();
+    });
+    marker.on("mouseout", function () {
+      this.closePopup();
+    });
+
     markers.addLayer(marker);
   }
 
