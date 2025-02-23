@@ -7,13 +7,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   // OSM-Tiles
-  const tiles = L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    {
-      maxZoom: 18,
-      attribution: "Map data © OpenStreetMap contributors",
-    },
-  ).addTo(map);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "Map data © OpenStreetMap contributors",
+  }).addTo(map);
 
   // Dark Mode Toggle Button
   const toggleButton = document.getElementById("modeToggle");
@@ -25,18 +22,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
-    autoUnspiderfy: false,
-  });
-
-  // Variable zur Steuerung, ob ein Cluster geöffnet ist
-  let clusterOpen = false;
-
-  // Event-Listener zum Setzen und Zurücksetzen der Cluster-Öffnung
-  markers.on("spiderfied", function () {
-    clusterOpen = true;
-  });
-  markers.on("unspiderfied", function () {
-    clusterOpen = false;
+    autoUnspiderfy: true,
   });
 
   // Schließt einen spiderfied Cluster, wenn dessen Zentrum angeklickt wird
@@ -81,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const marker = L.marker([item.lat, item.lon], { icon: icon });
     marker.bindPopup(createPopup(item));
 
-    // Popup beim Hover anzeigen und wieder schließen
+    // Popup beim Hover anzeigen und beim Verlassen schließen
     marker.on("mouseover", function () {
       this.openPopup();
     });
@@ -92,16 +78,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     markers.addLayer(marker);
   }
 
+  // Rekursive Funktion zur Datenabfrage alle 1000ms
   async function fetchData() {
-    // Neue Daten werden nicht abgerufen, solange ein Cluster geöffnet ist
-    if (clusterOpen) return;
+    // Wenn ein Cluster geöffnet ist, keine neuen Daten abrufen
+    if (markers._spiderfied) {
+      setTimeout(fetchData, 1000);
+      return;
+    }
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      // Vor jedem Abruf alle existierenden Marker entfernen, um Duplikate zu vermeiden
+      // Vor jedem Update werden alle Marker entfernt, um Duplikate zu vermeiden
       markers.clearLayers();
-
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
           addMarker(item);
@@ -110,11 +99,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
+    setTimeout(fetchData, 1000);
   }
 
   map.addLayer(markers);
-  await fetchData();
-
-  // Dynamische Aktualisierung der Daten alle 1000ms (1 Sekunde)
-  setInterval(fetchData, 1000);
+  fetchData();
 });
