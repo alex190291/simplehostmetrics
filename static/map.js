@@ -28,32 +28,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     autoUnspiderfy: false,
   });
 
-  // Klick-Handler für die Karte: Nur wenn ein echter Linksklick auf den Kartenhintergrund erfolgt und ein Cluster geöffnet ist,
-  // wird nach 300ms Verzögerung das Unspiderfying ausgelöst.
-  map.on("click", function (e) {
-    // Nur echte, linke Klicks berücksichtigen
-    if (
-      !e.originalEvent ||
-      !e.originalEvent.isTrusted ||
-      e.originalEvent.button !== 0
-    ) {
-      return;
-    }
-    // Nur wenn ein Cluster spiderfied ist
-    if (markers._spiderfied) {
-      const target = e.originalEvent.target;
-      if (
-        !target.closest(".leaflet-marker-icon") &&
-        !target.closest(".marker-cluster") &&
-        !target.closest(".leaflet-popup")
-      ) {
-        setTimeout(() => {
-          markers.unspiderfy();
-        }, 300);
-      }
-    }
-  });
-
   // Minimalistisches Marker-Icon mittels Leaflet.divIcon
   const circleIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#f55;"></div>',
@@ -107,7 +81,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  async function addMarker(item) {
+  async function createMarker(item) {
     let coords = { lat: item.lat, lon: item.lon };
     if (item.city && item.city !== "Unknown" && item.city.trim() !== "") {
       const cityCoords = await getCityCoords(item.city, item.country);
@@ -117,19 +91,22 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     const marker = L.marker([coords.lat, coords.lon], { icon: circleIcon });
     marker.bindPopup(createPopup(item));
-    markers.addLayer(marker);
+    return marker;
   }
 
-  // Funktion zum Laden der Daten (ohne komplettes Zurücksetzen der Clustergruppe)
+  // Funktion zum Batch-Update der Marker
   async function fetchData() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-      data.forEach((item) => {
+      const newMarkers = [];
+      for (const item of data) {
         if (item.lat !== null && item.lon !== null) {
-          addMarker(item);
+          newMarkers.push(await createMarker(item));
         }
-      });
+      }
+      // Alle neuen Marker werden in einem Aufruf hinzugefügt
+      markers.addLayers(newMarkers);
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
@@ -141,6 +118,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Erste Datenabfrage
   await fetchData();
 
-  // Optional: Wiederholte Datenabfrage ohne Cluster-Reset
+  // Optional: Wiederholte Datenabfrage in regelmäßigen Intervallen
   // setInterval(fetchData, 30000);
 });
