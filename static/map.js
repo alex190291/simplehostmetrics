@@ -37,35 +37,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     className: "minimal-marker",
   });
 
-  // Cache für Stadtkoordinaten
-  const cityCache = {};
-
-  async function getCityCoords(city, country) {
-    const cacheKey = `${city},${country}`;
-    if (cityCache[cacheKey]) {
-      return cityCache[cacheKey];
-    }
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(
-        city,
-      )}&country=${encodeURIComponent(country)}&format=json&limit=1`;
-      const response = await fetch(url, {
-        headers: { "User-Agent": "simplehostmetrics-app" },
-      });
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        cityCache[cacheKey] = { lat, lon };
-        return { lat, lon };
-      }
-      return null;
-    } catch (error) {
-      console.error("Geocoding error:", error);
-      return null;
-    }
-  }
-
   function createPopup(item) {
     const typeLabel =
       item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
@@ -84,14 +55,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function addMarker(item) {
-    let coords = { lat: item.lat, lon: item.lon };
-    if (item.city && item.city !== "Unknown" && item.city.trim() !== "") {
-      const cityCoords = await getCityCoords(item.city, item.country);
-      if (cityCoords) {
-        coords = cityCoords;
-      }
-    }
-    const marker = L.marker([coords.lat, coords.lon], { icon: circleIcon });
+    // Direkte Verwendung der im Item enthaltenen Koordinaten
+    const marker = L.marker([item.lat, item.lon], { icon: circleIcon });
     marker.bindPopup(createPopup(item));
     markers.addLayer(marker);
   }
