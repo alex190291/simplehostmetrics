@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     attribution: "Map data © OpenStreetMap contributors",
   }).addTo(map);
 
-  // Check for dark mode on <body> and add dark mode class if needed
+  // Apply dark mode if <body> does not have "light-mode" class
   if (!document.body.classList.contains("light-mode")) {
     map.getContainer().classList.add("dark-mode");
   }
@@ -70,11 +70,17 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Helper: create a marker based on event type
+  // Helper: create a marker based on event type with improved coordinate validation
   function createMarker(item) {
-    // Explicitly convert latitude and longitude to numbers
     const lat = Number(item.lat);
     const lon = Number(item.lon);
+    console.log(
+      "Creating marker for",
+      item.city,
+      "with coordinates:",
+      lat,
+      lon,
+    );
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -87,14 +93,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     return marker;
   }
 
-  // Global map for Key->Marker
+  // Global map for key -> marker
   const markerMap = new Map();
-  // Threshold for new events to animate (ms)
   const NEW_EVENT_THRESHOLD = 3000;
-  // Maximum number of markers
   const MAX_MARKERS = 1000;
 
-  // Remove the oldest marker when limit is exceeded
+  // Remove the oldest marker when marker count exceeds MAX_MARKERS
   function removeOldestMarker() {
     let oldestKey = null;
     let oldestTime = Infinity;
@@ -114,7 +118,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function fetchData() {
-    // Do not fetch new data if clusters are expanded
     if (markers._spiderfied) {
       setTimeout(fetchData, 1000);
       return;
@@ -127,11 +130,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       const newMarkersForAnimation = [];
 
       data.forEach((item) => {
-        // Only add marker if lat and lon are non-null
-        if (item.lat !== null && item.lon !== null) {
+        // Check that conversion to number yields valid coordinates (not NaN)
+        const lat = Number(item.lat);
+        const lon = Number(item.lon);
+        if (!isNaN(lat) && !isNaN(lon)) {
           const key = `${item.timestamp}-${item.ip_address}`;
           if (!markerMap.has(key)) {
-            // Remove oldest marker if limit exceeded
             if (markerMap.size >= MAX_MARKERS) {
               removeOldestMarker();
             }
@@ -147,7 +151,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
       });
 
-      // Animate clusters for newly added markers (if any)
+      // Optional cluster animation for new markers
       setTimeout(() => {
         const animatedClusters = new Set();
         newMarkersForAnimation.forEach((marker) => {
