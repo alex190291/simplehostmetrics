@@ -93,10 +93,12 @@ def get_geo_info_from_db(ip):
             response = reader.city(ip)
             country = response.country.iso_code if response and response.country.iso_code else "Unknown"
             city = response.city.name if response and response.city.name else "Unknown"
-            return {"country": country, "city": city}
+            latitude = response.location.latitude if response and response.location.latitude else None
+            longitude = response.location.longitude if response and response.location.longitude else None
+            return {"country": country, "city": city, "lat": latitude, "lon": longitude}
     except Exception as e:
         logging.error("Error during GeoIP lookup for IP %s: %s", ip, e)
-        return {"country": "Unknown", "city": "Unknown"}
+        return {"country": "Unknown", "city": "Unknown", "lat": None, "lon": None}
 
 def get_geo_info_cached(ip, ttl=3600):
     ip = ip.strip()
@@ -106,13 +108,13 @@ def get_geo_info_cached(ip, ttl=3600):
             entry = ip_country_cache[ip]
             if entry["country"] != "Unknown" and entry["city"] != "Unknown":
                 if (time.time() - entry["timestamp"]) < ttl:
-                    return {"country": entry["country"], "city": entry["city"]}
+                    return {"country": entry["country"], "city": entry["city"], "lat": entry.get("lat"), "lon": entry.get("lon")}
             else:
                 if (time.time() - entry["timestamp"]) < unknown_ttl:
-                    return {"country": entry["country"], "city": entry["city"]}
+                    return {"country": entry["country"], "city": entry["city"], "lat": entry.get("lat"), "lon": entry.get("lon")}
     info = get_geo_info_from_db(ip)
     with ip_country_cache_lock:
-        ip_country_cache[ip] = {"country": info["country"], "city": info["city"], "timestamp": time.time()}
+        ip_country_cache[ip] = {"country": info["country"], "city": info["city"], "lat": info["lat"], "lon": info["lon"], "timestamp": time.time()}
     return info
 
 class LogParser:
@@ -217,7 +219,9 @@ class LogParser:
                 "timestamp": timestamp,
                 "failure_reason": "Failed login attempt",
                 "country": "Unknown",
-                "city": "Unknown"
+                "city": "Unknown",
+                "lat": None,
+                "lon": None
             })
             if len(login_attempts_cache) > 500:
                 login_attempts_cache.pop(0)
@@ -235,7 +239,9 @@ class LogParser:
                 "ip_address": ip_address,
                 "domain": domain,
                 "country": "Unknown",
-                "city": "Unknown"
+                "city": "Unknown",
+                "lat": None,
+                "lon": None
             })
             if len(http_error_logs_cache) > 500:
                 http_error_logs_cache.pop(0)
@@ -282,12 +288,16 @@ def update_missing_country_info():
             info = get_geo_info_cached(ip)
             attempt["country"] = info["country"]
             attempt["city"] = info["city"]
+            attempt["lat"] = info["lat"]
+            attempt["lon"] = info["lon"]
     with http_error_logs_lock:
         for log in http_error_logs_cache:
             ip = log["ip_address"].strip()
             info = get_geo_info_cached(ip)
             log["country"] = info["country"]
             log["city"] = info["city"]
+            log["lat"] = info["lat"]
+            log["lon"] = info["lon"]
 
 def update_country_info_job():
     while True:
