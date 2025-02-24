@@ -1,0 +1,88 @@
+<!-- templates/nginx.html -->
+{% extends "base.html" %} {% block title %}Nginx Proxy Manager{% endblock %} {%
+block content %}
+<div class="hexagons" id="hexagon-container"></div>
+<div class="container">
+    <h1>Nginx Proxy Manager Integration</h1>
+    <p>
+        Aktuelle Nginx Proxy Manager Domain: <strong>{{ nginx_domain }}</strong>
+    </p>
+
+    <!-- Einfache Registerkarten -->
+    <div class="nav-tabs">
+        <a href="#" class="active" onclick="showTab(event, 'accessLists')"
+            >Access Lists</a
+        >
+        <a href="#" onclick="showTab(event, 'certificates')">Certificates</a>
+        <a href="#" onclick="showTab(event, 'proxyHosts')">Proxy Hosts</a>
+    </div>
+
+    <!-- Inhalt für die einzelnen Tabs -->
+    <div id="accessLists" class="tab-content" style="display: block">
+        <h2>Access Lists</h2>
+        <!-- Hier per JS-Fetch NPM-API ansprechen und Daten darstellen -->
+        <!-- Beispiel: <button onclick="loadAccessLists()">Load Access Lists</button> -->
+        <div id="accessListsContainer"></div>
+    </div>
+
+    <div id="certificates" class="tab-content" style="display: none">
+        <h2>Certificates</h2>
+        <!-- JS-Fetch an die /nginx/certificates-Endpunkte -->
+        <div id="certificatesContainer"></div>
+    </div>
+
+    <div id="proxyHosts" class="tab-content" style="display: none">
+        <h2>Proxy Hosts</h2>
+        <!-- JS-Fetch an die /nginx/proxy-hosts-Endpunkte -->
+        <div id="proxyHostsContainer"></div>
+    </div>
+</div>
+<!-- Mode Toggle Button -->
+<button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">
+    💡
+</button>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='animations.js') }}"></script>
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
+
+<script>
+    // Einfacher Tab-Umschalter
+    function showTab(event, tabId) {
+        event.preventDefault();
+        const tabs = document.querySelectorAll(".tab-content");
+        tabs.forEach((t) => (t.style.display = "none"));
+        document.getElementById(tabId).style.display = "block";
+
+        // Active-Link-Styles in der nav-tabs aktualisieren
+        const links = document.querySelectorAll(".nav-tabs a");
+        links.forEach((link) => link.classList.remove("active"));
+        event.target.classList.add("active");
+    }
+
+    // Beispiel-Fetch-Aufrufe
+    async function loadAccessLists() {
+        try {
+            const response = await fetch(
+                `http://${"{{ nginx_domain }}"}/api/nginx/access-lists`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        // ggf. Token hier anfügen, z.B. Authorization: `Bearer ${token}`
+                    },
+                },
+            );
+            if (!response.ok) throw new Error("Fehler beim Laden");
+            const data = await response.json();
+            console.log("Access Lists:", data);
+            // Daten in den Container einfügen
+            document.getElementById("accessListsContainer").innerText =
+                JSON.stringify(data, null, 2);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    // Weitere Funktionen für Certificates, Proxy Hosts etc. analog
+</script>
+{% endblock %}
