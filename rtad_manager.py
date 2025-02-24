@@ -61,7 +61,6 @@ def normalize_timestamp(ts=None):
     else:
         raise TypeError(f"Invalid type for timestamp: {type(ts)}")
 
-# Existing wrapper function
 def get_formatted_timestamp(ts=None):
     return normalize_timestamp(ts)
 
@@ -112,7 +111,6 @@ def ensure_geolite2_db(db_path, max_age_seconds=86400):
 # GeoIP Lookup Functions using local GeoLite2 database
 ##############################
 def get_geo_info_from_db(ip):
-    """Retrieves country code and city name for the given IP using the local GeoLite2-City database."""
     ip = ip.strip()
     ensure_geolite2_db(GEOIP_DB_PATH)
     try:
@@ -128,7 +126,7 @@ def get_geo_info_from_db(ip):
 def get_geo_info_cached(ip, ttl=3600):
     """
     Returns country and city info for an IP using a TTL-based cache.
-    Uses a shorter TTL (60 seconds) if values are "Unknown".
+    Uses a shorter TTL if the result is 'Unknown'.
     """
     ip = ip.strip()
     unknown_ttl = 60
@@ -151,17 +149,15 @@ def get_geo_info_cached(ip, ttl=3600):
     return info
 
 ##############################
-# GeoNames Dataset Download, Unzip, Load, and Lookup Functions using cities500.zip
+# GeoNames Dataset
 ##############################
 GEONAMES_ZIP_URL = "https://download.geonames.org/export/dump/cities500.zip"
 GEONAMES_ZIP_PATH = os.path.join("data", "cities500.zip")
 GEONAMES_TXT_PATH = os.path.join("data", "cities500.txt")
 
-# Global dictionary for GeoNames data: key = lower-case city name, value = list of records
 geonames_data = {}
 
 def download_geonames_dataset():
-    """Downloads the GeoNames cities500.zip dataset."""
     logging.info("Downloading GeoNames dataset (cities500)...")
     try:
         os.makedirs("data", exist_ok=True)
@@ -176,7 +172,6 @@ def download_geonames_dataset():
         logging.error("Error downloading GeoNames dataset: %s", e)
 
 def unzip_geonames_dataset():
-    """Unzips the downloaded GeoNames dataset."""
     logging.info("Unzipping GeoNames dataset (cities500)...")
     try:
         with zipfile.ZipFile(GEONAMES_ZIP_PATH, "r") as zip_ref:
@@ -186,7 +181,6 @@ def unzip_geonames_dataset():
         logging.error("Error unzipping GeoNames dataset: %s", e)
 
 def load_geonames_data():
-    """Loads GeoNames data from cities500.txt into the global cache."""
     global geonames_data
     logging.info("Loading GeoNames data from %s...", GEONAMES_TXT_PATH)
     geonames_data = {}
@@ -196,6 +190,7 @@ def load_geonames_data():
                 parts = line.strip().split("\t")
                 if len(parts) < 19:
                     continue
+                # geonameid, name, asciiname, alternatenames, latitude, longitude, feature_class, feature_code, ...
                 geonameid = parts[0]
                 name = parts[1]
                 asciiname = parts[2]
@@ -205,7 +200,6 @@ def load_geonames_data():
                 feature_class = parts[6]
                 feature_code = parts[7]
                 population = parts[14]
-                # Only keep feature_class "P" (populated places)
                 if feature_class != "P":
                     continue
                 try:
@@ -247,10 +241,7 @@ def lookup_city(city_name):
     if not records:
         return None
     valid_codes = {"PPL", "PPLA", "PPLC", "PPLF", "PPLG", "PPLL", "PPLX"}
-    filtered = [
-        r for r in records
-        if any(r.get("feature_code", "").startswith(code) for code in valid_codes)
-    ]
+    filtered = [r for r in records if any(r.get("feature_code", "").startswith(code) for code in valid_codes)]
     if filtered:
         best = max(filtered, key=lambda r: r["population"])
     else:
@@ -258,13 +249,11 @@ def lookup_city(city_name):
     return best["lat"], best["lon"]
 
 def update_geonames_dataset():
-    """Downloads, unzips, and loads the GeoNames dataset."""
     download_geonames_dataset()
     unzip_geonames_dataset()
     load_geonames_data()
 
 def schedule_geonames_update():
-    """Updates the GeoNames dataset at app start and every 24 hours."""
     update_geonames_dataset()
     Timer(86400, schedule_geonames_update).start()
 
@@ -299,10 +288,7 @@ class LogParser:
 
     def process_files_concurrently(self, files, line_processor):
         with ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(self.process_log_file, file, line_processor)
-                for file in files
-            ]
+            futures = [executor.submit(self.process_log_file, file, line_processor) for file in files]
             for future in futures:
                 future.result()
 
@@ -379,12 +365,10 @@ class LogParser:
         except ImportError:
             logging.error("python‑utmp library not installed. Please install it to parse /var/log/btmp directly.")
             return
-
         btmp_path = "/var/log/btmp"
         if not os.path.exists(btmp_path):
             logging.warning("File /var/log/btmp does not exist.")
             return
-
         try:
             with open(btmp_path, "rb") as fd:
                 buf = fd.read()
@@ -467,6 +451,9 @@ class LogParser:
             self.debounce_timer = Timer(1.0, self.parse_log_files)
             self.debounce_timer.start()
 
+##############################
+# Fetch functions
+##############################
 def fetch_login_attempts():
     with login_attempts_lock:
         return list(login_attempts_cache)
@@ -475,25 +462,27 @@ def fetch_http_error_logs():
     with http_error_logs_lock:
         return list(http_error_logs_cache)
 
+##############################
+# Update country info
+##############################
 def update_missing_country_info():
-    # Only fill country/city from IP lookup if values are Unknown or empty;
-    # Use Geonames for lat/lon only if lat/lon are None.
+    """
+    Only lookup lat/lon via GeoNames if lat or lon is None,
+    so valid API-provided coordinates won't be overwritten.
+    """
     with login_attempts_lock:
         for attempt in login_attempts_cache:
             ip = attempt["ip_address"].strip()
             info = get_geo_info_cached(ip)
 
-            # Only set country if we don't already have it
             if not attempt["country"] or attempt["country"] == "Unknown":
                 attempt["country"] = info["country"]
-
-            # Only set city if we don't already have it
             if not attempt["city"] or attempt["city"] == "Unknown":
                 attempt["city"] = info["city"]
 
-            # Only use GeoNames if lat/lon are missing AND city is not Unknown
-            if (attempt.get("lat") is None or attempt.get("lon") is None) and attempt.get("city") != "Unknown":
-                coords = lookup_city(attempt.get("city"))
+            # Only do city lookup if lat/lon are None:
+            if (attempt["lat"] is None or attempt["lon"] is None) and attempt["city"] != "Unknown":
+                coords = lookup_city(attempt["city"])
                 if coords:
                     attempt["lat"], attempt["lon"] = coords
 
@@ -502,17 +491,13 @@ def update_missing_country_info():
             ip = log["ip_address"].strip()
             info = get_geo_info_cached(ip)
 
-            # Only set country if we don't already have it
             if not log["country"] or log["country"] == "Unknown":
                 log["country"] = info["country"]
-
-            # Only set city if we don't already have it
             if not log["city"] or log["city"] == "Unknown":
                 log["city"] = info["city"]
 
-            # Only use GeoNames if lat/lon are missing AND city is not Unknown
-            if (log.get("lat") is None or log.get("lon") is None) and log.get("city") != "Unknown":
-                coords = lookup_city(log.get("city"))
+            if (log["lat"] is None or log["lon"] is None) and log["city"] != "Unknown":
+                coords = lookup_city(log["city"])
                 if coords:
                     log["lat"], log["lon"] = coords
 
@@ -521,5 +506,7 @@ def update_country_info_job():
         update_missing_country_info()
         time.sleep(10)
 
-# Initialization: GeoNames Dataset
+##############################
+# Initialization
+##############################
 schedule_geonames_update()

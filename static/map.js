@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: true,
-    disableClusteringAtZoom: 10,
+    disableClusteringAtZoom: 12, // Increased from 10 to reduce cluster merging
   });
 
   markers.on("clusterclick", function (a) {
@@ -75,13 +75,26 @@ document.addEventListener("DOMContentLoaded", async function () {
   function createMarker(item) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
+
     console.log(
       "Creating marker for",
       item.city,
       "with coordinates:",
       lat,
       lon,
+      "from API",
     );
+
+    // Warn if suspicious coords
+    if (isNaN(lat) || isNaN(lon)) {
+      console.warn(
+        "Skipping marker due to invalid coords:",
+        item.lat,
+        item.lon,
+      );
+      return null;
+    }
+
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -123,13 +136,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       setTimeout(fetchData, 1000);
       return;
     }
-    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
       data.forEach((item) => {
-        // Validate coordinates by converting to numbers
         const lat = Number(item.lat);
         const lon = Number(item.lon);
         if (!isNaN(lat) && !isNaN(lon)) {
@@ -139,8 +150,10 @@ document.addEventListener("DOMContentLoaded", async function () {
               removeOldestMarker();
             }
             const marker = createMarker(item);
-            markerMap.set(key, marker);
-            markers.addLayer(marker);
+            if (marker) {
+              markerMap.set(key, marker);
+              markers.addLayer(marker);
+            }
           }
         } else {
           console.warn(
