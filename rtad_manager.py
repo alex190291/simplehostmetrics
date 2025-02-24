@@ -299,12 +299,7 @@ class LogParser:
             files = get_log_files(path)
             self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
-        for log_path in system_log_paths:
-            if os.path.exists(log_path):
-                files = get_log_files(log_path)
-                self.process_files_concurrently(files, self.process_login_attempt)
-            else:
-                logging.warning("System-Log-Pfad existiert nicht: %s", log_path)
+
         self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
