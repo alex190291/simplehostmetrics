@@ -71,67 +71,51 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Helper: create or update a marker based on event type
-  function updateOrCreateMarker(item, markerMap) {
+  // Use a Map to track markers by a unique key (timestamp + ip_address)
+  const markerMap = new Map();
+
+  // Helper: create a marker if it doesn't already exist
+  function addMarkerIfNew(item) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
+    // Construct a unique key for the event
     const key = `${item.timestamp}-${item.ip_address}`;
-    const existingMarker = markerMap.get(key);
-
-    if (existingMarker) {
-      // Check if coordinates have changed
-      const currentPos = existingMarker.getLatLng();
-      if (currentPos.lat !== lat || currentPos.lng !== lon) {
-        existingMarker.setLatLng([lat, lon]);
-      }
-      // Update popup content
-      existingMarker.bindPopup(createPopup(item));
-    } else {
-      // Create new marker
-      const icon = item.type === "login" ? loginIcon : proxyIcon;
-      const marker = L.marker([lat, lon], { icon: icon });
-      marker.bindPopup(createPopup(item));
-      marker.on("mouseover", function () {
-        this.openPopup();
-      });
-      marker.on("mouseout", function () {
-        this.closePopup();
-      });
-      markerMap.set(key, marker);
-      markers.addLayer(marker);
-    }
-    return key;
-  }
-
-  // Separate maps for failed login events and HTTP events
-  const loginMarkerMap = new Map();
-  const proxyMarkerMap = new Map();
-
-  async function fetchData() {
-    if (markers._spiderfied) {
-      setTimeout(fetchData, 1000);
+    if (markerMap.has(key)) {
+      // Marker already exists; do nothing to avoid duplicates
       return;
     }
+    // Create new marker
+    const icon = item.type === "login" ? loginIcon : proxyIcon;
+    const marker = L.marker([lat, lon], { icon: icon });
+    marker.bindPopup(createPopup(item));
+    marker.on("mouseover", function () {
+      this.openPopup();
+    });
+    marker.on("mouseout", function () {
+      this.closePopup();
+    });
+    markerMap.set(key, marker);
+    markers.addLayer(marker);
+  }
+
+  async function fetchData() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      // Process all markers returned by the API and add/update them
+      // Only add markers if they don't already exist.
       data.forEach((item) => {
         const lat = Number(item.lat);
         const lon = Number(item.lon);
         if (isNaN(lat) || isNaN(lon)) {
           return;
         }
-        if (item.type === "login") {
-          updateOrCreateMarker(item, loginMarkerMap);
-        } else {
-          updateOrCreateMarker(item, proxyMarkerMap);
-        }
+        addMarkerIfNew(item);
       });
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
+    // Poll for new data every second.
     setTimeout(fetchData, 1000);
   }
 
