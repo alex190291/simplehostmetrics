@@ -43,13 +43,13 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   const loginIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#f55;"></div>',
-    iconSize: [25, 25],
+    iconSize: [50, 50],
     className: "minimal-marker",
   });
 
   const proxyIcon = L.divIcon({
     html: '<div style="width:10px;height:10px;border-radius:50%;background-color:#55f;"></div>',
-    iconSize: [25, 25],
+    iconSize: [50, 50],
     className: "minimal-marker",
   });
 
