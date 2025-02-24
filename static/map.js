@@ -29,9 +29,9 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Marker cluster setup with disableClusteringAtZoom option
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
-    maxClusterRadius: 40,
+    maxClusterRadius: 60,
     autoUnspiderfy: true,
-    disableClusteringAtZoom: 10,
+    //disableClusteringAtZoom: 10,
   });
 
   markers.on("clusterclick", function (a) {
