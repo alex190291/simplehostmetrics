@@ -13,14 +13,14 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer
 
-# Prekompilierte Regex-Pattern
+# Precompiled regex patterns
 REGEX_ZORAXY = re.compile(
     r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
 )
 REGEX_NPM = re.compile(
     r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
 )
-# Prekompilierte Regex für Login-Versuche
+# Precompiled regex for login attempts
 RE_LOGIN_FAILED = re.compile(
     r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
 )
@@ -28,25 +28,25 @@ RE_LOGIN_INVALID = re.compile(
     r"Invalid user (?P<user>\S+) from (?P<ip>\S+)(?:\s+\((?P<host>[^\)]+)\))? port \d+"
 )
 
-# Globale Variablen für File-Offset Tracking und Caches
+# Global variables for file offset tracking and caches
 file_offsets = {}
 file_offsets_lock = threading.Lock()
-# Caches für In-Memory Logging (max. 500 Einträge)
+# In-memory caches for logging (max. 500 entries)
 login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
-# Globaler Cache für IP-Länder- und Städteinformationen mit TTL-Unterstützung
-# Struktur: { normalized_ip: {"country": str, "city": str, "timestamp": float} }
+# Global cache for IP country and city info with TTL support
+# Structure: { normalized_ip: {"country": str, "city": str, "timestamp": float} }
 ip_country_cache = {}
 ip_country_cache_lock = threading.Lock()
-# Pfad zur lokalen GeoLite2-Datenbank (verwenden Sie GeoLite2-City.mmdb)
+# Path to the local GeoLite2-City database (GeoLite2-City.mmdb)
 GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-City.mmdb'
-# Konfiguration aus config.yml laden
+# Load configuration from config.yml
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
-# Neue Hilfsfunktion zur Normalisierung von Zeitstempeln
+# New helper function to normalize timestamps
 def normalize_timestamp(ts=None):
     if ts is None:
         ts = time.time()
@@ -57,7 +57,7 @@ def normalize_timestamp(ts=None):
     else:
         raise TypeError(f"Invalid type for timestamp: {type(ts)}")
 
-# Bestehende Funktion als Wrapper auf normalize_timestamp beibehalten
+# Existing wrapper function on normalize_timestamp remains unchanged
 def get_formatted_timestamp(ts=None):
     return normalize_timestamp(ts)
 
@@ -71,43 +71,43 @@ def get_log_files(path):
         return []
 
 ##############################
-# Funktionen zum automatischen Download der GeoLite2-Datenbank
+# GeoLite2 Database Helpers
 ##############################
 def download_geolite2_country_db(db_path):
-    """Lädt die neueste GeoLite2-City-Datenbank von der angegebenen URL herunter."""
+    """Downloads the latest GeoLite2-City database from the specified URL."""
     url = "https://git.io/GeoLite2-City.mmdb"
     try:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         with open(db_path, "wb") as f:
             f.write(response.content)
-        logging.info("GeoLite2-City-Datenbank erfolgreich nach %s heruntergeladen.", db_path)
+        logging.info("GeoLite2-City database successfully downloaded to %s.", db_path)
     except Exception as e:
-        logging.error("Fehler beim Herunterladen der GeoLite2-City-Datenbank: %s", e)
+        logging.error("Error downloading GeoLite2-City database: %s", e)
 
 def ensure_geolite2_db(db_path, max_age_seconds=86400):
     """
-    Stellt sicher, dass die GeoLite2-Datenbank vorhanden und nicht älter als max_age_seconds ist.
-    Standardmäßig beträgt die maximale Dateialterung 1 Tag (86400 Sekunden).
+    Ensures that the GeoLite2 database exists and is not older than max_age_seconds.
+    By default, max_age_seconds is 1 day (86400 seconds).
     """
     if os.path.exists(db_path):
         age = time.time() - os.path.getmtime(db_path)
         if age < max_age_seconds:
-            logging.info("GeoLite2-Datenbank ist aktuell (Alter: %s Sekunden).", age)
+            logging.info("GeoLite2 database is current (age: %s seconds).", age)
             return
         else:
-            logging.info("GeoLite2-Datenbank ist älter als %s Sekunden (Alter: %s); wird neu heruntergeladen.", max_age_seconds, age)
+            logging.info("GeoLite2 database is older than %s seconds (age: %s); downloading new version.", max_age_seconds, age)
     else:
-        logging.info("GeoLite2-Datenbank nicht gefunden; wird heruntergeladen.")
+        logging.info("GeoLite2 database not found; downloading.")
     download_geolite2_country_db(db_path)
 
 ##############################
-# GeoIP Lookup Funktionen unter Verwendung der lokalen GeoLite2-Datenbank
+# GeoIP Lookup Functions using the local GeoLite2-City database
 ##############################
 def get_geo_info_from_db(ip):
-    """Ermittelt den Ländercode und Stadtnamen für die gegebene IP-Adresse mittels der lokalen GeoLite2-City-Datenbank."""
+    """Retrieves country code and city name for the given IP using the local GeoLite2-City database."""
     ip = ip.strip()
-    ensure_geolite2_db(GEOIP_DB_PATH)  # Sicherstellen, dass die DB vorhanden und aktuell ist
+    ensure_geolite2_db(GEOIP_DB_PATH)
     try:
         with geoip2.database.Reader(GEOIP_DB_PATH) as reader:
             response = reader.city(ip)
@@ -115,13 +115,13 @@ def get_geo_info_from_db(ip):
             city = response.city.name if response and response.city.name else "Unknown"
             return {"country": country, "city": city}
     except Exception as e:
-        logging.error("Fehler beim Datenbank-Lookup für IP %s: %s", ip, e)
+        logging.error("Error during GeoIP lookup for IP %s: %s", ip, e)
         return {"country": "Unknown", "city": "Unknown"}
 
 def get_geo_info_cached(ip, ttl=3600):
     """
-    Gibt die Länder- und Städteinformationen für eine IP-Adresse zurück, wobei ein TTL-basierter Cache genutzt wird.
-    Wenn die Werte "Unknown" sind, wird ein kürzerer TTL (60 Sekunden) verwendet.
+    Returns the country and city information for an IP address using a TTL-based cache.
+    If the values are "Unknown", a shorter TTL (60 seconds) is used.
     """
     ip = ip.strip()
     unknown_ttl = 60
@@ -140,17 +140,18 @@ def get_geo_info_cached(ip, ttl=3600):
     return info
 
 ##############################
-# GeoNames Dataset Download, Unzip, Load and Lookup Funktionen
+# GeoNames Dataset Download, Unzip, Load, and Lookup Functions
 ##############################
-GEONAMES_ZIP_URL = "https://download.geonames.org/export/dump/allCountries.zip"
-GEONAMES_ZIP_PATH = os.path.join("data", "allCountries.zip")
-GEONAMES_TXT_PATH = os.path.join("data", "allCountries.txt")
-# Globales Dictionary für GeoNames Daten: key = lower-case city name, value = Liste von Datensätzen
+# Using the cities500 dataset from GeoNames
+GEONAMES_ZIP_URL = "https://download.geonames.org/export/dump/cities500.zip"
+GEONAMES_ZIP_PATH = os.path.join("data", "cities500.zip")
+GEONAMES_TXT_PATH = os.path.join("data", "cities500.txt")
+# Global dictionary for GeoNames data: key = lower-case city name, value = list of records
 geonames_data = {}
 
 def download_geonames_dataset():
-    """Lädt das GeoNames allCountries.zip Dataset herunter."""
-    logging.info("Lade GeoNames-Dataset herunter...")
+    """Downloads the GeoNames cities500.zip dataset."""
+    logging.info("Downloading GeoNames dataset...")
     try:
         os.makedirs("data", exist_ok=True)
         response = requests.get(GEONAMES_ZIP_URL, stream=True, timeout=60)
@@ -159,24 +160,24 @@ def download_geonames_dataset():
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        logging.info("GeoNames-Dataset wurde nach %s heruntergeladen.", GEONAMES_ZIP_PATH)
+        logging.info("GeoNames dataset downloaded to %s.", GEONAMES_ZIP_PATH)
     except Exception as e:
-        logging.error("Fehler beim Download des GeoNames-Datasets: %s", e)
+        logging.error("Error downloading GeoNames dataset: %s", e)
 
 def unzip_geonames_dataset():
-    """Entpackt das heruntergeladene GeoNames-Dataset."""
-    logging.info("Entpacke GeoNames-Dataset...")
+    """Unzips the downloaded GeoNames dataset."""
+    logging.info("Unzipping GeoNames dataset...")
     try:
         with zipfile.ZipFile(GEONAMES_ZIP_PATH, "r") as zip_ref:
             zip_ref.extractall("data")
-        logging.info("GeoNames-Dataset wurde in das Verzeichnis 'data' entpackt.")
+        logging.info("GeoNames dataset unzipped into 'data' directory.")
     except Exception as e:
-        logging.error("Fehler beim Entpacken des GeoNames-Datasets: %s", e)
+        logging.error("Error unzipping GeoNames dataset: %s", e)
 
 def load_geonames_data():
-    """Lädt die GeoNames-Daten aus allCountries.txt in den globalen Cache."""
+    """Loads the GeoNames data from cities500.txt into the global cache."""
     global geonames_data
-    logging.info("Lade GeoNames-Daten aus %s...", GEONAMES_TXT_PATH)
+    logging.info("Loading GeoNames data from %s...", GEONAMES_TXT_PATH)
     geonames_data = {}
     try:
         with open(GEONAMES_TXT_PATH, "r", encoding="utf-8") as f:
@@ -184,7 +185,7 @@ def load_geonames_data():
                 parts = line.strip().split("\t")
                 if len(parts) < 19:
                     continue
-                # Spalten: geonameid, name, asciiname, alternatenames, latitude, longitude, feature class, feature code, country code, ...
+                # Columns: geonameid, name, asciiname, alternatenames, latitude, longitude, feature class, feature code, country code, ...
                 geonameid = parts[0]
                 name = parts[1]
                 asciiname = parts[2]
@@ -194,7 +195,7 @@ def load_geonames_data():
                 feature_class = parts[6]
                 feature_code = parts[7]
                 population = parts[14]
-                # Nur befüllte Orte (Populated Places, feature_class "P")
+                # Only consider populated places (feature_class "P")
                 if feature_class != "P":
                     continue
                 try:
@@ -223,14 +224,14 @@ def load_geonames_data():
                         geonames_data[key].append(record)
                     else:
                         geonames_data[key] = [record]
-        logging.info("GeoNames-Daten geladen: %d Schlüssel im Cache.", len(geonames_data))
+        logging.info("GeoNames data loaded: %d keys cached.", len(geonames_data))
     except Exception as e:
-        logging.error("Fehler beim Laden der GeoNames-Daten: %s", e)
+        logging.error("Error loading GeoNames data: %s", e)
 
 def lookup_city(city_name):
     """
-    Sucht einen Ort (City) im GeoNames-Dataset und gibt (lat, lon) des Datensatzes mit der höchsten Bevölkerung zurück.
-    Gibt None zurück, wenn keine Übereinstimmung gefunden wird.
+    Looks up a city in the GeoNames dataset and returns (lat, lon) from the record with the highest population.
+    Returns None if no match is found.
     """
     if not city_name:
         return None
@@ -242,23 +243,23 @@ def lookup_city(city_name):
     return best["lat"], best["lon"]
 
 def update_geonames_dataset():
-    """Führt Download, Entpacken und Laden des GeoNames-Datasets durch."""
+    """Performs download, unzip, and load of the GeoNames dataset."""
     download_geonames_dataset()
     unzip_geonames_dataset()
     load_geonames_data()
 
 def schedule_geonames_update():
-    """Aktualisiert das GeoNames-Dataset beim App-Start und plant danach alle 24 Stunden ein Update ein."""
-    update_geonames_dataset()
+    """Updates the GeoNames dataset on app launch and schedules an update every 24 hours in a background thread."""
+    threading.Thread(target=update_geonames_dataset, daemon=True).start()
     Timer(86400, schedule_geonames_update).start()
 
 ##############################
-# LogParser Klasse (unverändert, außer dass API-Daten später ggf. GeoNames Lookup nutzen)
+# LogParser Class (mostly unchanged, except API data can now use GeoNames lookup)
 ##############################
 class LogParser:
     def __init__(self):
         self.proxy_logs = config.get('logfiles', [])
-        logging.debug("LogParser initialisiert mit proxy logs: %s", self.proxy_logs)
+        logging.debug("LogParser initialized with proxy logs: %s", self.proxy_logs)
         self.debounce_timer = None
         self.debounce_lock = threading.Lock()
         self.setup_watchdog()
@@ -279,7 +280,7 @@ class LogParser:
                     if line:
                         line_processor(line)
         except Exception as e:
-            logging.error("Fehler beim Verarbeiten der Datei %s: %s", file_path, e)
+            logging.error("Error processing file %s: %s", file_path, e)
 
     def process_files_concurrently(self, files, line_processor):
         with ThreadPoolExecutor() as executor:
@@ -288,12 +289,12 @@ class LogParser:
                 future.result()
 
     def parse_log_files(self):
-        logging.debug("Starte parse_log_files")
+        logging.debug("Starting parse_log_files")
         for log_config in self.proxy_logs:
             path = log_config.get('path')
             proxy_type = log_config.get('proxy_type')
             if not os.path.exists(path):
-                logging.warning("Proxy log-Pfad existiert nicht: %s", path)
+                logging.warning("Proxy log path does not exist: %s", path)
                 continue
             files = get_log_files(path)
             self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
@@ -303,7 +304,7 @@ class LogParser:
                 files = get_log_files(log_path)
                 self.process_files_concurrently(files, self.process_login_attempt)
             else:
-                logging.warning("System-Log-Pfad existiert nicht: %s", log_path)
+                logging.warning("System log path does not exist: %s", log_path)
         self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
@@ -315,7 +316,7 @@ class LogParser:
                 error_code = int(match.group("code"))
                 domain = match.group("origin")
             else:
-                logging.debug("Keine Übereinstimmung im zoraxy HTTP error log für Zeile: %s", line)
+                logging.debug("No match in zoraxy HTTP error log for line: %s", line)
                 return
         else:
             match = REGEX_NPM.search(line)
@@ -325,15 +326,15 @@ class LogParser:
                 error_code = int(match.group("code"))
                 domain = match.group("host") if "host" in match.groupdict() else None
             else:
-                logging.debug("Keine Übereinstimmung im npm HTTP error log für Zeile: %s", line)
+                logging.debug("No match in npm HTTP error log for line: %s", line)
                 return
         parse_all = config.get('parse_all_logs', False)
         if parse_all or error_code >= 400:
-            logging.debug("HTTP error log erkannt: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
+            logging.debug("HTTP error log detected: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
                           ip_address, domain, url, error_code, proxy_type)
             self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
         else:
-            logging.debug("Zeile entspricht keinem relevanten Status (Code < 400) und parse_all_logs ist false: %s", line)
+            logging.debug("Line does not meet criteria (code < 400 and parse_all_logs is false): %s", line)
 
     def process_login_attempt(self, line):
         match = RE_LOGIN_FAILED.search(line)
@@ -343,21 +344,21 @@ class LogParser:
             user = match.group("user")
             ip_address = match.group("ip")
             host = match.group("host") if "host" in match.groupdict() else None
-            logging.debug("Login-Versuch erkannt: Benutzer %s, IP %s, Host %s", user, ip_address, host)
+            logging.debug("Login attempt detected: user %s, IP %s, Host %s", user, ip_address, host)
             self.store_failed_login(user, ip_address, host)
         else:
-            logging.debug("Keine Übereinstimmung für Login-Versuch in Zeile: %s", line)
+            logging.debug("No match for login attempt in line: %s", line)
 
     def parse_btmp_file(self):
         logging.debug("Parsing /var/log/btmp using utmp.read")
         try:
             import utmp
         except ImportError:
-            logging.error("python‑utmp library ist nicht installiert. Bitte installieren Sie diese Bibliothek, um /var/log/btmp direkt zu parsen.")
+            logging.error("python‑utmp library is not installed. Please install it to parse /var/log/btmp directly.")
             return
         btmp_path = "/var/log/btmp"
         if not os.path.exists(btmp_path):
-            logging.warning("Datei /var/log/btmp existiert nicht.")
+            logging.warning("/var/log/btmp does not exist.")
             return
         try:
             with open(btmp_path, "rb") as fd:
@@ -365,12 +366,12 @@ class LogParser:
             for record in utmp.read(buf):
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
-                ip_address = host  # Falls keine separate IP vorhanden
-                logging.debug("Btmp-Eintrag: Time: %s, Type: %s, User: %s, Host/IP: %s",
+                ip_address = host  # Use host as IP if separate IP is not available
+                logging.debug("Btmp record: Time: %s, Type: %s, User: %s, Host/IP: %s",
                               record.time, record.type, user, host)
                 self.store_failed_login(user, ip_address, host, timestamp=record.time)
         except Exception as e:
-            logging.error("Fehler beim Parsen von /var/log/btmp: %s", e)
+            logging.error("Error parsing /var/log/btmp: %s", e)
 
     def store_failed_login(self, user, ip_address, host, timestamp=None):
         timestamp = normalize_timestamp(timestamp)
@@ -387,7 +388,7 @@ class LogParser:
             })
             if len(login_attempts_cache) > 500:
                 login_attempts_cache.pop(0)
-        logging.debug("Gespeicherter fehlgeschlagener Login-Versuch: Benutzer %s, IP %s, Host %s, Timestamp: %s",
+        logging.debug("Stored failed login: user %s, IP %s, Host %s, Timestamp: %s",
                       user, ip_address, host, timestamp)
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
@@ -407,11 +408,11 @@ class LogParser:
             })
             if len(http_error_logs_cache) > 500:
                 http_error_logs_cache.pop(0)
-        logging.debug("Gespeicherter HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
+        logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
                       proxy_type, error_code, url, ip_address, domain, timestamp)
 
     def setup_watchdog(self):
-        logging.debug("Einrichten des Watchdog Observers")
+        logging.debug("Setting up Watchdog Observer")
         event_handler = FileSystemEventHandler()
         event_handler.on_modified = self.on_modified
         observer = Observer()
@@ -419,16 +420,16 @@ class LogParser:
             path = log_config.get('path')
             if os.path.exists(path):
                 directory = path if os.path.isdir(path) else os.path.dirname(path)
-                logging.debug("Watchdog wird für Verzeichnis geplant: %s", directory)
+                logging.debug("Scheduling Watchdog for directory: %s", directory)
                 observer.schedule(event_handler, directory, recursive=False)
             else:
-                logging.warning("Watchdog konnte Pfad nicht planen (existiert nicht): %s", path)
+                logging.warning("Watchdog could not schedule non-existent path: %s", path)
         observer.start()
 
     def on_modified(self, event):
         if event.is_directory:
             return
-        logging.debug("Watchdog: Änderung in Datei erkannt: %s", event.src_path)
+        logging.debug("Watchdog: Change detected in file: %s", event.src_path)
         with self.debounce_lock:
             if self.debounce_timer is not None:
                 self.debounce_timer.cancel()
@@ -450,7 +451,7 @@ def update_missing_country_info():
             info = get_geo_info_cached(ip)
             attempt["country"] = info["country"]
             attempt["city"] = info["city"]
-        # Hier könnte man zusätzlich prüfen, ob lat/lon fehlen und ggf. ein GeoNames-Lookup auf Basis von attempt["city"] ausführen:
+        # If lat/lon are missing and a city is provided, use GeoNames lookup
         for attempt in login_attempts_cache:
             if (attempt.get("lat") is None or attempt.get("lon") is None) and attempt.get("city") != "Unknown":
                 coords = lookup_city(attempt.get("city"))
@@ -474,8 +475,7 @@ def update_country_info_job():
         time.sleep(10)
 
 ##############################
-# Initialisierung: GeoNames Dataset
+# Initialization: GeoNames Dataset
 ##############################
-# Beim App-Start (beim Laden dieses Moduls) wird das GeoNames-Dataset heruntergeladen, entpackt und geladen.
-# Danach wird alle 24 Stunden ein Update eingeplant.
+# At app start, schedule the GeoNames dataset update (download, unzip, load)
 schedule_geonames_update()
