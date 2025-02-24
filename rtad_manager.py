@@ -39,7 +39,7 @@ login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
 
 # Global cache for IP country and city info with TTL support
-# Structure: { normalized_ip: {"country": str, "city": str, "timestamp": float} }
+# Structure: { normalized_ip: {"country": str, "city": str, "lat": float, "lon": float, "timestamp": float} }
 ip_country_cache = {}
 ip_country_cache_lock = threading.Lock()
 
@@ -111,6 +111,7 @@ def ensure_geolite2_db(db_path, max_age_seconds=86400):
 # GeoIP Lookup Functions using local GeoLite2 database
 ##############################
 def get_geo_info_from_db(ip):
+    """Retrieves country, city, and coordinates for the given IP using the local GeoLite2-City database."""
     ip = ip.strip()
     ensure_geolite2_db(GEOIP_DB_PATH)
     try:
@@ -118,14 +119,16 @@ def get_geo_info_from_db(ip):
             response = reader.city(ip)
             country = response.country.iso_code if response and response.country.iso_code else "Unknown"
             city = response.city.name if response and response.city.name else "Unknown"
-            return {"country": country, "city": city}
+            lat = response.location.latitude if response and response.location.latitude is not None else None
+            lon = response.location.longitude if response and response.location.longitude is not None else None
+            return {"country": country, "city": city, "lat": lat, "lon": lon}
     except Exception as e:
         logging.error("Error during DB lookup for IP %s: %s", ip, e)
-        return {"country": "Unknown", "city": "Unknown"}
+        return {"country": "Unknown", "city": "Unknown", "lat": None, "lon": None}
 
 def get_geo_info_cached(ip, ttl=3600):
     """
-    Returns country and city info for an IP using a TTL-based cache.
+    Returns country, city, and coordinates for an IP using a TTL-based cache.
     Uses a shorter TTL if the result is 'Unknown'.
     """
     ip = ip.strip()
@@ -133,23 +136,25 @@ def get_geo_info_cached(ip, ttl=3600):
     with ip_country_cache_lock:
         if ip in ip_country_cache:
             entry = ip_country_cache[ip]
-            if entry["country"] != "Unknown" and entry["city"] != "Unknown":
+            if entry["country"] != "Unknown" and entry["city"] != "Unknown" and entry.get("lat") and entry.get("lon"):
                 if (time.time() - entry["timestamp"]) < ttl:
-                    return {"country": entry["country"], "city": entry["city"]}
+                    return {"country": entry["country"], "city": entry["city"], "lat": entry["lat"], "lon": entry["lon"]}
             else:
                 if (time.time() - entry["timestamp"]) < unknown_ttl:
-                    return {"country": entry["country"], "city": entry["city"]}
+                    return {"country": entry["country"], "city": entry["city"], "lat": entry.get("lat"), "lon": entry.get("lon")}
     info = get_geo_info_from_db(ip)
     with ip_country_cache_lock:
         ip_country_cache[ip] = {
             "country": info["country"],
             "city": info["city"],
+            "lat": info["lat"],
+            "lon": info["lon"],
             "timestamp": time.time()
         }
     return info
 
 ##############################
-# GeoNames Dataset
+# GeoNames Dataset (kept for proxy events if needed)
 ##############################
 GEONAMES_ZIP_URL = "https://download.geonames.org/export/dump/cities500.zip"
 GEONAMES_ZIP_PATH = os.path.join("data", "cities500.zip")
@@ -459,41 +464,39 @@ def fetch_http_error_logs():
         return list(http_error_logs_cache)
 
 ##############################
-# Update country info
+# Update country and coordinate info
 ##############################
 def update_missing_country_info():
     """
-    Only lookup lat/lon via GeoNames if the provided coordinates are missing or invalid.
-    Here, we treat a value of None or 0 as invalid.
+    For each record, if the lat/lon are missing (None or 0),
+    update them using the GeoLite2 lookup (which now returns coordinates).
     """
     with login_attempts_lock:
         for attempt in login_attempts_cache:
             ip = attempt["ip_address"].strip()
-            info = get_geo_info_cached(ip)
+            geo = get_geo_info_cached(ip)
             if not attempt["country"] or attempt["country"] == "Unknown":
-                attempt["country"] = info["country"]
+                attempt["country"] = geo["country"]
             if not attempt["city"] or attempt["city"] == "Unknown":
-                attempt["city"] = info["city"]
-            # Only use GeoNames if lat or lon is missing or 0
-            if (((attempt["lat"] is None or attempt["lat"] == 0) or (attempt["lon"] is None or attempt["lon"] == 0))
-                    and attempt["city"] != "Unknown"):
-                coords = lookup_city(attempt["city"])
-                if coords:
-                    attempt["lat"], attempt["lon"] = coords
+                attempt["city"] = geo["city"]
+            # Update coordinates only if they are missing or 0
+            if attempt["lat"] in (None, 0) or attempt["lon"] in (None, 0):
+                if geo.get("lat") is not None and geo.get("lon") is not None:
+                    attempt["lat"] = geo["lat"]
+                    attempt["lon"] = geo["lon"]
 
     with http_error_logs_lock:
         for log in http_error_logs_cache:
             ip = log["ip_address"].strip()
-            info = get_geo_info_cached(ip)
+            geo = get_geo_info_cached(ip)
             if not log["country"] or log["country"] == "Unknown":
-                log["country"] = info["country"]
+                log["country"] = geo["country"]
             if not log["city"] or log["city"] == "Unknown":
-                log["city"] = info["city"]
-            if (((log["lat"] is None or log["lat"] == 0) or (log["lon"] is None or log["lon"] == 0))
-                    and log["city"] != "Unknown"):
-                coords = lookup_city(log["city"])
-                if coords:
-                    log["lat"], log["lon"] = coords
+                log["city"] = geo["city"]
+            if log["lat"] in (None, 0) or log["lon"] in (None, 0):
+                if geo.get("lat") is not None and geo.get("lon") is not None:
+                    log["lat"] = geo["lat"]
+                    log["lon"] = geo["lon"]
 
 def update_country_info_job():
     while True:
