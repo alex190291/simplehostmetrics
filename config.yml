@@ -9,6 +9,8 @@ logfiles:
 
 parse_all_logs: true
 
+timezone: "CET"
+
 # Security and default admin settings
 secret_key: "S3cUr3K3y!@#123"
 security_password_salt: "S3cUr3S@lt!@#123"

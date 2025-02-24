@@ -7,6 +7,7 @@ import time
 import requests
 import geoip2.database
 import re
+import pytz
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
@@ -38,15 +39,58 @@ GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-City.mmdb'
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
+####################################
+# Timezone Parsing and Configuration
+####################################
+def parse_timezone(tz_str):
+    tz_str_lower = tz_str.strip().lower()
+    if tz_str_lower.startswith("gmt"):
+        try:
+            # e.g. "gmt+2" or "gmt-3"
+            offset_str = tz_str_lower[3:]
+            offset_hours = int(offset_str)
+            return pytz.FixedOffset(offset_hours * 60)
+        except Exception as e:
+            logging.error("Invalid GMT timezone format: %s", tz_str)
+            return pytz.utc
+    else:
+        # Map common abbreviations to proper tz database names for DST corrections.
+        TZ_ABBREVIATION_MAP = {
+            "cet": "Europe/Paris",
+            "cest": "Europe/Paris",
+            "mest": "Europe/Paris",
+            "utc": "UTC",
+        }
+        if tz_str_lower in TZ_ABBREVIATION_MAP:
+            tz_name = TZ_ABBREVIATION_MAP[tz_str_lower]
+        else:
+            tz_name = tz_str.upper()
+        try:
+            return pytz.timezone(tz_name)
+        except Exception as e:
+            logging.error("Invalid timezone: %s", tz_str)
+            return pytz.utc
+
+TIMEZONE_CONFIG = config.get("timezone", "UTC")
+TIMEZONE = parse_timezone(TIMEZONE_CONFIG)
+
+####################################
+# Timestamp Normalization with Timezone
+####################################
 def normalize_timestamp(ts=None):
     if ts is None:
         ts = time.time()
     if isinstance(ts, datetime):
-        return ts.isoformat()
+        dt = ts
+        if dt.tzinfo is None:
+            dt = TIMEZONE.localize(dt)
+        else:
+            dt = dt.astimezone(TIMEZONE)
     elif isinstance(ts, (int, float)):
-        return datetime.fromtimestamp(ts).isoformat()
+        dt = datetime.fromtimestamp(ts, TIMEZONE)
     else:
         raise TypeError(f"Invalid type for timestamp: {type(ts)}")
+    return dt.isoformat()
 
 def get_formatted_timestamp(ts=None):
     return normalize_timestamp(ts)
@@ -127,20 +171,17 @@ def get_geo_info_cached(ip, ttl=3600):
 ##################################
 # Country-Centroid Fallback Logic
 ##################################
-COUNTRY_CENTROIDS = {
-    "US": (37.0902, -95.7129),
-    "CN": (35.8617, 104.1954),
-    "HK": (22.3193, 114.1694),
-    "TR": (38.9637, 35.2433),
-    "RO": (45.9432, 24.9668),
-    "NL": (52.1326, 5.2913),
-    "RU": (61.5240, 105.3188),
-    "SG": (1.3521, 103.8198),
-    "DE": (51.1657, 10.4515),
-    "CH": (46.8182, 8.2275),
-    "UA": (48.3794, 31.1656),
-    # Add more as needed...
-}
+def load_country_centroids(filepath="country_centroids.yml"):
+    try:
+        with open(filepath, 'r') as f:
+            centroids = yaml.safe_load(f)
+            # Ensure values are tuples
+            return {k.upper(): tuple(v) for k, v in centroids.items()}
+    except Exception as e:
+        logging.error("Error loading country centroids from %s: %s", filepath, e)
+        return {}
+
+COUNTRY_CENTROIDS = load_country_centroids()
 
 def get_country_centroid(country_code):
     """Return the approximate centroid of the given country_code or (0,0) if unknown."""
