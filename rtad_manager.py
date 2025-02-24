@@ -31,17 +31,21 @@ RE_LOGIN_INVALID = re.compile(
 # Global variables for file offset tracking and caches
 file_offsets = {}
 file_offsets_lock = threading.Lock()
+
 # Caches for in-memory logging (max. 500 entries)
 login_attempts_cache = []
 http_error_logs_cache = []
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
+
 # Global cache for IP country and city info with TTL support
 # Structure: { normalized_ip: {"country": str, "city": str, "timestamp": float} }
 ip_country_cache = {}
 ip_country_cache_lock = threading.Lock()
+
 # Path to the local GeoLite2 database (using GeoLite2-City.mmdb)
 GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-City.mmdb'
+
 # Load configuration from config.yml
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
@@ -65,8 +69,11 @@ def get_log_files(path):
     if os.path.isfile(path):
         return [path]
     elif os.path.isdir(path):
-        return [os.path.join(path, filename) for filename in os.listdir(path)
-                if os.path.isfile(os.path.join(path, filename))]
+        return [
+            os.path.join(path, filename)
+            for filename in os.listdir(path)
+            if os.path.isfile(os.path.join(path, filename))
+        ]
     else:
         return []
 
@@ -136,16 +143,20 @@ def get_geo_info_cached(ip, ttl=3600):
                     return {"country": entry["country"], "city": entry["city"]}
     info = get_geo_info_from_db(ip)
     with ip_country_cache_lock:
-        ip_country_cache[ip] = {"country": info["country"], "city": info["city"], "timestamp": time.time()}
+        ip_country_cache[ip] = {
+            "country": info["country"],
+            "city": info["city"],
+            "timestamp": time.time()
+        }
     return info
 
 ##############################
 # GeoNames Dataset Download, Unzip, Load, and Lookup Functions using cities500.zip
 ##############################
-# Use the cities500 dataset instead of allCountries
 GEONAMES_ZIP_URL = "https://download.geonames.org/export/dump/cities500.zip"
 GEONAMES_ZIP_PATH = os.path.join("data", "cities500.zip")
 GEONAMES_TXT_PATH = os.path.join("data", "cities500.txt")
+
 # Global dictionary for GeoNames data: key = lower-case city name, value = list of records
 geonames_data = {}
 
@@ -185,7 +196,6 @@ def load_geonames_data():
                 parts = line.strip().split("\t")
                 if len(parts) < 19:
                     continue
-                # Columns: geonameid, name, asciiname, alternatenames, latitude, longitude, feature class, feature code, country code, ...
                 geonameid = parts[0]
                 name = parts[1]
                 asciiname = parts[2]
@@ -195,7 +205,7 @@ def load_geonames_data():
                 feature_class = parts[6]
                 feature_code = parts[7]
                 population = parts[14]
-                # Only populated places (feature_class "P")
+                # Only keep feature_class "P" (populated places)
                 if feature_class != "P":
                     continue
                 try:
@@ -237,23 +247,10 @@ def lookup_city(city_name):
     if not records:
         return None
     valid_codes = {"PPL", "PPLA", "PPLC", "PPLF", "PPLG", "PPLL", "PPLX"}
-    filtered = [r for r in records if any(r.get("feature_code", "").startswith(code) for code in valid_codes)]
-    if filtered:
-        best = max(filtered, key=lambda r: r["population"])
-    else:
-        best = max(records, key=lambda r: r["population"])
-    return best["lat"], best["lon"]
-
-# Python doesn't use 'const' or 'let' so the above snippet is re-written in Python syntax:
-def lookup_city(city_name):
-    if not city_name:
-        return None
-    key = city_name.lower()
-    records = geonames_data.get(key)
-    if not records:
-        return None
-    valid_codes = {"PPL", "PPLA", "PPLC", "PPLF", "PPLG", "PPLL", "PPLX"}
-    filtered = [r for r in records if any(r.get("feature_code", "").startswith(code) for code in valid_codes)]
+    filtered = [
+        r for r in records
+        if any(r.get("feature_code", "").startswith(code) for code in valid_codes)
+    ]
     if filtered:
         best = max(filtered, key=lambda r: r["population"])
     else:
@@ -272,7 +269,7 @@ def schedule_geonames_update():
     Timer(86400, schedule_geonames_update).start()
 
 ##############################
-# LogParser class (unchanged except for potential GeoNames lookup)
+# LogParser class
 ##############################
 class LogParser:
     def __init__(self):
@@ -302,7 +299,10 @@ class LogParser:
 
     def process_files_concurrently(self, files, line_processor):
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.process_log_file, file, line_processor) for file in files]
+            futures = [
+                executor.submit(self.process_log_file, file, line_processor)
+                for file in files
+            ]
             for future in futures:
                 future.result()
 
@@ -316,6 +316,7 @@ class LogParser:
                 continue
             files = get_log_files(path)
             self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
+
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
@@ -323,6 +324,7 @@ class LogParser:
                 self.process_files_concurrently(files, self.process_login_attempt)
             else:
                 logging.warning("System log path does not exist: %s", log_path)
+
         self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
@@ -346,10 +348,13 @@ class LogParser:
             else:
                 logging.debug("No match in npm HTTP error log for line: %s", line)
                 return
+
         parse_all = config.get('parse_all_logs', False)
         if parse_all or error_code >= 400:
-            logging.debug("HTTP error log detected: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
-                          ip_address, domain, url, error_code, proxy_type)
+            logging.debug(
+                "HTTP error log detected: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
+                ip_address, domain, url, error_code, proxy_type
+            )
             self.store_http_error_log(proxy_type, error_code, url, ip_address, domain)
         else:
             logging.debug("Line does not meet criteria (code < 400 and parse_all_logs is false): %s", line)
@@ -374,10 +379,12 @@ class LogParser:
         except ImportError:
             logging.error("python‑utmp library not installed. Please install it to parse /var/log/btmp directly.")
             return
+
         btmp_path = "/var/log/btmp"
         if not os.path.exists(btmp_path):
             logging.warning("File /var/log/btmp does not exist.")
             return
+
         try:
             with open(btmp_path, "rb") as fd:
                 buf = fd.read()
@@ -385,8 +392,10 @@ class LogParser:
                 user = getattr(record, "user", None)
                 host = getattr(record, "host", None)
                 ip_address = host  # Use host as IP if separate IP not available
-                logging.debug("Btmp record: Time: %s, Type: %s, User: %s, Host/IP: %s",
-                              record.time, record.type, user, host)
+                logging.debug(
+                    "Btmp record: Time: %s, Type: %s, User: %s, Host/IP: %s",
+                    record.time, record.type, user, host
+                )
                 self.store_failed_login(user, ip_address, host, timestamp=record.time)
         except Exception as e:
             logging.error("Error parsing /var/log/btmp: %s", e)
@@ -406,8 +415,10 @@ class LogParser:
             })
             if len(login_attempts_cache) > 500:
                 login_attempts_cache.pop(0)
-        logging.debug("Stored failed login: User %s, IP %s, Host %s, Timestamp: %s",
-                      user, ip_address, host, timestamp)
+        logging.debug(
+            "Stored failed login: User %s, IP %s, Host %s, Timestamp: %s",
+            user, ip_address, host, timestamp
+        )
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
         timestamp = normalize_timestamp(timestamp)
@@ -426,8 +437,10 @@ class LogParser:
             })
             if len(http_error_logs_cache) > 500:
                 http_error_logs_cache.pop(0)
-        logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
-                      proxy_type, error_code, url, ip_address, domain, timestamp)
+        logging.debug(
+            "Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
+            proxy_type, error_code, url, ip_address, domain, timestamp
+        )
 
     def setup_watchdog(self):
         logging.debug("Setting up Watchdog Observer")
@@ -463,25 +476,41 @@ def fetch_http_error_logs():
         return list(http_error_logs_cache)
 
 def update_missing_country_info():
+    # Only fill country/city from IP lookup if values are Unknown or empty;
+    # Use Geonames for lat/lon only if lat/lon are None.
     with login_attempts_lock:
         for attempt in login_attempts_cache:
             ip = attempt["ip_address"].strip()
             info = get_geo_info_cached(ip)
-            attempt["country"] = info["country"]
-            attempt["city"] = info["city"]
-        # If lat/lon are missing, use GeoNames lookup based on the city name
-        for attempt in login_attempts_cache:
+
+            # Only set country if we don't already have it
+            if not attempt["country"] or attempt["country"] == "Unknown":
+                attempt["country"] = info["country"]
+
+            # Only set city if we don't already have it
+            if not attempt["city"] or attempt["city"] == "Unknown":
+                attempt["city"] = info["city"]
+
+            # Only use GeoNames if lat/lon are missing AND city is not Unknown
             if (attempt.get("lat") is None or attempt.get("lon") is None) and attempt.get("city") != "Unknown":
                 coords = lookup_city(attempt.get("city"))
                 if coords:
                     attempt["lat"], attempt["lon"] = coords
+
     with http_error_logs_lock:
         for log in http_error_logs_cache:
             ip = log["ip_address"].strip()
             info = get_geo_info_cached(ip)
-            log["country"] = info["country"]
-            log["city"] = info["city"]
-        for log in http_error_logs_cache:
+
+            # Only set country if we don't already have it
+            if not log["country"] or log["country"] == "Unknown":
+                log["country"] = info["country"]
+
+            # Only set city if we don't already have it
+            if not log["city"] or log["city"] == "Unknown":
+                log["city"] = info["city"]
+
+            # Only use GeoNames if lat/lon are missing AND city is not Unknown
             if (log.get("lat") is None or log.get("lon") is None) and log.get("city") != "Unknown":
                 coords = lookup_city(log.get("city"))
                 if coords:
@@ -492,9 +521,5 @@ def update_country_info_job():
         update_missing_country_info()
         time.sleep(10)
 
-##############################
 # Initialization: GeoNames Dataset
-##############################
-# At app launch, download, unzip, and load the GeoNames (cities500) dataset.
-# Then schedule an update every 24 hours.
 schedule_geonames_update()
