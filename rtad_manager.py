@@ -190,7 +190,6 @@ def load_geonames_data():
                 parts = line.strip().split("\t")
                 if len(parts) < 19:
                     continue
-                # geonameid, name, asciiname, alternatenames, latitude, longitude, feature_class, feature_code, ...
                 geonameid = parts[0]
                 name = parts[1]
                 asciiname = parts[2]
@@ -302,7 +301,6 @@ class LogParser:
                 continue
             files = get_log_files(path)
             self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
-
         system_log_paths = ["/var/log/secure", "/var/log/auth.log", "/var/log/fail2ban.log", "/var/log/firewalld"]
         for log_path in system_log_paths:
             if os.path.exists(log_path):
@@ -310,7 +308,6 @@ class LogParser:
                 self.process_files_concurrently(files, self.process_login_attempt)
             else:
                 logging.warning("System log path does not exist: %s", log_path)
-
         self.parse_btmp_file()
 
     def process_http_error_log(self, line, proxy_type):
@@ -334,7 +331,6 @@ class LogParser:
             else:
                 logging.debug("No match in npm HTTP error log for line: %s", line)
                 return
-
         parse_all = config.get('parse_all_logs', False)
         if parse_all or error_code >= 400:
             logging.debug(
@@ -467,21 +463,20 @@ def fetch_http_error_logs():
 ##############################
 def update_missing_country_info():
     """
-    Only lookup lat/lon via GeoNames if lat or lon is None,
-    so valid API-provided coordinates won't be overwritten.
+    Only lookup lat/lon via GeoNames if the provided coordinates are missing or invalid.
+    Here, we treat a value of None or 0 as invalid.
     """
     with login_attempts_lock:
         for attempt in login_attempts_cache:
             ip = attempt["ip_address"].strip()
             info = get_geo_info_cached(ip)
-
             if not attempt["country"] or attempt["country"] == "Unknown":
                 attempt["country"] = info["country"]
             if not attempt["city"] or attempt["city"] == "Unknown":
                 attempt["city"] = info["city"]
-
-            # Only do city lookup if lat/lon are None:
-            if (attempt["lat"] is None or attempt["lon"] is None) and attempt["city"] != "Unknown":
+            # Only use GeoNames if lat or lon is missing or 0
+            if (((attempt["lat"] is None or attempt["lat"] == 0) or (attempt["lon"] is None or attempt["lon"] == 0))
+                    and attempt["city"] != "Unknown"):
                 coords = lookup_city(attempt["city"])
                 if coords:
                     attempt["lat"], attempt["lon"] = coords
@@ -490,13 +485,12 @@ def update_missing_country_info():
         for log in http_error_logs_cache:
             ip = log["ip_address"].strip()
             info = get_geo_info_cached(ip)
-
             if not log["country"] or log["country"] == "Unknown":
                 log["country"] = info["country"]
             if not log["city"] or log["city"] == "Unknown":
                 log["city"] = info["city"]
-
-            if (log["lat"] is None or log["lon"] is None) and log["city"] != "Unknown":
+            if (((log["lat"] is None or log["lat"] == 0) or (log["lon"] is None or log["lon"] == 0))
+                    and log["city"] != "Unknown"):
                 coords = lookup_city(log["city"])
                 if coords:
                     log["lat"], log["lon"] = coords

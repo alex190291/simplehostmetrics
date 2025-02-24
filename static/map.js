@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: true,
-    disableClusteringAtZoom: 12, // Increased from 10 to reduce cluster merging
+    disableClusteringAtZoom: 12, // Increased to reduce cluster merging
   });
 
   markers.on("clusterclick", function (a) {
@@ -75,7 +75,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   function createMarker(item) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
-
     console.log(
       "Creating marker for",
       item.city,
@@ -84,8 +83,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       lon,
       "from API",
     );
-
-    // Warn if suspicious coords
     if (isNaN(lat) || isNaN(lon)) {
       console.warn(
         "Skipping marker due to invalid coords:",
@@ -94,7 +91,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       );
       return null;
     }
-
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -109,7 +105,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Global map for key -> marker
   const markerMap = new Map();
-  const NEW_EVENT_THRESHOLD = 3000;
   const MAX_MARKERS = 1000;
 
   // Remove the oldest marker when marker count exceeds MAX_MARKERS
@@ -139,7 +134,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-
       data.forEach((item) => {
         const lat = Number(item.lat);
         const lon = Number(item.lon);
