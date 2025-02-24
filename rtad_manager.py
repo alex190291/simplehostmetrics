@@ -230,25 +230,18 @@ def load_geonames_data():
         logging.error("Error loading GeoNames data: %s", e)
 
 def lookup_city(city_name):
-    """
-    Looks up a city in the GeoNames dataset and returns (lat, lon) from the record with the highest population.
-    It prefers records with a feature_code that starts with 'PPL'. Returns None if no match found.
-    """
     if not city_name:
         return None
     key = city_name.lower()
     records = geonames_data.get(key)
     if not records:
         return None
-    // First, try to filter records to those with feature_code starting with "PPL"
-    const validCodes = ["PPL", "PPLA", "PPLC", "PPLF", "PPLG", "PPLL", "PPLX"];
-    let filtered = records.filter(r => validCodes.some(code => r["feature_code"].startsWith(code)));
-    let best;
-    if (filtered.length > 0) {
-        best = filtered.reduce((prev, curr) => curr["population"] > prev["population"] ? curr : prev);
-    } else {
-        best = records.reduce((prev, curr) => curr["population"] > prev["population"] ? curr : prev);
-    }
+    valid_codes = {"PPL", "PPLA", "PPLC", "PPLF", "PPLG", "PPLL", "PPLX"}
+    filtered = [r for r in records if any(r.get("feature_code", "").startswith(code) for code in valid_codes)]
+    if filtered:
+        best = max(filtered, key=lambda r: r["population"])
+    else:
+        best = max(records, key=lambda r: r["population"])
     return best["lat"], best["lon"]
 
 # Python doesn't use 'const' or 'let' so the above snippet is re-written in Python syntax:
