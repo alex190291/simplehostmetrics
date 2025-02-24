@@ -71,20 +71,23 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Use a Map to track markers by a unique key (timestamp + ip_address)
+  // Use a Map to track markers by a unique key
   const markerMap = new Map();
+
+  // Helper: generate a stable key using ip_address, type, and timestamp rounded to seconds
+  function generateKey(item) {
+    const eventTime = Math.floor(new Date(item.timestamp).getTime() / 1000);
+    return `${item.ip_address}-${item.type}-${eventTime}`;
+  }
 
   // Helper: create a marker if it doesn't already exist
   function addMarkerIfNew(item) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
-    // Construct a unique key for the event
-    const key = `${item.timestamp}-${item.ip_address}`;
+    const key = generateKey(item);
     if (markerMap.has(key)) {
-      // Marker already exists; do nothing to avoid duplicates
       return;
     }
-    // Create new marker
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -102,7 +105,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-
       // Only add markers if they don't already exist.
       data.forEach((item) => {
         const lat = Number(item.lat);
