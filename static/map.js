@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: true,
-    disableClusteringAtZoom: 12, // Increased to reduce cluster merging
+    disableClusteringAtZoom: 10,
   });
 
   markers.on("clusterclick", function (a) {
@@ -81,16 +81,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       "with coordinates:",
       lat,
       lon,
-      "from API",
     );
-    if (isNaN(lat) || isNaN(lon)) {
-      console.warn(
-        "Skipping marker due to invalid coords:",
-        item.lat,
-        item.lon,
-      );
-      return null;
-    }
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
@@ -105,6 +96,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Global map for key -> marker
   const markerMap = new Map();
+  const NEW_EVENT_THRESHOLD = 3000;
   const MAX_MARKERS = 1000;
 
   // Remove the oldest marker when marker count exceeds MAX_MARKERS
@@ -131,10 +123,13 @@ document.addEventListener("DOMContentLoaded", async function () {
       setTimeout(fetchData, 1000);
       return;
     }
+    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
+
       data.forEach((item) => {
+        // Validate coordinates by converting to numbers
         const lat = Number(item.lat);
         const lon = Number(item.lon);
         if (!isNaN(lat) && !isNaN(lon)) {
@@ -144,10 +139,8 @@ document.addEventListener("DOMContentLoaded", async function () {
               removeOldestMarker();
             }
             const marker = createMarker(item);
-            if (marker) {
-              markerMap.set(key, marker);
-              markers.addLayer(marker);
-            }
+            markerMap.set(key, marker);
+            markers.addLayer(marker);
           }
         } else {
           console.warn(
