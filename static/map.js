@@ -1,4 +1,3 @@
-// map.js
 document.addEventListener("DOMContentLoaded", async function () {
   // Leaflet-Map initialisieren
   const map = L.map("map", {
@@ -20,7 +19,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Klick-Listener für Mode-Umschalter
   const toggleButton = document.getElementById("modeToggle");
   toggleButton.addEventListener("click", () => {
-    // Falls Body im Light Mode ist -> Dark Mode von Map entfernen, sonst hinzufügen
     if (document.body.classList.contains("light-mode")) {
       map.getContainer().classList.remove("dark-mode");
     } else {
@@ -85,8 +83,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Globale Map für Key->Marker
   const markerMap = new Map();
-  // Neue Events innerhalb dieser Schwelle (ms) werden animiert
-  const NEW_EVENT_THRESHOLD = 3000;
   // Maximale Markerzahl
   const MAX_MARKERS = 1000;
 
@@ -115,47 +111,23 @@ document.addEventListener("DOMContentLoaded", async function () {
       setTimeout(fetchData, 1000);
       return;
     }
-    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-
-      const newMarkersForAnimation = [];
 
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
           const key = `${item.timestamp}-${item.ip_address}`;
           if (!markerMap.has(key)) {
-            // LIMIT: Bei Überschreitung ältesten Eintrag entfernen
             if (markerMap.size >= MAX_MARKERS) {
               removeOldestMarker();
             }
             const marker = createMarker(item);
             markerMap.set(key, marker);
             markers.addLayer(marker);
-
-            const eventTime = new Date(item.timestamp).getTime();
-            if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
-              newMarkersForAnimation.push(marker);
-            }
           }
         }
       });
-
-      // Clustern mit Animation, falls neue Marker dazukamen
-      setTimeout(() => {
-        const animatedClusters = new Set();
-        newMarkersForAnimation.forEach((marker) => {
-          const parent = markers.getVisibleParent(marker);
-          if (parent && parent._icon && !animatedClusters.has(parent)) {
-            parent._icon.classList.add("animate-cluster");
-            animatedClusters.add(parent);
-            setTimeout(() => {
-              parent._icon.classList.remove("animate-cluster");
-            }, 500);
-          }
-        });
-      }, 500);
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
