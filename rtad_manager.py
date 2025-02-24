@@ -1,3 +1,4 @@
+# rtad_manager.py
 import yaml
 import os
 import logging
@@ -114,9 +115,42 @@ def get_geo_info_cached(ip, ttl=3600):
                     return {"country": entry["country"], "city": entry["city"], "lat": entry.get("lat"), "lon": entry.get("lon")}
     info = get_geo_info_from_db(ip)
     with ip_country_cache_lock:
-        ip_country_cache[ip] = {"country": info["country"], "city": info["city"], "lat": info["lat"], "lon": info["lon"], "timestamp": time.time()}
+        ip_country_cache[ip] = {
+            "country": info["country"],
+            "city": info["city"],
+            "lat": info["lat"],
+            "lon": info["lon"],
+            "timestamp": time.time()
+        }
     return info
 
+##################################
+# Country-Centroid Fallback Logic
+##################################
+COUNTRY_CENTROIDS = {
+    "US": (37.0902, -95.7129),
+    "CN": (35.8617, 104.1954),
+    "HK": (22.3193, 114.1694),
+    "TR": (38.9637, 35.2433),
+    "RO": (45.9432, 24.9668),
+    "NL": (52.1326, 5.2913),
+    "RU": (61.5240, 105.3188),
+    "SG": (1.3521, 103.8198),
+    "DE": (51.1657, 10.4515),
+    "CH": (46.8182, 8.2275),
+    "UA": (48.3794, 31.1656),
+    # Add more as needed...
+}
+
+def get_country_centroid(country_code):
+    """Return the approximate centroid of the given country_code or (0,0) if unknown."""
+    if not country_code or country_code == "Unknown":
+        return (0, 0)
+    return COUNTRY_CENTROIDS.get(country_code.upper(), (0, 0))
+
+##################################
+# Log Parsing Classes & Methods
+##################################
 class LogParser:
     def __init__(self):
         self.proxy_logs = config.get('logfiles', [])
@@ -178,6 +212,7 @@ class LogParser:
             else:
                 logging.debug("No match in npm HTTP error log for line: %s", line)
                 return
+
         parse_all = config.get('parse_all_logs', False)
         if parse_all or error_code >= 400:
             logging.debug("HTTP error log detected: IP %s, Domain %s, URL %s, Code %s, Proxy %s",
@@ -193,10 +228,12 @@ class LogParser:
         except ImportError:
             logging.error("python‑utmp library not installed. Please install it to parse /var/log/btmp directly.")
             return
+
         btmp_path = "/var/log/btmp"
         if not os.path.exists(btmp_path):
             logging.warning("/var/log/btmp does not exist.")
             return
+
         try:
             with open(btmp_path, "rb") as fd:
                 buf = fd.read()
@@ -273,6 +310,9 @@ class LogParser:
             self.debounce_timer = Timer(1.0, self.parse_log_files)
             self.debounce_timer.start()
 
+#######################
+# Public Fetch Methods
+#######################
 def fetch_login_attempts():
     with login_attempts_lock:
         return list(login_attempts_cache)
@@ -281,19 +321,39 @@ def fetch_http_error_logs():
     with http_error_logs_lock:
         return list(http_error_logs_cache)
 
+########################
+# Country Info Updater
+########################
 def update_missing_country_info():
+    """
+    For each login attempt or HTTP error log,
+    get city-level lat/lon from the GeoIP DB.
+    If it's missing, fallback to the country centroid.
+    If that fails, keep lat/lon as (0,0).
+    """
     with login_attempts_lock:
         for attempt in login_attempts_cache:
             ip = attempt["ip_address"].strip()
             info = get_geo_info_cached(ip)
+            if info["lat"] is None or info["lon"] is None:
+                # Fallback to country centroid
+                lat, lon = get_country_centroid(info["country"])
+                info["lat"] = lat
+                info["lon"] = lon
             attempt["country"] = info["country"]
             attempt["city"] = info["city"]
             attempt["lat"] = info["lat"]
             attempt["lon"] = info["lon"]
+
     with http_error_logs_lock:
         for log in http_error_logs_cache:
             ip = log["ip_address"].strip()
             info = get_geo_info_cached(ip)
+            if info["lat"] is None or info["lon"] is None:
+                # Fallback to country centroid
+                lat, lon = get_country_centroid(info["country"])
+                info["lat"] = lat
+                info["lon"] = lon
             log["country"] = info["country"]
             log["city"] = info["city"]
             log["lat"] = info["lat"]

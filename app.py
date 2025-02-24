@@ -1,3 +1,4 @@
+# app.py
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -19,7 +20,7 @@ from models import db, User, Role, CustomNetworkGraph
 import stats
 import docker_manager
 from custom_network import custom_network_bp
-from database import initialize_database, load_history, get_country_centroid
+from database import initialize_database, load_history  # <== Notice we removed get_country_centroid
 
 # Load configuration from config.yml
 with open('config.yml', 'r') as f:
@@ -161,7 +162,6 @@ def check_all_status_route():
     return jsonify(status)
 
 # New Nginx Proxy Manager integration endpoints
-
 @app.route("/nginx", methods=["GET"])
 @login_required
 def nginx_view():
@@ -186,7 +186,7 @@ def nginx_settings():
     current_domain = config_data["nginx"]["domain"]
     return render_template("nginx_settings.html", current_domain=current_domain)
 
-# New RTAD logs API endpoint for retrieving processed log and lastb data
+# RTAD logs page
 @app.route('/rtad')
 @login_required
 def rtad():
@@ -218,17 +218,14 @@ def rtad_proxy():
         logs = logs[-5000:]
     return jsonify(logs)
 
-# -----------------------------
-# New Attack Map data endpoint (unchanged)
-# -----------------------------
+# Attack map data endpoint
 @app.route('/api/attack_map_data')
 @login_required
 def attack_map_data():
     """
-    Combine /rtad_lastb and /rtad_proxy data, then attach latitude/longitude
-    from country_centroids in the database.
+    Combine /rtad_lastb and /rtad_proxy data, returning the lat/lon directly
+    as updated in rtad_manager. If lat/lon is still None, default to (0,0).
     """
-    # Force country and city info resolution in rtad_manager
     rtad_manager.update_missing_country_info()
 
     login_data = rtad_manager.fetch_login_attempts()
@@ -237,14 +234,12 @@ def attack_map_data():
 
     # Merge login attempts
     for item in login_data:
-        country_code = item.get("country", "Unknown")
-        lat, lon = get_country_centroid(country_code)
         results.append({
             "ip_address": item.get("ip_address"),
-            "country": country_code,
+            "country": item.get("country", "Unknown"),
             "city": item.get("city", "Unknown"),
-            "lat": lat,
-            "lon": lon,
+            "lat": item.get("lat", 0) or 0,
+            "lon": item.get("lon", 0) or 0,
             "timestamp": item.get("timestamp"),
             "type": "login",
             "user": item.get("user"),
@@ -253,14 +248,12 @@ def attack_map_data():
 
     # Merge proxy logs
     for item in proxy_data:
-        country_code = item.get("country", "Unknown")
-        lat, lon = get_country_centroid(country_code)
         results.append({
             "ip_address": item.get("ip_address"),
-            "country": country_code,
+            "country": item.get("country", "Unknown"),
             "city": item.get("city", "Unknown"),
-            "lat": lat,
-            "lon": lon,
+            "lat": item.get("lat", 0) or 0,
+            "lon": item.get("lon", 0) or 0,
             "timestamp": item.get("timestamp"),
             "type": "proxy",
             "domain": item.get("domain"),
@@ -271,18 +264,13 @@ def attack_map_data():
 
     return jsonify(results)
 
-# -----------------------------
 # Background Threads
-# -----------------------------
-
-# Function to continuously run the RTAD log parser
 def start_rtad_log_parser():
     parser = rtad_manager.LogParser()
     parser.parse_log_files()
     while True:
         time.sleep(10)
 
-# Start the RTAD log parser in a daemon thread
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
 if __name__ == '__main__':
