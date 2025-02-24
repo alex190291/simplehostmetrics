@@ -88,8 +88,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Separate marker maps for login and proxy events
   const loginMarkerMap = new Map();
   const proxyMarkerMap = new Map();
-  // New event animation threshold (milliseconds)
-  const NEW_EVENT_THRESHOLD = 3000;
   // Maximum markers allowed for each event type
   const MAX_LOGIN_MARKERS = 1000;
   const MAX_PROXY_MARKERS = 1000;
@@ -119,17 +117,13 @@ document.addEventListener("DOMContentLoaded", async function () {
       setTimeout(fetchData, 1000);
       return;
     }
-    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      const newMarkersForAnimation = [];
-
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
           const key = `${item.timestamp}-${item.ip_address}`;
-          // Process login events separately
           if (item.type === "login") {
             if (!loginMarkerMap.has(key)) {
               if (loginMarkerMap.size >= MAX_LOGIN_MARKERS) {
@@ -138,13 +132,8 @@ document.addEventListener("DOMContentLoaded", async function () {
               const marker = createMarker(item);
               loginMarkerMap.set(key, marker);
               markers.addLayer(marker);
-              const eventTime = new Date(item.timestamp).getTime();
-              if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
-                newMarkersForAnimation.push(marker);
-              }
             }
           } else {
-            // Process proxy events separately
             if (!proxyMarkerMap.has(key)) {
               if (proxyMarkerMap.size >= MAX_PROXY_MARKERS) {
                 removeOldestMarker(proxyMarkerMap);
@@ -152,29 +141,10 @@ document.addEventListener("DOMContentLoaded", async function () {
               const marker = createMarker(item);
               proxyMarkerMap.set(key, marker);
               markers.addLayer(marker);
-              const eventTime = new Date(item.timestamp).getTime();
-              if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
-                newMarkersForAnimation.push(marker);
-              }
             }
           }
         }
       });
-
-      // Animate clusters with newly added markers
-      setTimeout(() => {
-        const animatedClusters = new Set();
-        newMarkersForAnimation.forEach((marker) => {
-          const parent = markers.getVisibleParent(marker);
-          if (parent && parent._icon && !animatedClusters.has(parent)) {
-            parent._icon.classList.add("animate-cluster");
-            animatedClusters.add(parent);
-            setTimeout(() => {
-              parent._icon.classList.remove("animate-cluster");
-            }, 500);
-          }
-        });
-      }, 500);
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
