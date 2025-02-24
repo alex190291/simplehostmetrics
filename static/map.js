@@ -42,14 +42,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   const loginIcon = L.divIcon({
-    html: '<div style="width:50px;height:50px;border-radius:50%;background-color:#f55;"></div>',
-    iconSize: [50, 50],
+    html: '<div style="width:25px;height:25px;border-radius:50%;background-color:#f55;"></div>',
+    iconSize: [25, 25],
     className: "minimal-marker",
   });
 
   const proxyIcon = L.divIcon({
-    html: '<div style="width:50px;height:50px;border-radius:50%;background-color:#55f;"></div>',
-    iconSize: [50, 50],
+    html: '<div style="width:25px;height:25px;border-radius:50%;background-color:#55f;"></div>',
+    iconSize: [25, 25],
     className: "minimal-marker",
   });
 
