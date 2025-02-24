@@ -1,26 +1,25 @@
 // map.js
 document.addEventListener("DOMContentLoaded", async function () {
-  // Leaflet-Map initialisieren
+  // Initialize the Leaflet map
   const map = L.map("map", {
     center: [20, 0],
     zoom: 2,
   });
 
-  // Grundlegend: OSM-Layer
+  // Add basic OSM tile layer
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: "Map data © OpenStreetMap contributors",
   }).addTo(map);
 
-  // Prüfen, ob <body> nicht in Light Mode ist. Falls nicht, map in Dark Mode.
+  // Check for dark mode
   if (!document.body.classList.contains("light-mode")) {
     map.getContainer().classList.add("dark-mode");
   }
 
-  // Klick-Listener für Mode-Umschalter
+  // Mode toggle button listener
   const toggleButton = document.getElementById("modeToggle");
   toggleButton.addEventListener("click", () => {
-    // Falls Body im Light Mode ist -> Dark Mode von Map entfernen, sonst hinzufügen
     if (document.body.classList.contains("light-mode")) {
       map.getContainer().classList.remove("dark-mode");
     } else {
@@ -28,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Marker-Cluster-Setup
+  // Set up marker clustering
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
@@ -41,10 +40,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
+  // Define icons for login fails and proxy events
   const loginIcon = L.divIcon({
     html: '<div style="width:25px;height:25px;border-radius:50%;background-color:#f55;"></div>',
-    iconSize: [25, 25],
     className: "minimal-marker",
+    iconSize: [25, 25],
   });
 
   const proxyIcon = L.divIcon({
@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     className: "minimal-marker",
   });
 
+  // Helper: create popup content for a marker
   function createPopup(item) {
     const typeLabel =
       item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
@@ -70,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
+  // Helper: create a marker based on event type
   function createMarker(item) {
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([item.lat, item.lon], { icon: icon });
@@ -83,18 +85,20 @@ document.addEventListener("DOMContentLoaded", async function () {
     return marker;
   }
 
-  // Globale Map für Key->Marker
-  const markerMap = new Map();
-  // Neue Events innerhalb dieser Schwelle (ms) werden animiert
+  // Separate marker maps for login and proxy events
+  const loginMarkerMap = new Map();
+  const proxyMarkerMap = new Map();
+  // New event animation threshold (milliseconds)
   const NEW_EVENT_THRESHOLD = 3000;
-  // Maximale Markerzahl
-  const MAX_MARKERS = 1000;
+  // Maximum markers allowed for each event type
+  const MAX_LOGIN_MARKERS = 1000;
+  const MAX_PROXY_MARKERS = 1000;
 
-  // Ältesten Marker entfernen, wenn über Grenze
-  function removeOldestMarker() {
+  // Remove the oldest marker from a given marker map
+  function removeOldestMarker(markerMap) {
     let oldestKey = null;
     let oldestTime = Infinity;
-    for (const [key, markerObj] of markerMap.entries()) {
+    for (const [key, marker] of markerMap.entries()) {
       const [timestampStr] = key.split("-");
       const eventTime = new Date(timestampStr).getTime();
       if (eventTime < oldestTime) {
@@ -110,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function fetchData() {
-    // Keine neuen Daten abrufen, wenn Cluster "aufgespreizt" ist
+    // Do not fetch new data if clusters are currently expanded
     if (markers._spiderfied) {
       setTimeout(fetchData, 1000);
       return;
@@ -125,24 +129,39 @@ document.addEventListener("DOMContentLoaded", async function () {
       data.forEach((item) => {
         if (item.lat !== null && item.lon !== null) {
           const key = `${item.timestamp}-${item.ip_address}`;
-          if (!markerMap.has(key)) {
-            // LIMIT: Bei Überschreitung ältesten Eintrag entfernen
-            if (markerMap.size >= MAX_MARKERS) {
-              removeOldestMarker();
+          // Process login events separately
+          if (item.type === "login") {
+            if (!loginMarkerMap.has(key)) {
+              if (loginMarkerMap.size >= MAX_LOGIN_MARKERS) {
+                removeOldestMarker(loginMarkerMap);
+              }
+              const marker = createMarker(item);
+              loginMarkerMap.set(key, marker);
+              markers.addLayer(marker);
+              const eventTime = new Date(item.timestamp).getTime();
+              if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
+                newMarkersForAnimation.push(marker);
+              }
             }
-            const marker = createMarker(item);
-            markerMap.set(key, marker);
-            markers.addLayer(marker);
-
-            const eventTime = new Date(item.timestamp).getTime();
-            if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
-              newMarkersForAnimation.push(marker);
+          } else {
+            // Process proxy events separately
+            if (!proxyMarkerMap.has(key)) {
+              if (proxyMarkerMap.size >= MAX_PROXY_MARKERS) {
+                removeOldestMarker(proxyMarkerMap);
+              }
+              const marker = createMarker(item);
+              proxyMarkerMap.set(key, marker);
+              markers.addLayer(marker);
+              const eventTime = new Date(item.timestamp).getTime();
+              if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
+                newMarkersForAnimation.push(marker);
+              }
             }
           }
         }
       });
 
-      // Clustern mit Animation, falls neue Marker dazukamen
+      // Animate clusters with newly added markers
       setTimeout(() => {
         const animatedClusters = new Set();
         newMarkersForAnimation.forEach((marker) => {
