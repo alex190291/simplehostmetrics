@@ -72,21 +72,18 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Helper: create a marker based on event type with improved coordinate validation
-  // Note: We swap the coordinate order here.
   function createMarker(item) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
     console.log(
       "Creating marker for",
       item.city,
-      "with raw coordinates:",
+      "with coordinates:",
       lat,
       lon,
     );
-    // Swap lat and lon
-    const marker = L.marker([lon, lat], {
-      icon: item.type === "login" ? loginIcon : proxyIcon,
-    });
+    const icon = item.type === "login" ? loginIcon : proxyIcon;
+    const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
     marker.on("mouseover", function () {
       this.openPopup();
@@ -132,7 +129,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const data = await response.json();
 
       data.forEach((item) => {
-        // Validate coordinates
+        // Validate coordinates by converting to numbers
         const lat = Number(item.lat);
         const lon = Number(item.lon);
         if (!isNaN(lat) && !isNaN(lon)) {
@@ -145,6 +142,15 @@ document.addEventListener("DOMContentLoaded", async function () {
             markerMap.set(key, marker);
             markers.addLayer(marker);
           }
+        } else {
+          console.warn(
+            "Invalid coordinates for",
+            item.city,
+            "lat:",
+            item.lat,
+            "lon:",
+            item.lon,
+          );
         }
       });
     } catch (err) {
