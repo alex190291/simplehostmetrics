@@ -26,11 +26,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Marker cluster setup
+  // Marker cluster setup with disableClusteringAtZoom option
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: true,
+    disableClusteringAtZoom: 10,
   });
 
   markers.on("clusterclick", function (a) {
@@ -127,8 +128,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      const newMarkersForAnimation = [];
-
       data.forEach((item) => {
         // Check that conversion to number yields valid coordinates (not NaN)
         const lat = Number(item.lat);
@@ -142,29 +141,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             const marker = createMarker(item);
             markerMap.set(key, marker);
             markers.addLayer(marker);
-
-            const eventTime = new Date(item.timestamp).getTime();
-            if (fetchTime - eventTime < NEW_EVENT_THRESHOLD) {
-              newMarkersForAnimation.push(marker);
-            }
           }
         }
       });
-
-      // Optional cluster animation for new markers
-      setTimeout(() => {
-        const animatedClusters = new Set();
-        newMarkersForAnimation.forEach((marker) => {
-          const parent = markers.getVisibleParent(marker);
-          if (parent && parent._icon && !animatedClusters.has(parent)) {
-            parent._icon.classList.add("animate-cluster");
-            animatedClusters.add(parent);
-            setTimeout(() => {
-              parent._icon.classList.remove("animate-cluster");
-            }, 500);
-          }
-        });
-      }, 500);
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
