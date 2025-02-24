@@ -94,13 +94,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     return marker;
   }
 
-  // Global map for key -> marker
-  const markerMap = new Map();
-  const NEW_EVENT_THRESHOLD = 3000;
-  const MAX_MARKERS = 1000;
+  // Separate maps for failed login events and HTTP events
+  const loginMarkerMap = new Map();
+  const proxyMarkerMap = new Map();
+  const MAX_FAILED_LOGINS = 1000;
+  const MAX_HTTP_EVENTS = 1000;
 
-  // Remove the oldest marker when marker count exceeds MAX_MARKERS
-  function removeOldestMarker() {
+  // Remove the oldest marker from a given marker map
+  function removeOldestMarker(markerMap) {
     let oldestKey = null;
     let oldestTime = Infinity;
     for (const [key, markerObj] of markerMap.entries()) {
@@ -123,24 +124,36 @@ document.addEventListener("DOMContentLoaded", async function () {
       setTimeout(fetchData, 1000);
       return;
     }
-    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
       data.forEach((item) => {
-        // Check that conversion to number yields valid coordinates (not NaN)
         const lat = Number(item.lat);
         const lon = Number(item.lon);
         if (!isNaN(lat) && !isNaN(lon)) {
+          // Use a common key format for each event
           const key = `${item.timestamp}-${item.ip_address}`;
-          if (!markerMap.has(key)) {
-            if (markerMap.size >= MAX_MARKERS) {
-              removeOldestMarker();
+          if (item.type === "login") {
+            // For failed SSH login events, keep only the last MAX_FAILED_LOGINS markers
+            if (!loginMarkerMap.has(key)) {
+              if (loginMarkerMap.size >= MAX_FAILED_LOGINS) {
+                removeOldestMarker(loginMarkerMap);
+              }
+              const marker = createMarker(item);
+              loginMarkerMap.set(key, marker);
+              markers.addLayer(marker);
             }
-            const marker = createMarker(item);
-            markerMap.set(key, marker);
-            markers.addLayer(marker);
+          } else {
+            // For HTTP (proxy) events, keep only the last MAX_HTTP_EVENTS markers
+            if (!proxyMarkerMap.has(key)) {
+              if (proxyMarkerMap.size >= MAX_HTTP_EVENTS) {
+                removeOldestMarker(proxyMarkerMap);
+              }
+              const marker = createMarker(item);
+              proxyMarkerMap.set(key, marker);
+              markers.addLayer(marker);
+            }
           }
         }
       });
