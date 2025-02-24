@@ -1,22 +1,22 @@
 document.addEventListener("DOMContentLoaded", async function () {
-  // Leaflet-Map initialisieren
+  // Initialize Leaflet map
   const map = L.map("map", {
     center: [20, 0],
     zoom: 2,
   });
 
-  // Grundlegend: OSM-Layer
+  // Add basic OSM tile layer
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: "Map data © OpenStreetMap contributors",
   }).addTo(map);
 
-  // Prüfen, ob <body> nicht in Light Mode ist. Falls nicht, map in Dark Mode.
+  // Apply dark mode if <body> does not have "light-mode" class
   if (!document.body.classList.contains("light-mode")) {
     map.getContainer().classList.add("dark-mode");
   }
 
-  // Klick-Listener für Mode-Umschalter
+  // Mode toggle button listener
   const toggleButton = document.getElementById("modeToggle");
   toggleButton.addEventListener("click", () => {
     if (document.body.classList.contains("light-mode")) {
@@ -26,11 +26,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Marker-Cluster-Setup
+  // Marker cluster setup with disableClusteringAtZoom option
   const markers = L.markerClusterGroup({
     showCoverageOnHover: false,
     maxClusterRadius: 40,
     autoUnspiderfy: true,
+    disableClusteringAtZoom: 10,
   });
 
   markers.on("clusterclick", function (a) {
@@ -39,10 +40,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
+  // Define icons for login and proxy events
   const loginIcon = L.divIcon({
     html: '<div style="width:25px;height:25px;border-radius:50%;background-color:#f55;"></div>',
-    iconSize: [25, 25],
     className: "minimal-marker",
+    iconSize: [25, 25],
   });
 
   const proxyIcon = L.divIcon({
@@ -51,6 +53,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     className: "minimal-marker",
   });
 
+  // Helper: create popup content for a marker
   function createPopup(item) {
     const typeLabel =
       item.type === "login" ? "SSH Login Attempt" : "Proxy Event";
@@ -68,9 +71,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
+  // Helper: create a marker based on event type with improved coordinate validation
   function createMarker(item) {
+    const lat = Number(item.lat);
+    const lon = Number(item.lon);
+    console.log(
+      "Creating marker for",
+      item.city,
+      "with coordinates:",
+      lat,
+      lon,
+    );
     const icon = item.type === "login" ? loginIcon : proxyIcon;
-    const marker = L.marker([item.lat, item.lon], { icon: icon });
+    const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
     marker.on("mouseover", function () {
       this.openPopup();
@@ -81,12 +94,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     return marker;
   }
 
-  // Globale Map für Key->Marker
+  // Global map for key -> marker
   const markerMap = new Map();
-  // Maximale Markerzahl
+  const NEW_EVENT_THRESHOLD = 3000;
   const MAX_MARKERS = 1000;
 
-  // Ältesten Marker entfernen, wenn über Grenze
+  // Remove the oldest marker when marker count exceeds MAX_MARKERS
   function removeOldestMarker() {
     let oldestKey = null;
     let oldestTime = Infinity;
@@ -106,17 +119,20 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function fetchData() {
-    // Keine neuen Daten abrufen, wenn Cluster "aufgespreizt" ist
     if (markers._spiderfied) {
       setTimeout(fetchData, 1000);
       return;
     }
+    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
       data.forEach((item) => {
-        if (item.lat !== null && item.lon !== null) {
+        // Check that conversion to number yields valid coordinates (not NaN)
+        const lat = Number(item.lat);
+        const lon = Number(item.lon);
+        if (!isNaN(lat) && !isNaN(lon)) {
           const key = `${item.timestamp}-${item.ip_address}`;
           if (!markerMap.has(key)) {
             if (markerMap.size >= MAX_MARKERS) {
