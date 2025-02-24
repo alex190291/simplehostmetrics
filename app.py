@@ -1,4 +1,3 @@
-
 from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 import threading
@@ -22,14 +21,11 @@ import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history, get_country_centroid
 
-NPM_API_URL = "http://npm.ganjagaming.de/api"
-docker_client = docker.from_env()
-
-app = Flask(__name__)
-
 # Load configuration from config.yml
 with open('config.yml', 'r') as f:
     config_data = yaml.safe_load(f)
+
+app = Flask(__name__)
 
 # Set secret keys and other settings from config file
 app.config['DEBUG'] = False
@@ -90,6 +86,11 @@ history_data = {
     'network_history': stats.network_history
 }
 load_history(history_data)
+
+# Set NPM domain and API URL from config_data
+NPM_DOMAIN = config_data["nginx"]["domain"]
+NPM_API_URL = f"http://{NPM_DOMAIN}/api"
+docker_client = docker.from_env()
 
 @app.before_request
 def require_user_update():
@@ -158,6 +159,32 @@ def check_all_route():
 def check_all_status_route():
     status = docker_manager.get_all_status()
     return jsonify(status)
+
+# New Nginx Proxy Manager integration endpoints
+
+@app.route("/nginx", methods=["GET"])
+@login_required
+def nginx_view():
+    domain = config_data["nginx"]["domain"]
+    return render_template("nginx.html", nginx_domain=domain)
+
+@app.route("/nginx/settings", methods=["GET", "POST"])
+@login_required
+def nginx_settings():
+    global NPM_API_URL
+    if request.method == "POST":
+        new_domain = request.form.get("domain")
+        if new_domain:
+            config_data["nginx"]["domain"] = new_domain
+            NPM_API_URL = f"http://{new_domain}/api"
+            with open("config.yml", "w") as f:
+                yaml.safe_dump(config_data, f)
+            flash("NPM domain updated successfully!", "success")
+            return redirect(url_for("nginx_settings"))
+        else:
+            flash("Please provide a valid domain.", "error")
+    current_domain = config_data["nginx"]["domain"]
+    return render_template("nginx_settings.html", current_domain=current_domain)
 
 # New RTAD logs API endpoint for retrieving processed log and lastb data
 @app.route('/rtad')

@@ -25,6 +25,11 @@
                 class="{% if request.path.startswith('/rtad') %}active{% endif %}"
                 >RTAD Overview</a
             >
+            <a
+                href="/nginx"
+                class="{% if request.path.startswith('/nginx') %}active{% endif %}"
+                >Reverse Proxy</a
+            >
             <!-- Removed the Attack Map tab here -->
         </div>
         {% block content %}{% endblock %} {% block scripts %}{% endblock %}
