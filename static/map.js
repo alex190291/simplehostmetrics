@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Helper: create or update a marker based on event type with diffing
+  // Helper: create or update a marker based on event type
   function updateOrCreateMarker(item, markerMap) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
@@ -116,10 +116,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
-      // New sets to track keys received in current update
-      const loginKeys = new Set();
-      const proxyKeys = new Set();
-
+      // Process all markers returned by the API and add/update them
       data.forEach((item) => {
         const lat = Number(item.lat);
         const lon = Number(item.lon);
@@ -127,29 +124,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           return;
         }
         if (item.type === "login") {
-          const key = updateOrCreateMarker(item, loginMarkerMap);
-          loginKeys.add(key);
+          updateOrCreateMarker(item, loginMarkerMap);
         } else {
-          const key = updateOrCreateMarker(item, proxyMarkerMap);
-          proxyKeys.add(key);
+          updateOrCreateMarker(item, proxyMarkerMap);
         }
       });
-
-      // Remove markers that are no longer in the fetched data
-      // For login markers:
-      for (let [key, marker] of loginMarkerMap.entries()) {
-        if (!loginKeys.has(key)) {
-          markers.removeLayer(marker);
-          loginMarkerMap.delete(key);
-        }
-      }
-      // For proxy markers:
-      for (let [key, marker] of proxyMarkerMap.entries()) {
-        if (!proxyKeys.has(key)) {
-          markers.removeLayer(marker);
-          proxyMarkerMap.delete(key);
-        }
-      }
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }

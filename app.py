@@ -20,7 +20,7 @@ from models import db, User, Role, CustomNetworkGraph
 import stats
 import docker_manager
 from custom_network import custom_network_bp
-from database import initialize_database, load_history  # <== Notice we removed get_country_centroid
+from database import initialize_database, load_history
 
 # Load configuration from config.yml
 with open('config.yml', 'r') as f:
@@ -224,12 +224,13 @@ def rtad_proxy():
 def attack_map_data():
     """
     Combine /rtad_lastb and /rtad_proxy data, returning the lat/lon directly
-    as updated in rtad_manager. If lat/lon is still None, default to (0,0).
+    as updated in rtad_manager. Returns only the last 1000 login events and
+    the last 1000 proxy events.
     """
     rtad_manager.update_missing_country_info()
 
-    login_data = rtad_manager.fetch_login_attempts()
-    proxy_data = rtad_manager.fetch_http_error_logs()
+    login_data = rtad_manager.fetch_login_attempts()[-1000:]
+    proxy_data = rtad_manager.fetch_http_error_logs()[-1000:]
     results = []
 
     # Merge login attempts
