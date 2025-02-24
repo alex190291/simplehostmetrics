@@ -26,19 +26,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Marker cluster setup with disableClusteringAtZoom option
-  const markers = L.markerClusterGroup({
-    showCoverageOnHover: false,
-    maxClusterRadius: 40,
-    autoUnspiderfy: true,
-    disableClusteringAtZoom: 10,
-  });
-
-  markers.on("clusterclick", function (a) {
-    if (markers._spiderfied === a.layer) {
-      markers.unspiderfy();
-    }
-  });
+  // Create a plain layer group to hold markers (no clustering)
+  const markers = L.layerGroup();
 
   // Define icons for login and proxy events
   const loginIcon = L.divIcon({
@@ -96,7 +85,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Global map for key -> marker
   const markerMap = new Map();
-  const NEW_EVENT_THRESHOLD = 3000;
   const MAX_MARKERS = 1000;
 
   // Remove the oldest marker when marker count exceeds MAX_MARKERS
@@ -119,11 +107,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function fetchData() {
-    if (markers._spiderfied) {
-      setTimeout(fetchData, 1000);
-      return;
-    }
-    const fetchTime = Date.now();
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
