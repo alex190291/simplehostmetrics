@@ -13,7 +13,6 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
-      // Use nice_name if available; otherwise join domain_names, use provider, or fallback to id
       option.textContent =
         cert.nice_name ||
         (cert.domain_names ? cert.domain_names.join(", ") : "") ||
@@ -150,7 +149,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listener for the Cancel button
+  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -159,6 +158,40 @@ export function populateAddHostForm() {
   populateCertificateDropdown(certSelect);
   const accessListSelect = form.querySelector("#access_list_id");
   populateAccessListDropdown(accessListSelect);
+
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const newData = {
+      domain_names: formData
+        .get("domain_names")
+        .split(",")
+        .map((d) => d.trim()),
+      forward_host: formData.get("forward_host"),
+      forward_port: parseInt(formData.get("forward_port")),
+      forward_scheme: formData.get("forward_scheme"),
+      certificate_id: formData.get("certificate_id"),
+      access_list_id: formData.get("access_list_id") || null,
+      caching_enabled: formData.get("cache_assets") === "on",
+      allow_websocket_upgrade: formData.get("websockets_support") === "on",
+      block_exploits: formData.get("block_exploits") === "on",
+      ssl_forced: formData.get("ssl_forced") === "on",
+      http2_support: formData.get("http2_support") === "on",
+      hsts_enabled: formData.get("hsts_enabled") === "on",
+      hsts_subdomains: formData.get("hsts_subdomains") === "on",
+      custom_config: formData.get("custom_config"),
+    };
+    import("../managers/ProxyHostManager.js").then((mod) => {
+      mod
+        .createProxyHost(newData)
+        .then(() => {
+          document.getElementById("addHostModal").style.display = "none";
+        })
+        .catch((err) => {
+          console.error("Failed to create host", err);
+        });
+    });
+  };
 }
 
 export async function editHostModal(host) {
@@ -266,7 +299,7 @@ export async function editHostModal(host) {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listener for the Cancel button
+  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -276,35 +309,37 @@ export async function editHostModal(host) {
   const accessListSelect = form.querySelector("#access_list_id");
   populateAccessListDropdown(accessListSelect, host.access_list_id || "");
 
-  return new Promise((resolve) => {
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const updatedData = {
-        domain_names: formData
-          .get("domain_names")
-          .split(",")
-          .map((d) => d.trim()),
-        domain_names: formData
-          .get("domain_names")
-          .split(",")
-          .map((d) => d.trim()),
-        forward_host: formData.get("forward_host"),
-        forward_port: parseInt(formData.get("forward_port")),
-        forward_scheme: formData.get("forward_scheme"),
-        certificate_id: formData.get("certificate_id"),
-        access_list_id: formData.get("access_list_id") || null,
-        caching_enabled: formData.get("cache_assets") === "on", // Changed from cache_assets
-        allow_websocket_upgrade: formData.get("websockets_support") === "on", // Changed from websockets_support
-        block_exploits: formData.get("block_exploits") === "on",
-        ssl_forced: formData.get("ssl_forced") === "on",
-        http2_support: formData.get("http2_support") === "on",
-        hsts_enabled: formData.get("hsts_enabled") === "on",
-        hsts_subdomains: formData.get("hsts_subdomains") === "on",
-        custom_config: formData.get("custom_config"),
-      };
-      modal.style.display = "none";
-      resolve(updatedData);
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const updatedData = {
+      domain_names: formData
+        .get("domain_names")
+        .split(",")
+        .map((d) => d.trim()),
+      forward_host: formData.get("forward_host"),
+      forward_port: parseInt(formData.get("forward_port")),
+      forward_scheme: formData.get("forward_scheme"),
+      certificate_id: formData.get("certificate_id"),
+      access_list_id: formData.get("access_list_id") || null,
+      caching_enabled: formData.get("cache_assets") === "on",
+      allow_websocket_upgrade: formData.get("websockets_support") === "on",
+      block_exploits: formData.get("block_exploits") === "on",
+      ssl_forced: formData.get("ssl_forced") === "on",
+      http2_support: formData.get("http2_support") === "on",
+      hsts_enabled: formData.get("hsts_enabled") === "on",
+      hsts_subdomains: formData.get("hsts_subdomains") === "on",
+      custom_config: formData.get("custom_config"),
     };
-  });
+    import("../managers/ProxyHostManager.js").then((mod) => {
+      mod
+        .editProxyHost(host.id, updatedData)
+        .then(() => {
+          modal.style.display = "none";
+        })
+        .catch((err) => {
+          console.error("Failed to update host", err);
+        });
+    });
+  };
 }
