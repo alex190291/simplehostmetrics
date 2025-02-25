@@ -1,5 +1,5 @@
 // /static/npm/npm.js
-import { NPMManager } from "./npm/NPMManager.js";
+import { NPMManager } from "./NPMManager.js";
 
 // Initialize the NPM Manager when the document is ready
 document.addEventListener("DOMContentLoaded", () => {
