@@ -10,8 +10,8 @@ import docker
 from urllib.parse import urljoin
 
 from flask_sqlalchemy import SQLAlchemy
-from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from flask_security.utils import hash_password
+from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 
 import rtad_manager
 
