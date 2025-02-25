@@ -13,7 +13,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
-      // Use nice_name if available; otherwise join domain_names, use provider, or fallback to id
+      // Use nice_name if available; otherwise join domain_names, provider, or fallback to id
       option.textContent =
         cert.nice_name ||
         (cert.domain_names ? cert.domain_names.join(", ") : "") ||
@@ -48,12 +48,24 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
   }
 }
 
+// Removes any stray header element (with "x") from the modal container.
+function removeStrayModalHeader() {
+  const modal = document.getElementById("addHostModal");
+  if (modal) {
+    const header = modal.querySelector(".modal-header");
+    if (header) {
+      header.remove();
+    }
+  }
+}
+
 export function populateAddHostForm() {
+  removeStrayModalHeader();
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
     <div class="tabs">
-      <button type="button" class="tab-link active" data-tab="general">General</button>
-      <button type="button" class="tab-link" data-tab="custom">Custom Nginx Config</button>
+      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
+      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
     </div>
     <div class="tab-content" id="generalTab">
       <div class="form-group">
@@ -139,8 +151,8 @@ export function populateAddHostForm() {
       </div>
     </div>
     <div class="form-actions">
-      <button type="submit" class="btn-primary">Add Host</button>
-      <button type="button" class="btn-secondary modal-close">Cancel</button>
+      <button type="submit" class="btn btn-primary">Add Host</button>
+      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
     </div>
   `;
   // Attach tab switching event listeners
@@ -163,13 +175,14 @@ export function populateAddHostForm() {
 }
 
 export async function editHostModal(host) {
+  removeStrayModalHeader();
   const modal = document.getElementById("addHostModal");
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
     <input type="hidden" name="host_id" value="${host.id}">
     <div class="tabs">
-      <button type="button" class="tab-link active" data-tab="general">General</button>
-      <button type="button" class="tab-link" data-tab="custom">Custom Nginx Config</button>
+      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
+      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
     </div>
     <div class="tab-content" id="generalTab">
       <div class="form-group">
@@ -255,8 +268,8 @@ export async function editHostModal(host) {
       </div>
     </div>
     <div class="form-actions">
-      <button type="submit" class="btn-primary">Update Host</button>
-      <button type="button" class="btn-secondary modal-close">Cancel</button>
+      <button type="submit" class="btn btn-primary">Update Host</button>
+      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
     </div>
   `;
   modal.style.display = "block";
