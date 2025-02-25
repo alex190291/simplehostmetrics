@@ -6,7 +6,6 @@ import { switchTab, closeModals } from "./common.js";
 // -------------------------
 function openDnsChallengeModal() {
   return new Promise((resolve, reject) => {
-    // Create modal container if it doesn't exist
     let modal = document.getElementById("dnsChallengeModal");
     if (!modal) {
       modal = document.createElement("div");
@@ -30,13 +29,11 @@ function openDnsChallengeModal() {
     }
     modal.style.display = "flex";
 
-    // Load the DNS plugins JSON
     fetch("/npm/json/certbot-dns-plugins.json")
       .then((res) => res.json())
       .then((plugins) => {
         const optionsDiv = modal.querySelector("#dnsProviderOptions");
         optionsDiv.innerHTML = "";
-        // Create a select element for providers
         const select = document.createElement("select");
         select.id = "dnsProviderSelect";
         for (const key in plugins) {
@@ -47,7 +44,6 @@ function openDnsChallengeModal() {
         }
         optionsDiv.appendChild(select);
 
-        // Handler for confirm and cancel buttons
         modal.querySelector("#dnsConfirm").onclick = () => {
           const provider = document.getElementById("dnsProviderSelect").value;
           const credentials = document
@@ -92,6 +88,15 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       if (cert.id == selectedValue) option.selected = true;
       selectElement.appendChild(option);
     });
+    // Append options for new certificate requests
+    const optionNewNoDns = document.createElement("option");
+    optionNewNoDns.value = "new_nodns";
+    optionNewNoDns.textContent = "Request New Certificate (No DNS Challenge)";
+    selectElement.appendChild(optionNewNoDns);
+    const optionNewDns = document.createElement("option");
+    optionNewDns.value = "new_dns";
+    optionNewDns.textContent = "Request New Certificate (DNS Challenge)";
+    selectElement.appendChild(optionNewDns);
   } catch (error) {
     console.error("Failed to load certificates", error);
   }
@@ -147,11 +152,7 @@ export function populateAddHostForm() {
       </div>
       <div class="form-group">
         <label for="certificate_id">Certificate</label>
-        <select id="certificate_id" name="certificate_id">
-          <option value="">None</option>
-          <option value="new_nodns">Request New Certificate (No DNS Challenge)</option>
-          <option value="new_dns">Request New Certificate (DNS Challenge)</option>
-        </select>
+        <select id="certificate_id" name="certificate_id" required></select>
       </div>
       <div class="form-group">
         <label for="access_list_id">Access List</label>
@@ -220,7 +221,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
+  // Attach modal close event listeners
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -234,12 +235,17 @@ export function populateAddHostForm() {
     e.preventDefault();
     const formData = new FormData(form);
     const certificate_id_raw = formData.get("certificate_id");
-    const certificate_id =
-      certificate_id_raw === ""
-        ? null
-        : certificate_id_raw === "new_nodns" || certificate_id_raw === "new_dns"
-          ? certificate_id_raw
-          : parseInt(certificate_id_raw);
+    let certificate_id;
+    if (certificate_id_raw === "") {
+      certificate_id = null;
+    } else if (
+      certificate_id_raw === "new_dns" ||
+      certificate_id_raw === "new_nodns"
+    ) {
+      certificate_id = "new";
+    } else {
+      certificate_id = parseInt(certificate_id_raw);
+    }
     const access_list_id_raw = formData.get("access_list_id");
     const access_list_id =
       access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
@@ -264,11 +270,9 @@ export function populateAddHostForm() {
       advanced_config: formData.get("custom_config"),
     };
 
-    // If a DNS challenge is requested, open the DNS challenge modal to collect provider & credentials.
-    if (certificate_id === "new_dns") {
+    if (certificate_id_raw === "new_dns") {
       openDnsChallengeModal()
         .then((dnsData) => {
-          // Merge DNS challenge details into the payload under a new property
           const newData = Object.assign({}, baseData, {
             dns_challenge: dnsData,
           });
@@ -332,16 +336,12 @@ export async function editHostModal(host) {
       </div>
       <div class="form-group">
         <label for="certificate_id">Certificate</label>
-        <select id="certificate_id" name="certificate_id">
-          <option value="" ${!host.certificate_id ? "selected" : ""}>None</option>
-          <option value="new_nodns" ${host.certificate_id === "new_nodns" ? "selected" : ""}>Request New Certificate (No DNS Challenge)</option>
-          <option value="new_dns" ${host.certificate_id === "new_dns" ? "selected" : ""}>Request New Certificate (DNS Challenge)</option>
-        </select>
+        <select id="certificate_id" name="certificate_id" required></select>
       </div>
       <div class="form-group">
         <label for="access_list_id">Access List</label>
         <select id="access_list_id" name="access_list_id">
-          <option value="" ${!host.access_list_id ? "selected" : ""}>None</option>
+          <option value="">None</option>
         </select>
       </div>
       <div class="form-group">
@@ -420,12 +420,17 @@ export async function editHostModal(host) {
     e.preventDefault();
     const formData = new FormData(form);
     const certificate_id_raw = formData.get("certificate_id");
-    const certificate_id =
-      certificate_id_raw === ""
-        ? null
-        : certificate_id_raw === "new_nodns" || certificate_id_raw === "new_dns"
-          ? certificate_id_raw
-          : parseInt(certificate_id_raw);
+    let certificate_id;
+    if (certificate_id_raw === "") {
+      certificate_id = null;
+    } else if (
+      certificate_id_raw === "new_dns" ||
+      certificate_id_raw === "new_nodns"
+    ) {
+      certificate_id = "new";
+    } else {
+      certificate_id = parseInt(certificate_id_raw);
+    }
     const access_list_id_raw = formData.get("access_list_id");
     const access_list_id =
       access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
@@ -450,7 +455,7 @@ export async function editHostModal(host) {
       advanced_config: formData.get("custom_config"),
     };
 
-    if (certificate_id === "new_dns") {
+    if (certificate_id_raw === "new_dns") {
       openDnsChallengeModal()
         .then((dnsData) => {
           const newData = Object.assign({}, baseData, {
