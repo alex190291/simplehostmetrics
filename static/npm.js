@@ -1,9 +1,9 @@
 // static/npm.js
 class NPMManager {
   constructor() {
-    this.apiBase = `https://${window.location.hostname}/api`;
+    // Read NPM domain from window.npmDomain (will be set from config.yml)
+    this.apiBase = `https://${window.npmDomain}/api`;
     this.currentView = "proxy";
-    this.token = null;
     this.refreshInterval = 30000; // 30 seconds
     this.retryAttempts = 3;
     this.cache = new Map();
@@ -11,29 +11,49 @@ class NPMManager {
   }
 
   async init() {
-    await this.checkAuth();
-    this.setupEventListeners();
-    this.loadCurrentView();
-    this.startAutoRefresh();
-  }
-
-  async checkAuth() {
     try {
-      const response = await fetch(`${this.apiBase}/tokens`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        window.location.href = "/login";
+      // First check if NPM is reachable
+      const healthCheck = await this.makeRequest("/", "GET");
+      if (healthCheck.status !== "OK") {
+        this.showError("NPM API is not available");
         return;
       }
-
-      const data = await response.json();
-      this.token = data.token;
+      this.setupEventListeners();
+      this.loadCurrentView();
+      this.startAutoRefresh();
     } catch (error) {
-      console.error("Auth check failed:", error);
-      window.location.href = "/login";
+      this.showError("Failed to connect to NPM API");
+      console.error("Init failed:", error);
+    }
+  }
+
+  async makeRequest(endpoint, method = "GET", body = null, retryCount = 0) {
+    try {
+      const options = {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // This might need to be adjusted based on NPM's CORS policy
+      };
+
+      if (body) {
+        options.body = JSON.stringify(body);
+      }
+
+      const response = await fetch(`${this.apiBase}${endpoint}`, options);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (retryCount < this.retryAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return this.makeRequest(endpoint, method, body, retryCount + 1);
+      }
+      throw error;
     }
   }
 
