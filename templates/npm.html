@@ -60,7 +60,7 @@ block content %}
                 align-items: center;
             "
         >
-            <button class="add-btn" id="addNewBtn">Add New</button>
+            <button class="btn btn-primary" id="addNewBtn">Add New</button>
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="Search..." />
             </div>
@@ -68,19 +68,59 @@ block content %}
 
         <!-- Dynamic Content Views -->
         <div id="proxyView" class="content-view active">
-            <div class="card-grid" id="proxyHostsGrid"></div>
+            <div class="card-grid" id="proxyHostsGrid">
+                <!-- Placeholder for dynamically injected host cards -->
+                <div class="host-card glass-card">
+                    <div class="card-header">
+                        <h3>{{ host.domain_placeholder }}</h3>
+                        <div class="status-indicator active"></div>
+                    </div>
+                    <div class="card-content">
+                        <p>Forward: {{ host.forward_placeholder }}</p>
+                        <p>SSL: {{ host.ssl_status_placeholder }}</p>
+                        <p>Cache: {{ host.cache_status_placeholder }}</p>
+                    </div>
+                    <div class="card-actions">
+                        <button
+                            class="btn btn-primary"
+                            onclick="npmManager.editHost({{ host.id }})"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            class="btn btn-secondary"
+                            onclick="npmManager.deleteHost({{ host.id }})"
+                        >
+                            Delete
+                        </button>
+                        <button
+                            class="btn btn-secondary"
+                            onclick="host.enabled ? npmManager.disableProxyHost({{ host.id }}) : npmManager.enableProxyHost({{ host.id }})"
+                        >
+                            Disable
+                        </button>
+                    </div>
+                </div>
+                <!-- Additional host cards will be dynamically injected here -->
+            </div>
         </div>
 
         <div id="redirectionView" class="content-view" style="display: none">
-            <div class="card-grid" id="redirectionHostsGrid"></div>
+            <div class="card-grid" id="redirectionHostsGrid">
+                <!-- Dynamic redirection host cards -->
+            </div>
         </div>
 
         <div id="streamView" class="content-view" style="display: none">
-            <div class="card-grid" id="streamHostsGrid"></div>
+            <div class="card-grid" id="streamHostsGrid">
+                <!-- Dynamic stream host cards -->
+            </div>
         </div>
 
         <div id="accessView" class="content-view" style="display: none">
-            <div class="card-grid" id="accessListsGrid"></div>
+            <div class="card-grid" id="accessListsGrid">
+                <!-- Dynamic access list cards -->
+            </div>
         </div>
 
         <div id="certificatesView" class="content-view" style="display: none">
@@ -100,7 +140,9 @@ block content %}
                     </div>
                 </div>
             </div>
-            <div class="card-grid" id="certificatesGrid"></div>
+            <div class="card-grid" id="certificatesGrid">
+                <!-- Dynamic certificate cards -->
+            </div>
         </div>
 
         <div id="auditView" class="content-view" style="display: none">
@@ -114,7 +156,9 @@ block content %}
                             <th>Details</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <!-- Dynamic audit log entries -->
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -124,7 +168,21 @@ block content %}
                 <div class="settings-card">
                     <h3>Default Settings</h3>
                     <form id="defaultSettingsForm">
-                        <!-- Settings form content will be dynamically populated -->
+                        <div class="form-group">
+                            <label for="defaultSite">Default Site</label>
+                            <input
+                                type="text"
+                                id="defaultSite"
+                                name="defaultSite"
+                                value="placeholder.com"
+                                required
+                            />
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                Save Settings
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -140,7 +198,6 @@ block content %}
 <!-- Modals -->
 <div id="addHostModal" class="modal">
     <div class="modal-content">
-        <span class="close">&times;</span>
         <h2>Add New Host</h2>
         <form id="addHostForm">
             <!-- Form fields will be dynamically populated -->
@@ -150,22 +207,61 @@ block content %}
 
 <div id="certificateModal" class="modal">
     <div class="modal-content">
-        <span class="close">&times;</span>
         <h2>Add Certificate</h2>
         <div class="cert-tabs">
-            <button class="cert-tab active" data-tab="upload">
+            <button class="btn btn-secondary cert-tab active" data-tab="upload">
                 Upload Certificate
             </button>
-            <button class="cert-tab" data-tab="letsencrypt">
+            <button class="btn btn-secondary cert-tab" data-tab="letsencrypt">
                 Let's Encrypt
             </button>
         </div>
         <div class="cert-content">
             <form id="uploadCertForm" class="cert-form active">
-                <!-- Upload certificate form fields -->
+                <div class="form-group">
+                    <label for="certFile">Certificate File</label>
+                    <input type="file" id="certFile" name="certFile" required />
+                </div>
+                <div class="form-group">
+                    <label for="keyFile">Key File</label>
+                    <input type="file" id="keyFile" name="keyFile" required />
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Upload
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        onclick="closeModals()"
+                    >
+                        Cancel
+                    </button>
+                </div>
             </form>
             <form id="letsencryptForm" class="cert-form">
-                <!-- Let's Encrypt form fields -->
+                <div class="form-group">
+                    <label for="domainNames">Domain Names</label>
+                    <input
+                        type="text"
+                        id="domainNames"
+                        name="domainNames"
+                        placeholder="e.g. example.com, www.example.com"
+                        required
+                    />
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Request Certificate
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        onclick="closeModals()"
+                    >
+                        Cancel
+                    </button>
+                </div>
             </form>
         </div>
     </div>
