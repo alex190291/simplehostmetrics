@@ -1,12 +1,51 @@
 // /static/npm/modals/ProxyHostModals.js
 import { switchTab, closeModals } from "./common.js";
 
+// Helper function to populate the certificate dropdown dynamically
+async function populateCertificateDropdown(selectElement, selectedValue = "") {
+  try {
+    const response = await fetch("/npm-api/nginx/certificates");
+    const certificates = await response.json();
+    // Append each available certificate as an option
+    certificates.forEach((cert) => {
+      const option = document.createElement("option");
+      option.value = cert.id;
+      option.textContent = cert.name;
+      if (cert.id == selectedValue) option.selected = true;
+      selectElement.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Failed to load certificates", error);
+  }
+}
+
+// Helper function to populate the access list dropdown dynamically
+async function populateAccessListDropdown(selectElement, selectedValue = "") {
+  try {
+    const response = await fetch("/npm-api/access-lists");
+    const accessLists = await response.json();
+    // Append each available access list as an option
+    accessLists.forEach((list) => {
+      const option = document.createElement("option");
+      option.value = list.id;
+      option.textContent = list.name;
+      if (list.id == selectedValue) option.selected = true;
+      selectElement.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Failed to load access lists", error);
+  }
+}
+
 export function populateAddHostForm() {
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
+    <div class="modal-header">
+      <span class="modal-close">&times;</span>
+    </div>
     <div class="tabs">
-      <button type="button" class="tab-link active" onclick="switchTab('general', this)">General</button>
-      <button type="button" class="tab-link" onclick="switchTab('custom', this)">Custom Nginx Config</button>
+      <button type="button" class="tab-link active" data-tab="general">General</button>
+      <button type="button" class="tab-link" data-tab="custom">Custom Nginx Config</button>
     </div>
     <div class="tab-content" id="generalTab">
       <div class="form-group">
@@ -40,8 +79,6 @@ export function populateAddHostForm() {
         <label for="access_list_id">Access List</label>
         <select id="access_list_id" name="access_list_id">
           <option value="">None</option>
-          <option value="1">Access List 1</option>
-          <option value="2">Access List 2</option>
         </select>
       </div>
       <div class="form-group">
@@ -90,24 +127,44 @@ export function populateAddHostForm() {
     <div class="tab-content" id="customTab" style="display:none;">
       <div class="form-group">
         <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config"></textarea>
+        <textarea id="custom_config" name="custom_config" rows="30"></textarea>
       </div>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn-primary">Add Host</button>
-      <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn-secondary modal-close">Cancel</button>
     </div>
   `;
+  // Attach tab switching event listeners
+  const tabLinks = form.querySelectorAll(".tab-link");
+  tabLinks.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchTab(btn.getAttribute("data-tab"), btn);
+    });
+  });
+  // Attach modal close event listeners for both the header "×" and cancel button
+  const modalCloseButtons = form.querySelectorAll(".modal-close");
+  modalCloseButtons.forEach((btn) => {
+    btn.addEventListener("click", closeModals);
+  });
+  // Populate the certificate and access list dropdown menus
+  const certSelect = form.querySelector("#certificate_id");
+  populateCertificateDropdown(certSelect);
+  const accessListSelect = form.querySelector("#access_list_id");
+  populateAccessListDropdown(accessListSelect);
 }
 
 export async function editHostModal(host) {
   const modal = document.getElementById("addHostModal");
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
+    <div class="modal-header">
+      <span class="modal-close">&times;</span>
+    </div>
     <input type="hidden" name="host_id" value="${host.id}">
     <div class="tabs">
-      <button type="button" class="tab-link active" onclick="switchTab('general', this)">General</button>
-      <button type="button" class="tab-link" onclick="switchTab('custom', this)">Custom Nginx Config</button>
+      <button type="button" class="tab-link active" data-tab="general">General</button>
+      <button type="button" class="tab-link" data-tab="custom">Custom Nginx Config</button>
     </div>
     <div class="tab-content" id="generalTab">
       <div class="form-group">
@@ -141,8 +198,6 @@ export async function editHostModal(host) {
         <label for="access_list_id">Access List</label>
         <select id="access_list_id" name="access_list_id">
           <option value="" ${!host.access_list_id ? "selected" : ""}>None</option>
-          <option value="1" ${host.access_list_id === 1 ? "selected" : ""}>Access List 1</option>
-          <option value="2" ${host.access_list_id === 2 ? "selected" : ""}>Access List 2</option>
         </select>
       </div>
       <div class="form-group">
@@ -191,15 +246,33 @@ export async function editHostModal(host) {
     <div class="tab-content" id="customTab" style="display:none;">
       <div class="form-group">
         <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config">${host.custom_config || ""}</textarea>
+        <textarea id="custom_config" name="custom_config" rows="30">${host.custom_config || ""}</textarea>
       </div>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn-primary">Update Host</button>
-      <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
+      <button type="button" class="btn-secondary modal-close">Cancel</button>
     </div>
   `;
   modal.style.display = "block";
+  // Attach tab switching event listeners
+  const tabLinks = form.querySelectorAll(".tab-link");
+  tabLinks.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchTab(btn.getAttribute("data-tab"), btn);
+    });
+  });
+  // Attach modal close event listeners
+  const modalCloseButtons = form.querySelectorAll(".modal-close");
+  modalCloseButtons.forEach((btn) => {
+    btn.addEventListener("click", closeModals);
+  });
+  // Populate the certificate and access list dropdown menus
+  const certSelect = form.querySelector("#certificate_id");
+  populateCertificateDropdown(certSelect, host.certificate_id || "");
+  const accessListSelect = form.querySelector("#access_list_id");
+  populateAccessListDropdown(accessListSelect, host.access_list_id || "");
+
   return new Promise((resolve) => {
     form.onsubmit = (e) => {
       e.preventDefault();

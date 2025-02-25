@@ -3,7 +3,10 @@ export function switchTab(tabName, btn) {
   document.querySelectorAll(".tab-content").forEach(function (el) {
     el.style.display = "none";
   });
-  document.getElementById(tabName + "Tab").style.display = "block";
+  const target = document.getElementById(tabName + "Tab");
+  if (target) {
+    target.style.display = "block";
+  }
   document.querySelectorAll(".tab-link").forEach(function (link) {
     link.classList.remove("active");
   });
