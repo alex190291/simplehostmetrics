@@ -21,6 +21,10 @@ export async function loadProxyHosts() {
 export function createProxyHostCard(host) {
   const card = document.createElement("div");
   card.className = "host-card glass-card";
+  const disableAction = host.enabled
+    ? `npmManager.disableProxyHost(${host.id})`
+    : `npmManager.enableProxyHost(${host.id})`;
+  const disableLabel = host.enabled ? "Disable" : "Enable";
   card.innerHTML = `
     <div class="card-header">
       <h3>${host.domain_names[0]}</h3>
@@ -34,8 +38,8 @@ export function createProxyHostCard(host) {
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editHost(${host.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteHost(${host.id})">Delete</button>
-      <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableProxyHost(${host.id}) : npmManager.enableProxyHost(${host.id})">
-        ${host.enabled ? "Disable" : "Enable"}
+      <button class="btn btn-secondary" onclick="${disableAction}">
+        ${disableLabel}
       </button>
     </div>
   `;
@@ -59,6 +63,10 @@ export async function loadRedirectionHosts() {
 export function createRedirectionHostCard(host) {
   const card = document.createElement("div");
   card.className = "host-card glass-card";
+  const disableAction = host.enabled
+    ? `npmManager.disableRedirectionHost(${host.id})`
+    : `npmManager.enableRedirectionHost(${host.id})`;
+  const disableLabel = host.enabled ? "Disable" : "Enable";
   card.innerHTML = `
     <div class="card-header">
       <h3>${host.domain_names[0]}</h3>
@@ -72,8 +80,8 @@ export function createRedirectionHostCard(host) {
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editRedirectionHost(${host.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteRedirectionHost(${host.id})">Delete</button>
-      <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableRedirectionHost(${host.id}) : npmManager.enableRedirectionHost(${host.id})">
-        ${host.enabled ? "Disable" : "Enable"}
+      <button class="btn btn-secondary" onclick="${disableAction}">
+        ${disableLabel}
       </button>
     </div>
   `;
@@ -97,6 +105,10 @@ export async function loadStreamHosts() {
 export function createStreamCard(stream) {
   const card = document.createElement("div");
   card.className = "stream-card glass-card";
+  const disableAction = stream.enabled
+    ? `npmManager.disableStream(${stream.id})`
+    : `npmManager.enableStream(${stream.id})`;
+  const disableLabel = stream.enabled ? "Disable" : "Enable";
   card.innerHTML = `
     <div class="card-header">
       <h3>Stream on port ${stream.incoming_port}</h3>
@@ -109,8 +121,8 @@ export function createStreamCard(stream) {
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editStream(${stream.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteStream(${stream.id})">Delete</button>
-      <button class="btn btn-secondary" onclick="stream.enabled ? npmManager.disableStream(${stream.id}) : npmManager.enableStream(${stream.id})">
-        ${stream.enabled ? "Disable" : "Enable"}
+      <button class="btn btn-secondary" onclick="${disableAction}">
+        ${disableLabel}
       </button>
     </div>
   `;
@@ -289,6 +301,10 @@ export async function loadDeadHosts() {
 export function createDeadHostCard(host) {
   const card = document.createElement("div");
   card.className = "host-card glass-card";
+  const disableAction = host.enabled
+    ? `npmManager.disableDeadHost(${host.id})`
+    : `npmManager.enableDeadHost(${host.id})`;
+  const disableLabel = host.enabled ? "Disable" : "Enable";
   card.innerHTML = `
     <div class="card-header">
       <h3>${host.domain_names[0]}</h3>
@@ -300,8 +316,8 @@ export function createDeadHostCard(host) {
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.updateDeadHost(${host.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteDeadHost(${host.id})">Delete</button>
-      <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableDeadHost(${host.id}) : npmManager.enableDeadHost(${host.id})">
-        ${host.enabled ? "Disable" : "Enable"}
+      <button class="btn btn-secondary" onclick="${disableAction}">
+        ${disableLabel}
       </button>
     </div>
   `;
