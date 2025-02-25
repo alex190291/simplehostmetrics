@@ -3,6 +3,7 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for, f
 import threading
 import logging
 import time
+from sqlalchemy.orm.query import log
 import yaml
 import requests
 import docker
@@ -184,6 +185,38 @@ def npm_settings():
             flash("Please provide a valid domain.", "error")
     current_domain = config_data["npm"]["domain"]
     return render_template("npm_settings.html", current_domain=current_domain)
+
+@app.route('/npm-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@login_required
+def npm_proxy(path):
+    npm_domain = app.config['npm']['domain']
+    npm_url = f'https://{npm_domain}/api/'
+
+    try:
+        # Forward the request to NPM
+        response = requests.request(
+            method=request.method,
+            url=urljoin(npm_url, path),
+            headers={
+                key: value for key, value in request.headers if key != 'Host'
+            },
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            verify=True  # Set to False if using self-signed cert
+        )
+
+        # Forward the response from NPM
+        return (
+            response.content,
+            response.status_code,
+            {'Content-Type': response.headers.get('Content-Type', 'application/json')}
+        )
+
+    except requests.RequestException as e:
+        return jsonify({'error': str(e)}), 500
+
+
 
 # RTAD logs page
 @app.route('/rtad')

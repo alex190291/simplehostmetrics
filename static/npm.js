@@ -1,30 +1,12 @@
 // static/npm.js
 class NPMManager {
   constructor() {
-    // Read NPM domain from window.npmDomain (will be set from config.yml)
-    this.apiBase = `https://${window.npmDomain}/api`;
+    this.apiBase = "/npm-api"; // Use our proxy endpoint instead of direct NPM URL
     this.currentView = "proxy";
-    this.refreshInterval = 30000; // 30 seconds
+    this.refreshInterval = 30000;
     this.retryAttempts = 3;
     this.cache = new Map();
     this.init();
-  }
-
-  async init() {
-    try {
-      // First check if NPM is reachable
-      const healthCheck = await this.makeRequest("/", "GET");
-      if (healthCheck.status !== "OK") {
-        this.showError("NPM API is not available");
-        return;
-      }
-      this.setupEventListeners();
-      this.loadCurrentView();
-      this.startAutoRefresh();
-    } catch (error) {
-      this.showError("Failed to connect to NPM API");
-      console.error("Init failed:", error);
-    }
   }
 
   async makeRequest(endpoint, method = "GET", body = null, retryCount = 0) {
@@ -34,7 +16,6 @@ class NPMManager {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // This might need to be adjusted based on NPM's CORS policy
       };
 
       if (body) {
