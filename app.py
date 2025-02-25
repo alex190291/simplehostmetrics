@@ -244,7 +244,7 @@ def npm_settings():
 def npm_proxy(path):
     npm_domain = config_data['npm']['domain']
     # Use HTTPS for proxy if required; adjust scheme if necessary.
-    npm_url = f'https://{npm_domain}/api/'
+    npm_url = f'http://{npm_domain}/api/'
     target_url = urljoin(npm_url, path)
 
     app.logger.debug(f"NPM Proxy request to: {target_url}")
