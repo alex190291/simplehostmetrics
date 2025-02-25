@@ -13,7 +13,12 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
-      option.textContent = cert.name;
+      // Use nice_name if available, otherwise join domain_names, use provider, or fallback to id
+      option.textContent =
+        cert.nice_name ||
+        (cert.domain_names ? cert.domain_names.join(", ") : "") ||
+        cert.provider ||
+        cert.id;
       if (cert.id == selectedValue) option.selected = true;
       selectElement.appendChild(option);
     });
