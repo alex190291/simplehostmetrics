@@ -13,7 +13,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
-      // Use nice_name if available, otherwise join domain_names, use provider, or fallback to id
+      // Use nice_name if available; fallback to joining domain_names, provider, or id
       option.textContent =
         cert.nice_name ||
         (cert.domain_names ? cert.domain_names.join(", ") : "") ||
@@ -30,7 +30,6 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
 // Helper function to populate the access list dropdown dynamically
 async function populateAccessListDropdown(selectElement, selectedValue = "") {
   try {
-    // Updated endpoint to match API description
     const response = await fetch("/npm-api/nginx/access-lists");
     if (!response.ok) {
       console.error("Failed to load access lists", response.statusText);
@@ -52,9 +51,6 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
 export function populateAddHostForm() {
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
-    <div class="modal-header">
-      <span class="modal-close">&times;</span>
-    </div>
     <div class="tabs">
       <button type="button" class="tab-link active" data-tab="general">General</button>
       <button type="button" class="tab-link" data-tab="custom">Custom Nginx Config</button>
@@ -154,7 +150,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for both the header "×" and Cancel button
+  // Attach modal close event listeners for the Cancel button
   const modalCloseButtons = form.querySelectorAll(".modal-close");
   modalCloseButtons.forEach((btn) => {
     btn.addEventListener("click", closeModals);
@@ -170,9 +166,6 @@ export async function editHostModal(host) {
   const modal = document.getElementById("addHostModal");
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
-    <div class="modal-header">
-      <span class="modal-close">&times;</span>
-    </div>
     <input type="hidden" name="host_id" value="${host.id}">
     <div class="tabs">
       <button type="button" class="tab-link active" data-tab="general">General</button>
@@ -274,7 +267,7 @@ export async function editHostModal(host) {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners
+  // Attach modal close event listeners for the Cancel button
   const modalCloseButtons = form.querySelectorAll(".modal-close");
   modalCloseButtons.forEach((btn) => {
     btn.addEventListener("click", closeModals);
