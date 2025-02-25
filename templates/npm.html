@@ -1,6 +1,7 @@
 <!-- templates/npm.html -->
 {% extends "base.html" %} {% block title %}Nginx Proxy Manager{% endblock %} {%
 block content %}
+<div class="hexagons" id="hexagon-container"></div>
 <div class="npm-container" style="display: flex; min-height: 100vh">
     <!-- Sidebar Navigation -->
     <div
@@ -131,6 +132,11 @@ block content %}
     </div>
 </div>
 
+<!-- Mode Toggle Button -->
+<button class="mode-toggle" id="modeToggle" title="Toggle light/dark mode">
+    💡
+</button>
+
 <!-- Modals -->
 <div id="addHostModal" class="modal">
     <div class="modal-content">
@@ -165,6 +171,8 @@ block content %}
     </div>
 </div>
 {% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='animations.js') }}"></script>
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
 <script
     type="module"
     src="{{ url_for('static', filename='npm/npm.js') }}"
