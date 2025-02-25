@@ -19,6 +19,10 @@ function openDnsChallengeModal() {
             <label for="dnsCredentials">API Credentials</label>
             <textarea id="dnsCredentials" name="dnsCredentials" rows="4" placeholder="Enter credentials exactly as required"></textarea>
           </div>
+          <div class="form-group">
+            <label for="dnsWaitTime">Waiting Time (seconds)</label>
+            <input type="number" id="dnsWaitTime" name="dnsWaitTime" value="20" min="5">
+          </div>
           <div class="form-actions">
             <button id="dnsConfirm" class="btn btn-primary">Confirm</button>
             <button id="dnsCancel" class="btn btn-secondary">Cancel</button>
@@ -34,6 +38,7 @@ function openDnsChallengeModal() {
       .then((plugins) => {
         const optionsDiv = modal.querySelector("#dnsProviderOptions");
         optionsDiv.innerHTML = "";
+        // Create a select element for providers
         const select = document.createElement("select");
         select.id = "dnsProviderSelect";
         for (const key in plugins) {
@@ -49,8 +54,12 @@ function openDnsChallengeModal() {
           const credentials = document
             .getElementById("dnsCredentials")
             .value.trim();
+          const wait_time = parseInt(
+            document.getElementById("dnsWaitTime").value,
+            10,
+          );
           modal.style.display = "none";
-          resolve({ provider, credentials });
+          resolve({ provider, credentials, wait_time });
         };
         modal.querySelector("#dnsCancel").onclick = () => {
           modal.style.display = "none";
@@ -77,6 +86,9 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       return;
     }
     const certificates = await response.json();
+    // Clear existing options
+    selectElement.innerHTML = "";
+    // Add existing certificates
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
@@ -88,15 +100,15 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       if (cert.id == selectedValue) option.selected = true;
       selectElement.appendChild(option);
     });
-    // Append options for new certificate requests
-    const optionNewNoDns = document.createElement("option");
-    optionNewNoDns.value = "new_nodns";
-    optionNewNoDns.textContent = "Request New Certificate (No DNS Challenge)";
-    selectElement.appendChild(optionNewNoDns);
-    const optionNewDns = document.createElement("option");
-    optionNewDns.value = "new_dns";
-    optionNewDns.textContent = "Request New Certificate (DNS Challenge)";
-    selectElement.appendChild(optionNewDns);
+    // Append new certificate request options
+    const optionNoDns = document.createElement("option");
+    optionNoDns.value = "new_nodns";
+    optionNoDns.textContent = "Request New Certificate (No DNS Challenge)";
+    selectElement.appendChild(optionNoDns);
+    const optionDns = document.createElement("option");
+    optionDns.value = "new_dns";
+    optionDns.textContent = "Request New Certificate (DNS Challenge)";
+    selectElement.appendChild(optionDns);
   } catch (error) {
     console.error("Failed to load certificates", error);
   }
@@ -111,6 +123,7 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
       return;
     }
     const accessLists = await response.json();
+    selectElement.innerHTML = '<option value="">None</option>';
     accessLists.forEach((list) => {
       const option = document.createElement("option");
       option.value = list.id;
@@ -233,6 +246,11 @@ export function populateAddHostForm() {
 
   form.onsubmit = (e) => {
     e.preventDefault();
+    // Disable submit button and show waiting feedback
+    const submitBtn = form.querySelector("button[type='submit']");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Please wait...";
+
     const formData = new FormData(form);
     const certificate_id_raw = formData.get("certificate_id");
     let certificate_id;
@@ -270,37 +288,38 @@ export function populateAddHostForm() {
       advanced_config: formData.get("custom_config"),
     };
 
+    function finishCreate(data) {
+      import("../managers/ProxyHostManager.js").then((mod) => {
+        mod
+          .createProxyHost(data)
+          .then(() => {
+            document.getElementById("addHostModal").style.display = "none";
+          })
+          .catch((err) => {
+            console.error("Failed to create host", err);
+          })
+          .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Add Host";
+          });
+      });
+    }
+
     if (certificate_id_raw === "new_dns") {
       openDnsChallengeModal()
         .then((dnsData) => {
           const newData = Object.assign({}, baseData, {
             dns_challenge: dnsData,
           });
-          import("../managers/ProxyHostManager.js").then((mod) => {
-            mod
-              .createProxyHost(newData)
-              .then(() => {
-                document.getElementById("addHostModal").style.display = "none";
-              })
-              .catch((err) => {
-                console.error("Failed to create host", err);
-              });
-          });
+          finishCreate(newData);
         })
         .catch((err) => {
           console.error("DNS challenge canceled or failed", err);
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Add Host";
         });
     } else {
-      import("../managers/ProxyHostManager.js").then((mod) => {
-        mod
-          .createProxyHost(baseData)
-          .then(() => {
-            document.getElementById("addHostModal").style.display = "none";
-          })
-          .catch((err) => {
-            console.error("Failed to create host", err);
-          });
-      });
+      finishCreate(baseData);
     }
   };
 }
@@ -406,7 +425,7 @@ export async function editHostModal(host) {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners
+  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -455,6 +474,11 @@ export async function editHostModal(host) {
       advanced_config: formData.get("custom_config"),
     };
 
+    // Provide UI feedback by disabling submit button during update.
+    const submitBtn = form.querySelector("button[type='submit']");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Please wait...";
+
     if (certificate_id_raw === "new_dns") {
       openDnsChallengeModal()
         .then((dnsData) => {
@@ -469,11 +493,17 @@ export async function editHostModal(host) {
               })
               .catch((err) => {
                 console.error("Failed to update host", err);
+              })
+              .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Update Host";
               });
           });
         })
         .catch((err) => {
           console.error("DNS challenge canceled or failed", err);
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Update Host";
         });
     } else {
       import("../managers/ProxyHostManager.js").then((mod) => {
@@ -484,6 +514,10 @@ export async function editHostModal(host) {
           })
           .catch((err) => {
             console.error("Failed to update host", err);
+          })
+          .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Update Host";
           });
       });
     }
