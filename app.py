@@ -46,6 +46,7 @@ app.config['SECURITY_RECOVERABLE'] = False
 
 # Use custom login template (registration is not available)
 app.config['SECURITY_LOGIN_USER_TEMPLATE'] = 'login_user.html'
+app.config['npm'] = config_data.get('npm', {})
 
 # Initialize SQLAlchemy with our app
 db.init_app(app)
@@ -190,31 +191,38 @@ def npm_settings():
 @app.route('/npm-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @login_required
 def npm_proxy(path):
-    npm_domain = app.config['npm']['domain']
+    npm_domain = config_data['npm']['domain']
     npm_url = f'https://{npm_domain}/api/'
+    target_url = urljoin(npm_url, path)
+
+    app.logger.debug(f"NPM Proxy request to: {target_url}")
+    app.logger.debug(f"Method: {request.method}")
+    app.logger.debug(f"Headers: {dict(request.headers)}")
 
     try:
         # Forward the request to NPM
         response = requests.request(
             method=request.method,
-            url=urljoin(npm_url, path),
-            headers={
-                key: value for key, value in request.headers if key != 'Host'
-            },
+            url=target_url,
+            headers={k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']},
             data=request.get_data(),
             cookies=request.cookies,
             allow_redirects=False,
             verify=True  # Set to False if using self-signed cert
         )
 
+        app.logger.debug(f"NPM Response status: {response.status_code}")
+        app.logger.debug(f"NPM Response headers: {dict(response.headers)}")
+
         # Forward the response from NPM
         return (
             response.content,
             response.status_code,
-            {'Content-Type': response.headers.get('Content-Type', 'application/json')}
+            {k: v for k, v in response.headers.items() if k.lower() not in ['content-encoding', 'content-length', 'transfer-encoding']}
         )
 
     except requests.RequestException as e:
+        app.logger.error(f"NPM Proxy error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
