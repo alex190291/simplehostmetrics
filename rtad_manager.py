@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from threading import Timer
+from collections import deque
 
 # Precompiled regex for proxy events
 REGEX_ZORAXY = re.compile(
@@ -22,9 +23,11 @@ REGEX_NPM = re.compile(
     r'^\[(?P<timestamp>[^\]]+)\]\s+(?P<code>\d{3})\s+-\s+(?P<method>[A-Z]+|-)\s+(?P<protocol>\S+)\s+(?P<host>\S+)\s+"(?P<url>[^"]+)"\s+\[Client\s+(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\]'
 )
 
-# Global caches and locks for login attempts and HTTP error logs
-login_attempts_cache = []
-http_error_logs_cache = []
+# Instead of normal lists, use deques for stable FIFO with a maxlen
+login_attempts_cache = deque(maxlen=1000)
+http_error_logs_cache = deque(maxlen=1000)
+
+# Locks to protect concurrent writes
 login_attempts_lock = threading.Lock()
 http_error_logs_lock = threading.Lock()
 
@@ -99,8 +102,11 @@ def get_log_files(path):
     if os.path.isfile(path):
         return [path]
     elif os.path.isdir(path):
-        return [os.path.join(path, filename) for filename in os.listdir(path)
-                if os.path.isfile(os.path.join(path, filename))]
+        return [
+            os.path.join(path, filename)
+            for filename in os.listdir(path)
+            if os.path.isfile(os.path.join(path, filename))
+        ]
     else:
         return []
 
@@ -125,7 +131,11 @@ def ensure_geolite2_db(db_path, max_age_seconds=86400):
             logging.info("GeoLite2 database is current (age: %s seconds).", age)
             return
         else:
-            logging.info("GeoLite2 database is older than %s seconds (age: %s); downloading new version.", max_age_seconds, age)
+            logging.info(
+                "GeoLite2 database is older than %s seconds (age: %s); downloading new version.",
+                max_age_seconds,
+                age,
+            )
     else:
         logging.info("GeoLite2 database not found; downloading.")
     download_geolite2_country_db(db_path)
@@ -153,10 +163,20 @@ def get_geo_info_cached(ip, ttl=3600):
             entry = ip_country_cache[ip]
             if entry["country"] != "Unknown" and entry["city"] != "Unknown":
                 if (time.time() - entry["timestamp"]) < ttl:
-                    return {"country": entry["country"], "city": entry["city"], "lat": entry.get("lat"), "lon": entry.get("lon")}
+                    return {
+                        "country": entry["country"],
+                        "city": entry["city"],
+                        "lat": entry.get("lat"),
+                        "lon": entry.get("lon"),
+                    }
             else:
                 if (time.time() - entry["timestamp"]) < unknown_ttl:
-                    return {"country": entry["country"], "city": entry["city"], "lat": entry.get("lat"), "lon": entry.get("lon")}
+                    return {
+                        "country": entry["country"],
+                        "city": entry["city"],
+                        "lat": entry.get("lat"),
+                        "lon": entry.get("lon"),
+                    }
     info = get_geo_info_from_db(ip)
     with ip_country_cache_lock:
         ip_country_cache[ip] = {
@@ -164,7 +184,7 @@ def get_geo_info_cached(ip, ttl=3600):
             "city": info["city"],
             "lat": info["lat"],
             "lon": info["lon"],
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
     return info
 
@@ -214,7 +234,10 @@ class LogParser:
 
     def process_files_concurrently(self, files, line_processor):
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.process_log_file, file, line_processor) for file in files]
+            futures = [
+                executor.submit(self.process_log_file, file, line_processor)
+                for file in files
+            ]
             for future in futures:
                 future.result()
 
@@ -301,8 +324,6 @@ class LogParser:
                 "lat": None,
                 "lon": None
             })
-            if len(login_attempts_cache) > 500:
-                login_attempts_cache.pop(0)
         logging.debug("Stored failed login attempt: User %s, IP %s, Host %s, Timestamp: %s",
                       user, ip_address, host, timestamp)
 
@@ -321,8 +342,6 @@ class LogParser:
                 "lat": None,
                 "lon": None
             })
-            if len(http_error_logs_cache) > 500:
-                http_error_logs_cache.pop(0)
         logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
                       proxy_type, error_code, url, ip_address, domain, timestamp)
 
@@ -356,10 +375,12 @@ class LogParser:
 #######################
 def fetch_login_attempts():
     with login_attempts_lock:
+        # Return a list copy of the FIFO queue
         return list(login_attempts_cache)
 
 def fetch_http_error_logs():
     with http_error_logs_lock:
+        # Return a list copy of the FIFO queue
         return list(http_error_logs_cache)
 
 ########################
