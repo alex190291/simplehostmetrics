@@ -1,9 +1,13 @@
 <!-- templates/npm.html -->
 {% extends "base.html" %} {% block title %}Nginx Proxy Manager{% endblock %} {%
 block content %}
-<div class="npm-container">
+<div class="npm-container" style="display: flex; min-height: 100vh">
     <!-- Sidebar Navigation -->
-    <div class="npm-sidebar" id="npmSidebar">
+    <div
+        class="npm-sidebar"
+        id="npmSidebar"
+        style="width: 250px; flex-shrink: 0"
+    >
         <div class="sidebar-group">
             <div class="sidebar-header">
                 <span class="sidebar-icon">🌐</span>
@@ -18,6 +22,7 @@ block content %}
                 <a href="#stream" class="sidebar-item">Stream Hosts</a>
             </div>
         </div>
+
         <div class="sidebar-group">
             <div class="sidebar-header">
                 <span class="sidebar-icon">🔒</span>
@@ -29,6 +34,7 @@ block content %}
                 <a href="#certificates" class="sidebar-item">Certificates</a>
             </div>
         </div>
+
         <div class="sidebar-group">
             <div class="sidebar-header">
                 <span class="sidebar-icon">⚙️</span>
@@ -43,9 +49,16 @@ block content %}
     </div>
 
     <!-- Main Content Area -->
-    <div class="npm-content">
+    <div class="npm-content" style="flex: 1; padding: 20px">
         <!-- Action Bar -->
-        <div class="action-bar">
+        <div
+            class="action-bar"
+            style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            "
+        >
             <button class="add-btn" id="addNewBtn">Add New</button>
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="Search..." />
@@ -56,15 +69,19 @@ block content %}
         <div id="proxyView" class="content-view active">
             <div class="card-grid" id="proxyHostsGrid"></div>
         </div>
+
         <div id="redirectionView" class="content-view" style="display: none">
             <div class="card-grid" id="redirectionHostsGrid"></div>
         </div>
+
         <div id="streamView" class="content-view" style="display: none">
             <div class="card-grid" id="streamHostsGrid"></div>
         </div>
+
         <div id="accessView" class="content-view" style="display: none">
             <div class="card-grid" id="accessListsGrid"></div>
         </div>
+
         <div id="certificatesView" class="content-view" style="display: none">
             <div class="certificates-header">
                 <div class="cert-stats">
@@ -84,6 +101,7 @@ block content %}
             </div>
             <div class="card-grid" id="certificatesGrid"></div>
         </div>
+
         <div id="auditView" class="content-view" style="display: none">
             <div class="audit-log-container">
                 <table id="auditLogTable" class="data-table">
@@ -99,6 +117,7 @@ block content %}
                 </table>
             </div>
         </div>
+
         <div id="settingsView" class="content-view" style="display: none">
             <div class="settings-grid">
                 <div class="settings-card">
