@@ -32,9 +32,9 @@ export function createProxyHostCard(host) {
       <p>Cache: ${host.caching_enabled ? "Enabled" : "Disabled"}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.editHost(${host.id})">Edit</button>
-      <button onclick="npmManager.deleteHost(${host.id})">Delete</button>
-      <button onclick="host.enabled ? npmManager.disableProxyHost(${host.id}) : npmManager.enableProxyHost(${host.id})">
+      <button class="btn btn-primary" onclick="npmManager.editHost(${host.id})">Edit</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteHost(${host.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableProxyHost(${host.id}) : npmManager.enableProxyHost(${host.id})">
         ${host.enabled ? "Disable" : "Enable"}
       </button>
     </div>
@@ -70,9 +70,9 @@ export function createRedirectionHostCard(host) {
       <p>Preserve Path: ${host.preserve_path ? "Yes" : "No"}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.editRedirectionHost(${host.id})">Edit</button>
-      <button onclick="npmManager.deleteRedirectionHost(${host.id})">Delete</button>
-      <button onclick="host.enabled ? npmManager.disableRedirectionHost(${host.id}) : npmManager.enableRedirectionHost(${host.id})">
+      <button class="btn btn-primary" onclick="npmManager.editRedirectionHost(${host.id})">Edit</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteRedirectionHost(${host.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableRedirectionHost(${host.id}) : npmManager.enableRedirectionHost(${host.id})">
         ${host.enabled ? "Disable" : "Enable"}
       </button>
     </div>
@@ -107,9 +107,9 @@ export function createStreamCard(stream) {
       <p>TCP: ${stream.tcp_forwarding ? "Yes" : "No"}, UDP: ${stream.udp_forwarding ? "Yes" : "No"}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.editStream(${stream.id})">Edit</button>
-      <button onclick="npmManager.deleteStream(${stream.id})">Delete</button>
-      <button onclick="stream.enabled ? npmManager.disableStream(${stream.id}) : npmManager.enableStream(${stream.id})">
+      <button class="btn btn-primary" onclick="npmManager.editStream(${stream.id})">Edit</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteStream(${stream.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="stream.enabled ? npmManager.disableStream(${stream.id}) : npmManager.enableStream(${stream.id})">
         ${stream.enabled ? "Disable" : "Enable"}
       </button>
     </div>
@@ -144,8 +144,8 @@ export function createAccessListCard(list) {
       <p>Clients: ${list.clients ? list.clients.length : 0}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.editAccessList(${list.id})">Edit</button>
-      <button onclick="npmManager.deleteAccessList(${list.id})">Delete</button>
+      <button class="btn btn-primary" onclick="npmManager.editAccessList(${list.id})">Edit</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteAccessList(${list.id})">Delete</button>
     </div>
   `;
   return card;
@@ -201,12 +201,12 @@ export function createCertificateCard(cert) {
     <div class="card-content">
       <p>Domains: ${cert.domain_names.join(", ")}</p>
       <p>Provider: ${cert.provider}</p>
-      <p>Expires: ${new Date(cert.expires_on).toLocaleDateString()}</p>
+      <p>Expires: ${expiryDate.toLocaleDateString()}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
-      <button onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
-      <button onclick="npmManager.downloadCertificate(${cert.id})">Download</button>
+      <button class="btn btn-secondary" onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="npmManager.downloadCertificate(${cert.id})">Download</button>
     </div>
   `;
   return card;
@@ -266,7 +266,7 @@ export function createSettingCard(setting) {
       <p>Value: ${setting.value}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.editSetting('${setting.id}')">Edit</button>
+      <button class="btn btn-primary" onclick="npmManager.editSetting('${setting.id}')">Edit</button>
     </div>
   `;
   return card;
@@ -298,9 +298,9 @@ export function createDeadHostCard(host) {
       <p>Certificate ID: ${host.certificate_id || "N/A"}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.updateDeadHost(${host.id})">Edit</button>
-      <button onclick="npmManager.deleteDeadHost(${host.id})">Delete</button>
-      <button onclick="host.enabled ? npmManager.disableDeadHost(${host.id}) : npmManager.enableDeadHost(${host.id})">
+      <button class="btn btn-primary" onclick="npmManager.updateDeadHost(${host.id})">Edit</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteDeadHost(${host.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableDeadHost(${host.id}) : npmManager.enableDeadHost(${host.id})">
         ${host.enabled ? "Disable" : "Enable"}
       </button>
     </div>
@@ -353,9 +353,9 @@ export function createUserCard(user) {
       <p>Email: ${user.email}</p>
     </div>
     <div class="card-actions">
-      <button onclick="npmManager.updateUser(${user.id})">Edit</button>
-      <button onclick="npmManager.deleteUser(${user.id})">Delete</button>
-      <button onclick="npmManager.loginAsUser(${user.id})">Login As</button>
+      <button class="btn btn-primary" onclick="npmManager.updateUser(${user.id})">Edit</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteUser(${user.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="npmManager.loginAsUser(${user.id})">Login As</button>
     </div>
   `;
   return card;
