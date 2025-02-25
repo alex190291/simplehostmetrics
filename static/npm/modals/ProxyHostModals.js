@@ -13,7 +13,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
-      // Use nice_name if available; otherwise join domain_names, provider, or fallback to id
+      // Use nice_name if available; otherwise join domain_names, use provider, or fallback to id
       option.textContent =
         cert.nice_name ||
         (cert.domain_names ? cert.domain_names.join(", ") : "") ||
@@ -48,19 +48,7 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
   }
 }
 
-// Removes any stray header element (with "x") from the modal container.
-function removeStrayModalHeader() {
-  const modal = document.getElementById("addHostModal");
-  if (modal) {
-    const header = modal.querySelector(".modal-header");
-    if (header) {
-      header.remove();
-    }
-  }
-}
-
 export function populateAddHostForm() {
-  removeStrayModalHeader();
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
     <div class="tabs">
@@ -163,8 +151,7 @@ export function populateAddHostForm() {
     });
   });
   // Attach modal close event listener for the Cancel button
-  const modalCloseButtons = form.querySelectorAll(".modal-close");
-  modalCloseButtons.forEach((btn) => {
+  form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
   // Populate dropdown menus
@@ -175,7 +162,6 @@ export function populateAddHostForm() {
 }
 
 export async function editHostModal(host) {
-  removeStrayModalHeader();
   const modal = document.getElementById("addHostModal");
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
@@ -281,8 +267,7 @@ export async function editHostModal(host) {
     });
   });
   // Attach modal close event listener for the Cancel button
-  const modalCloseButtons = form.querySelectorAll(".modal-close");
-  modalCloseButtons.forEach((btn) => {
+  form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
   // Populate dropdown menus
