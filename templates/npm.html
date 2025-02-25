@@ -18,7 +18,6 @@ block content %}
                 <a href="#stream" class="sidebar-item">Stream Hosts</a>
             </div>
         </div>
-
         <div class="sidebar-group">
             <div class="sidebar-header">
                 <span class="sidebar-icon">🔒</span>
@@ -30,7 +29,6 @@ block content %}
                 <a href="#certificates" class="sidebar-item">Certificates</a>
             </div>
         </div>
-
         <div class="sidebar-group">
             <div class="sidebar-header">
                 <span class="sidebar-icon">⚙️</span>
@@ -58,20 +56,16 @@ block content %}
         <div id="proxyView" class="content-view active">
             <div class="card-grid" id="proxyHostsGrid"></div>
         </div>
-
-        <div id="redirectionView" class="content-view">
+        <div id="redirectionView" class="content-view" style="display: none">
             <div class="card-grid" id="redirectionHostsGrid"></div>
         </div>
-
-        <div id="streamView" class="content-view">
+        <div id="streamView" class="content-view" style="display: none">
             <div class="card-grid" id="streamHostsGrid"></div>
         </div>
-
-        <div id="accessView" class="content-view">
+        <div id="accessView" class="content-view" style="display: none">
             <div class="card-grid" id="accessListsGrid"></div>
         </div>
-
-        <div id="certificatesView" class="content-view">
+        <div id="certificatesView" class="content-view" style="display: none">
             <div class="certificates-header">
                 <div class="cert-stats">
                     <div class="stat-card">
@@ -90,8 +84,7 @@ block content %}
             </div>
             <div class="card-grid" id="certificatesGrid"></div>
         </div>
-
-        <div id="auditView" class="content-view">
+        <div id="auditView" class="content-view" style="display: none">
             <div class="audit-log-container">
                 <table id="auditLogTable" class="data-table">
                     <thead>
@@ -106,8 +99,7 @@ block content %}
                 </table>
             </div>
         </div>
-
-        <div id="settingsView" class="content-view">
+        <div id="settingsView" class="content-view" style="display: none">
             <div class="settings-grid">
                 <div class="settings-card">
                     <h3>Default Settings</h3>
@@ -126,7 +118,7 @@ block content %}
         <span class="close">&times;</span>
         <h2>Add New Host</h2>
         <form id="addHostForm">
-            <!-- Form fields will be dynamically populated based on host type -->
+            <!-- Form fields will be dynamically populated -->
         </form>
     </div>
 </div>
@@ -154,7 +146,7 @@ block content %}
     </div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="{{ url_for('static', filename='npm.js') }}"></script>
+<script src="{{ url_for('static', filename='npm/npm.js') }}"></script>
 <script>
     window.npmDomain = "{{ npm_domain }}";
 </script>
