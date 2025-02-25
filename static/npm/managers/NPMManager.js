@@ -1,9 +1,6 @@
 // /static/npm/managers/NPMManager.js
 import * as ProxyHostManager from "./ProxyHostManager.js";
-import * as CertificateManager from "./CertificateManager.js";
-import * as AccessListManager from "./AccessListManager.js";
 import * as RedirectionHostManager from "./RedirectionHostManager.js";
-import * as DeadHostManager from "./DeadHostManager.js";
 import * as StreamManager from "./StreamManager.js";
 import * as ReportManager from "./ReportManager.js";
 import * as SettingManager from "./SettingManager.js";
@@ -12,6 +9,7 @@ import * as UserManager from "./UserManager.js";
 import { makeRequest } from "../NPMService.js";
 import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
+import { editHostModal } from "../modals/ProxyHostModals.js";
 
 export class NPMManager {
   constructor() {
@@ -20,6 +18,13 @@ export class NPMManager {
     this.refreshInterval = 30000;
     this.retryAttempts = 3;
     this.initialize();
+
+    // Expose delegate functions so that global calls like npmManager.editHost() work
+    this.editHost = this.editHost.bind(this);
+    this.deleteHost = ProxyHostManager.deleteProxyHost;
+    this.enableProxyHost = ProxyHostManager.enableProxyHost;
+    this.disableProxyHost = ProxyHostManager.disableProxyHost;
+    // Additional delegate methods can be added similarly
   }
 
   async initialize() {
@@ -57,9 +62,9 @@ export class NPMManager {
     const addNewBtn = document.getElementById("addNewBtn");
     if (addNewBtn) {
       addNewBtn.addEventListener("click", () => {
-        // For example, default to proxy host add modal:
-        import("../modals/ProxyHostModals.js").then((module) => {
-          module.populateAddHostForm();
+        // Example: open proxy host add modal (imported from modals/ProxyHostModals.js)
+        import("../modals/ProxyHostModals.js").then((modals) => {
+          modals.populateAddHostForm();
           document.getElementById("addHostModal").style.display = "block";
         });
       });
@@ -148,6 +153,23 @@ export class NPMManager {
       );
       this.currentView = "proxy";
       await viewMap.proxy();
+    }
+  }
+
+  // Delegate function for editing a proxy host.
+  async editHost(hostId) {
+    try {
+      // Load current host details.
+      const host = await makeRequest(
+        this.apiBase,
+        `/nginx/proxy-hosts/${hostId}`,
+      );
+      // Open the edit modal from the ProxyHostModals.
+      const updatedData = await editHostModal(host);
+      // Delegate update to ProxyHostManager.
+      await ProxyHostManager.editProxyHost(hostId, updatedData);
+    } catch (error) {
+      console.error("Failed to edit host", error);
     }
   }
 }
