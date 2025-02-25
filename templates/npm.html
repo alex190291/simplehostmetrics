@@ -69,25 +69,44 @@ block content %}
         <!-- Dynamic Content Views -->
         <div id="proxyView" class="content-view active">
             <div class="card-grid" id="proxyHostsGrid">
-                <!-- Host cards will be dynamically injected here by ProxyHostModals.js and other modules -->
+                <!-- Host cards will be dynamically injected here.
+             Example placeholder structure (actual data is injected via JavaScript):
+
+             <div class="host-card glass-card">
+               <div class="card-header">
+                 <h3>{{ host.domain_placeholder }}</h3>
+                 <div class="status-indicator active"></div>
+               </div>
+               <div class="card-content">
+                 <p>Forward: {{ host.forward_placeholder }}</p>
+                 <p>SSL: {{ host.ssl_status_placeholder }}</p>
+                 <p>Cache: {{ host.cache_status_placeholder }}</p>
+               </div>
+               <div class="card-actions">
+                 <button class="btn btn-primary" onclick="npmManager.editHost({{ host.id }})">Edit</button>
+                 <button class="btn btn-secondary" onclick="npmManager.deleteHost({{ host.id }})">Delete</button>
+                 <button class="btn btn-secondary" onclick="host.enabled ? npmManager.disableProxyHost({{ host.id }}) : npmManager.enableProxyHost({{ host.id }})">Disable</button>
+               </div>
+             </div>
+        -->
             </div>
         </div>
 
         <div id="redirectionView" class="content-view" style="display: none">
             <div class="card-grid" id="redirectionHostsGrid">
-                <!-- Redirection host cards will be dynamically injected here -->
+                <!-- Dynamic redirection host cards -->
             </div>
         </div>
 
         <div id="streamView" class="content-view" style="display: none">
             <div class="card-grid" id="streamHostsGrid">
-                <!-- Stream host cards will be dynamically injected here -->
+                <!-- Dynamic stream host cards -->
             </div>
         </div>
 
         <div id="accessView" class="content-view" style="display: none">
             <div class="card-grid" id="accessListsGrid">
-                <!-- Access list cards will be dynamically injected here -->
+                <!-- Dynamic access list cards -->
             </div>
         </div>
 
@@ -109,7 +128,7 @@ block content %}
                 </div>
             </div>
             <div class="card-grid" id="certificatesGrid">
-                <!-- Certificate cards will be dynamically injected here -->
+                <!-- Dynamic certificate cards -->
             </div>
         </div>
 
@@ -125,7 +144,7 @@ block content %}
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Audit log entries will be dynamically injected here -->
+                        <!-- Dynamic audit log entries -->
                     </tbody>
                 </table>
             </div>
