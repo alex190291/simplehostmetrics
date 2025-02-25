@@ -285,13 +285,17 @@ export async function editHostModal(host) {
           .get("domain_names")
           .split(",")
           .map((d) => d.trim()),
+        domain_names: formData
+          .get("domain_names")
+          .split(",")
+          .map((d) => d.trim()),
         forward_host: formData.get("forward_host"),
         forward_port: parseInt(formData.get("forward_port")),
         forward_scheme: formData.get("forward_scheme"),
         certificate_id: formData.get("certificate_id"),
         access_list_id: formData.get("access_list_id") || null,
-        cache_assets: formData.get("cache_assets") === "on",
-        websockets_support: formData.get("websockets_support") === "on",
+        caching_enabled: formData.get("cache_assets") === "on", // Changed from cache_assets
+        allow_websocket_upgrade: formData.get("websockets_support") === "on", // Changed from websockets_support
         block_exploits: formData.get("block_exploits") === "on",
         ssl_forced: formData.get("ssl_forced") === "on",
         http2_support: formData.get("http2_support") === "on",
