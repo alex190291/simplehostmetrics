@@ -196,8 +196,16 @@ def load_country_centroids(filepath="country_centroids.yml"):
     try:
         with open(filepath, 'r') as f:
             centroids = yaml.safe_load(f)
-            # Ensure values are tuples
-            return {k.upper(): tuple(v) for k, v in centroids.items()}
+            result = {}
+            for k, v in centroids.items():
+                # Convert the key to string
+                key_str = str(k).upper()
+                # Expect the value to be a list or tuple of coordinates (e.g., [lat, lon])
+                if isinstance(v, (list, tuple)) and len(v) == 2:
+                    result[key_str] = tuple(v)
+                else:
+                    logging.error("Invalid centroid value for key %s: expected list/tuple of length 2, got %s", key_str, v)
+            return result
     except Exception as e:
         logging.error("Error loading country centroids from %s: %s", filepath, e)
         return {}
