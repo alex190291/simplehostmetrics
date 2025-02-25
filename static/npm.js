@@ -18,7 +18,7 @@ class NPMManager {
         return;
       }
       this.setupEventListeners();
-      this.loadCurrentView();
+      await this.loadCurrentView();
       this.startAutoRefresh();
     } catch (error) {
       this.showError("Failed to connect to NPM API");
@@ -89,8 +89,7 @@ class NPMManager {
   toggleGroup(groupId) {
     const items = document.getElementById(groupId);
     const header = items.previousElementSibling;
-
-    if (items.style.display === "none") {
+    if (items.style.display === "none" || items.style.display === "") {
       items.style.display = "block";
       header.querySelector(".arrow").style.transform = "rotate(0deg)";
     } else {
@@ -99,31 +98,25 @@ class NPMManager {
     }
   }
 
-  // In the makeRequest method of NPMManager class
   async makeRequest(endpoint, method = "GET", body = null, retryCount = 0) {
     try {
       console.log(`Making request to: ${this.apiBase}${endpoint}`);
       console.log(`Method: ${method}`);
-
       const options = {
         method,
         headers: {
           "Content-Type": "application/json",
         },
       };
-
       if (body) {
         options.body = JSON.stringify(body);
         console.log("Request body:", body);
       }
-
       const response = await fetch(`${this.apiBase}${endpoint}`, options);
       console.log(`Response status: ${response.status}`);
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       const data = await response.json();
       console.log("Response data:", data);
       return data;
@@ -138,14 +131,26 @@ class NPMManager {
     }
   }
 
-  showError(message) {
-    console.error(message);
-    // Implement error notification
+  showNotification(message, type) {
     const notification = document.createElement("div");
-    notification.className = "notification error";
+    notification.className = `notification ${type}`;
     notification.textContent = message;
     document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 5000);
+    // Animate in
+    setTimeout(() => notification.classList.add("show"), 100);
+    // Remove after 3 seconds
+    setTimeout(() => {
+      notification.classList.remove("show");
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  showError(message) {
+    this.showNotification(message, "error");
+  }
+
+  showSuccess(message) {
+    this.showNotification(message, "success");
   }
 
   async loadCurrentView() {
@@ -158,8 +163,11 @@ class NPMManager {
       audit: this.loadAuditLog.bind(this),
       settings: this.loadSettings.bind(this),
     };
-
-    await viewMap[this.currentView]();
+    if (viewMap[this.currentView]) {
+      await viewMap[this.currentView]();
+    } else {
+      console.error(`View ${this.currentView} not found`);
+    }
   }
 
   async loadProxyHosts() {
@@ -167,7 +175,6 @@ class NPMManager {
       const hosts = await this.makeRequest("/nginx/proxy-hosts");
       const grid = document.getElementById("proxyHostsGrid");
       grid.innerHTML = "";
-
       hosts.forEach((host) => {
         grid.appendChild(this.createProxyHostCard(host));
       });
@@ -180,20 +187,20 @@ class NPMManager {
     const card = document.createElement("div");
     card.className = "host-card glass-card";
     card.innerHTML = `
-            <div class="card-header">
-                <h3>${host.domain_names[0]}</h3>
-                <div class="status-indicator ${host.enabled ? "active" : "inactive"}"></div>
-            </div>
-            <div class="card-content">
-                <p>Forward: ${host.forward_host}:${host.forward_port}</p>
-                <p>SSL: ${host.ssl_forced ? "Forced" : "Optional"}</p>
-                <p>Cache: ${host.cache_enabled ? "Enabled" : "Disabled"}</p>
-            </div>
-            <div class="card-actions">
-                <button onclick="npmManager.editHost(${host.id})">Edit</button>
-                <button onclick="npmManager.deleteHost(${host.id})">Delete</button>
-            </div>
-        `;
+      <div class="card-header">
+          <h3>${host.domain_names[0]}</h3>
+          <div class="status-indicator ${host.enabled ? "active" : "inactive"}"></div>
+      </div>
+      <div class="card-content">
+          <p>Forward: ${host.forward_host}:${host.forward_port}</p>
+          <p>SSL: ${host.ssl_forced ? "Forced" : "Optional"}</p>
+          <p>Cache: ${host.cache_enabled ? "Enabled" : "Disabled"}</p>
+      </div>
+      <div class="card-actions">
+          <button onclick="npmManager.editHost(${host.id})">Edit</button>
+          <button onclick="npmManager.deleteHost(${host.id})">Delete</button>
+      </div>
+    `;
     return card;
   }
 
@@ -203,7 +210,6 @@ class NPMManager {
       this.updateCertificateStats(certs);
       const grid = document.getElementById("certificatesGrid");
       grid.innerHTML = "";
-
       certs.forEach((cert) => {
         grid.appendChild(this.createCertificateCard(cert));
       });
@@ -217,7 +223,6 @@ class NPMManager {
     const thirtyDaysFromNow = new Date(
       now.getTime() + 30 * 24 * 60 * 60 * 1000,
     );
-
     const stats = certs.reduce(
       (acc, cert) => {
         const expiryDate = new Date(cert.expires_on);
@@ -232,7 +237,6 @@ class NPMManager {
       },
       { valid: 0, expiringSoon: 0, expired: 0 },
     );
-
     document.getElementById("validCertsCount").textContent = stats.valid;
     document.getElementById("expiringSoonCount").textContent =
       stats.expiringSoon;
@@ -247,23 +251,23 @@ class NPMManager {
     const daysUntilExpiry = Math.ceil(
       (expiryDate - now) / (1000 * 60 * 60 * 24),
     );
-
     card.innerHTML = `
-            <div class="card-header">
-                <h3>${cert.nice_name}</h3>
-                <div class="expiry-indicator ${this.getExpiryClass(daysUntilExpiry)}">
-                                    ${daysUntilExpiry > 0 ? `${daysUntilExpiry} days left` : "Expired"}</div>
-                            </div>
-                            <div class="card-content">
-                                <p>Domains: ${cert.domain_names.join(", ")}</p>
-                                <p>Provider: ${cert.provider}</p>
-                                <p>Expires: ${new Date(cert.expires_on).toLocaleDateString()}</p>
-                            </div>
-                            <div class="card-actions">
-                                <button onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
-                                <button onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
-                            </div>
-                        `;
+      <div class="card-header">
+          <h3>${cert.nice_name}</h3>
+          <div class="expiry-indicator ${this.getExpiryClass(daysUntilExpiry)}">
+            ${daysUntilExpiry > 0 ? `${daysUntilExpiry} days left` : "Expired"}
+          </div>
+      </div>
+      <div class="card-content">
+          <p>Domains: ${cert.domain_names.join(", ")}</p>
+          <p>Provider: ${cert.provider}</p>
+          <p>Expires: ${new Date(cert.expires_on).toLocaleDateString()}</p>
+      </div>
+      <div class="card-actions">
+          <button onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
+          <button onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
+      </div>
+    `;
     return card;
   }
 
@@ -278,7 +282,6 @@ class NPMManager {
       const lists = await this.makeRequest("/nginx/access-lists");
       const grid = document.getElementById("accessListsGrid");
       grid.innerHTML = "";
-
       lists.forEach((list) => {
         grid.appendChild(this.createAccessListCard(list));
       });
@@ -291,19 +294,19 @@ class NPMManager {
     const card = document.createElement("div");
     card.className = "access-list-card glass-card";
     card.innerHTML = `
-                            <div class="card-header">
-                                <h3>${list.name}</h3>
-                            </div>
-                            <div class="card-content">
-                                <p>Authorization: ${list.satisfy_any ? "Any" : "All"}</p>
-                                <p>Pass Auth: ${list.pass_auth ? "Yes" : "No"}</p>
-                                <p>Clients: ${list.clients?.length || 0}</p>
-                            </div>
-                            <div class="card-actions">
-                                <button onclick="npmManager.editAccessList(${list.id})">Edit</button>
-                                <button onclick="npmManager.deleteAccessList(${list.id})">Delete</button>
-                            </div>
-                        `;
+      <div class="card-header">
+          <h3>${list.name}</h3>
+      </div>
+      <div class="card-content">
+          <p>Authorization: ${list.satisfy_any ? "Any" : "All"}</p>
+          <p>Pass Auth: ${list.pass_auth ? "Yes" : "No"}</p>
+          <p>Clients: ${list.clients?.length || 0}</p>
+      </div>
+      <div class="card-actions">
+          <button onclick="npmManager.editAccessList(${list.id})">Edit</button>
+          <button onclick="npmManager.deleteAccessList(${list.id})">Delete</button>
+      </div>
+    `;
     return card;
   }
 
@@ -312,19 +315,91 @@ class NPMManager {
       const logs = await this.makeRequest("/audit-log");
       const tbody = document.querySelector("#auditLogTable tbody");
       tbody.innerHTML = "";
-
       logs.forEach((log) => {
         const row = document.createElement("tr");
         row.innerHTML = `
-                                    <td>${new Date(log.created_on).toLocaleString()}</td>
-                                    <td>${log.user_id}</td>
-                                    <td>${log.action}</td>
-                                    <td>${JSON.stringify(log.meta)}</td>
-                                `;
+          <td>${new Date(log.created_on).toLocaleString()}</td>
+          <td>${log.user_id}</td>
+          <td>${log.action}</td>
+          <td>${JSON.stringify(log.meta)}</td>
+        `;
         tbody.appendChild(row);
       });
     } catch (error) {
       this.showError("Failed to load audit log");
+    }
+  }
+
+  async loadRedirectionHosts() {
+    try {
+      const hosts = await this.makeRequest("/nginx/redirection-hosts");
+      const grid = document.getElementById("redirectionHostsGrid");
+      grid.innerHTML = "";
+      hosts.forEach((host) => {
+        const card = document.createElement("div");
+        card.className = "host-card glass-card";
+        card.innerHTML = `
+          <div class="card-header">
+              <h3>${host.domain_names[0]}</h3>
+              <div class="status-indicator ${host.enabled ? "active" : "inactive"}"></div>
+          </div>
+          <div class="card-content">
+              <p>Redirect To: ${host.redirect_target}</p>
+              <p>Type: ${host.redirect_type}</p>
+          </div>
+          <div class="card-actions">
+              <button onclick="npmManager.editRedirectionHost(${host.id})">Edit</button>
+              <button onclick="npmManager.deleteRedirectionHost(${host.id})">Delete</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    } catch (error) {
+      this.showError("Failed to load redirection hosts");
+    }
+  }
+
+  async loadStreamHosts() {
+    try {
+      const hosts = await this.makeRequest("/nginx/stream-hosts");
+      const grid = document.getElementById("streamHostsGrid");
+      grid.innerHTML = "";
+      hosts.forEach((host) => {
+        const card = document.createElement("div");
+        card.className = "host-card glass-card";
+        card.innerHTML = `
+          <div class="card-header">
+              <h3>${host.name}</h3>
+              <div class="status-indicator ${host.enabled ? "active" : "inactive"}"></div>
+          </div>
+          <div class="card-content">
+              <p>Upstream: ${host.upstream}</p>
+              <p>Protocol: ${host.protocol}</p>
+          </div>
+          <div class="card-actions">
+              <button onclick="npmManager.editStreamHost(${host.id})">Edit</button>
+              <button onclick="npmManager.deleteStreamHost(${host.id})">Delete</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    } catch (error) {
+      this.showError("Failed to load stream hosts");
+    }
+  }
+
+  async loadSettings() {
+    try {
+      // Fetch settings from the API and display them in the settings container.
+      const settings = await this.makeRequest("/nginx/settings");
+      const container = document.getElementById("settingsContainer");
+      container.innerHTML = `
+        <h3>Settings</h3>
+        <p>Domain: ${settings.domain}</p>
+        <p>Other Setting: ${settings.other_setting || "N/A"}</p>
+      `;
+    } catch (error) {
+      this.showError("Failed to load settings");
     }
   }
 
@@ -341,7 +416,6 @@ class NPMManager {
         ssl_forced: formData.get("ssl_forced") === "true",
         cache_enabled: formData.get("cache_enabled") === "true",
       };
-
       await this.makeRequest("/nginx/proxy-hosts", "POST", hostData);
       this.closeModals();
       this.loadCurrentView();
@@ -360,7 +434,6 @@ class NPMManager {
         certificate: formData.get("certificate"),
         private_key: formData.get("private_key"),
       };
-
       await this.makeRequest("/nginx/certificates", "POST", certData);
       this.closeModals();
       this.loadCertificates();
@@ -385,7 +458,6 @@ class NPMManager {
         dns_provider: formData.get("dns_provider"),
         dns_credentials: JSON.parse(formData.get("dns_credentials")),
       };
-
       await this.makeRequest("/nginx/certificates", "POST", certData);
       this.closeModals();
       this.loadCertificates();
@@ -407,7 +479,6 @@ class NPMManager {
 
   async deleteCertificate(certId) {
     if (!confirm("Are you sure you want to delete this certificate?")) return;
-
     try {
       await this.makeRequest(`/nginx/certificates/${certId}`, "DELETE");
       this.showSuccess("Certificate deleted successfully");
@@ -419,7 +490,6 @@ class NPMManager {
 
   async deleteHost(hostId) {
     if (!confirm("Are you sure you want to delete this host?")) return;
-
     try {
       await this.makeRequest(`/nginx/proxy-hosts/${hostId}`, "DELETE");
       this.showSuccess("Host deleted successfully");
@@ -429,173 +499,42 @@ class NPMManager {
     }
   }
 
-  switchView(view) {
-    document
-      .querySelectorAll(".content-view")
-      .forEach((v) => v.classList.remove("active"));
-    document
-      .querySelectorAll(".sidebar-item")
-      .forEach((i) => i.classList.remove("active"));
-
-    document.getElementById(`${view}View`).classList.add("active");
-    document.querySelector(`[href="#${view}"]`).classList.add("active");
-
-    this.currentView = view;
-    this.loadCurrentView();
-  }
-
-  switchCertTab(tab) {
-    document
-      .querySelectorAll(".cert-tab")
-      .forEach((t) => t.classList.remove("active"));
-    document
-      .querySelectorAll(".cert-form")
-      .forEach((f) => f.classList.remove("active"));
-
-    document.querySelector(`[data-tab="${tab}"]`).classList.add("active");
-    document.getElementById(`${tab}CertForm`).classList.add("active");
-  }
-
-  handleSearch(query) {
-    const elements = document.querySelectorAll(".glass-card");
-    query = query.toLowerCase();
-
-    elements.forEach((element) => {
-      const text = element.textContent.toLowerCase();
-      element.style.display = text.includes(query) ? "block" : "none";
-    });
-  }
-
-  // static/npm.js (continued)
-  showAddModal() {
-    const modal = document.getElementById("addHostModal");
-    modal.style.display = "block";
-    this.populateAddHostForm();
-  }
-
-  populateAddHostForm() {
-    const form = document.getElementById("addHostForm");
-    form.innerHTML = `
-                                <div class="form-group">
-                                    <label for="domain_names">Domain Names (comma-separated)</label>
-                                    <input type="text" id="domain_names" name="domain_names" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="forward_host">Forward Host</label>
-                                    <input type="text" id="forward_host" name="forward_host" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="forward_port">Forward Port</label>
-                                    <input type="number" id="forward_port" name="forward_port" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" name="ssl_forced" value="true">
-                                        Force SSL
-                                    </label>
-                                </div>
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" name="cache_enabled" value="true">
-                                        Enable Caching
-                                    </label>
-                                </div>
-                                <div class="form-actions">
-                                    <button type="submit" class="btn-primary">Add Host</button>
-                                    <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
-                                </div>
-                            `;
-  }
-
-  closeModals() {
-    document.querySelectorAll(".modal").forEach((modal) => {
-      modal.style.display = "none";
-    });
-  }
-
-  showError(message) {
-    this.showNotification(message, "error");
-  }
-
-  showSuccess(message) {
-    this.showNotification(message, "success");
-  }
-
-  showNotification(message, type) {
-    const notification = document.createElement("div");
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-
-    document.body.appendChild(notification);
-
-    // Animate in
-    setTimeout(() => notification.classList.add("show"), 100);
-
-    // Remove after 3 seconds
-    setTimeout(() => {
-      notification.classList.remove("show");
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
-  }
-
-  startAutoRefresh() {
-    setInterval(() => {
-      if (document.visibilityState === "visible") {
-        this.loadCurrentView();
-      }
-    }, this.refreshInterval);
-
-    // Update on visibility change
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        this.loadCurrentView();
-      }
-    });
-  }
-
   async editHost(hostId) {
     try {
       const host = await this.makeRequest(`/nginx/proxy-hosts/${hostId}`);
       const modal = document.getElementById("addHostModal");
       const form = document.getElementById("addHostForm");
-
       form.innerHTML = `
-                                    <input type="hidden" name="host_id" value="${hostId}">
-                                    <div class="form-group">
-                                        <label for="domain_names">Domain Names (comma-separated)</label>
-                                        <input type="text" id="domain_names" name="domain_names"
-                                               value="${host.domain_names.join(", ")}" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="forward_host">Forward Host</label>
-                                        <input type="text" id="forward_host" name="forward_host"
-                                               value="${host.forward_host}" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="forward_port">Forward Port</label>
-                                        <input type="number" id="forward_port" name="forward_port"
-                                               value="${host.forward_port}" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>
-                                            <input type="checkbox" name="ssl_forced" value="true"
-                                                   ${host.ssl_forced ? "checked" : ""}>
-                                            Force SSL
-                                        </label>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>
-                                            <input type="checkbox" name="cache_enabled" value="true"
-                                                   ${host.cache_enabled ? "checked" : ""}>
-                                            Enable Caching
-                                        </label>
-                                    </div>
-                                    <div class="form-actions">
-                                        <button type="submit" class="btn-primary">Update Host</button>
-                                        <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
-                                    </div>
-                                `;
-
+        <input type="hidden" name="host_id" value="${hostId}">
+        <div class="form-group">
+          <label for="domain_names">Domain Names (comma-separated)</label>
+          <input type="text" id="domain_names" name="domain_names" value="${host.domain_names.join(", ")}" required>
+        </div>
+        <div class="form-group">
+          <label for="forward_host">Forward Host</label>
+          <input type="text" id="forward_host" name="forward_host" value="${host.forward_host}" required>
+        </div>
+        <div class="form-group">
+          <label for="forward_port">Forward Port</label>
+          <input type="number" id="forward_port" name="forward_port" value="${host.forward_port}" required>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="ssl_forced" value="true" ${host.ssl_forced ? "checked" : ""}>
+            Force SSL
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="cache_enabled" value="true" ${host.cache_enabled ? "checked" : ""}>
+            Enable Caching
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Update Host</button>
+          <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
+        </div>
+      `;
       modal.style.display = "block";
     } catch (error) {
       this.showError("Failed to load host details");
@@ -607,41 +546,188 @@ class NPMManager {
       const list = await this.makeRequest(`/nginx/access-lists/${listId}`);
       const modal = document.getElementById("addHostModal");
       const form = document.getElementById("addHostForm");
-
       form.innerHTML = `
-                                    <input type="hidden" name="list_id" value="${listId}">
-                                    <div class="form-group">
-                                        <label for="name">List Name</label>
-                                        <input type="text" id="name" name="name" value="${list.name}" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>
-                                            <input type="checkbox" name="satisfy_any" value="true"
-                                                   ${list.satisfy_any ? "checked" : ""}>
-                                            Satisfy Any Condition
-                                        </label>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>
-                                            <input type="checkbox" name="pass_auth" value="true"
-                                                   ${list.pass_auth ? "checked" : ""}>
-                                            Pass Authentication
-                                        </label>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="clients">Allowed Clients (one per line)</label>
-                                        <textarea id="clients" name="clients" rows="5">${list.clients?.join("\n") || ""}</textarea>
-                                    </div>
-                                    <div class="form-actions">
-                                        <button type="submit" class="btn-primary">Update Access List</button>
-                                        <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
-                                    </div>
-                                `;
-
+        <input type="hidden" name="list_id" value="${listId}">
+        <div class="form-group">
+          <label for="name">List Name</label>
+          <input type="text" id="name" name="name" value="${list.name}" required>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="satisfy_any" value="true" ${list.satisfy_any ? "checked" : ""}>
+            Satisfy Any Condition
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="pass_auth" value="true" ${list.pass_auth ? "checked" : ""}>
+            Pass Authentication
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="clients">Allowed Clients (one per line)</label>
+          <textarea id="clients" name="clients" rows="5">${list.clients?.join("\n") || ""}</textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Update Access List</button>
+          <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
+        </div>
+      `;
       modal.style.display = "block";
     } catch (error) {
       this.showError("Failed to load access list details");
     }
+  }
+
+  async editRedirectionHost(hostId) {
+    try {
+      const host = await this.makeRequest(`/nginx/redirection-hosts/${hostId}`);
+      const modal = document.getElementById("addHostModal");
+      const form = document.getElementById("addHostForm");
+      form.innerHTML = `
+        <input type="hidden" name="host_id" value="${hostId}">
+        <div class="form-group">
+          <label for="domain_names">Domain Names (comma-separated)</label>
+          <input type="text" id="domain_names" name="domain_names" value="${host.domain_names.join(", ")}" required>
+        </div>
+        <div class="form-group">
+          <label for="redirect_target">Redirect Target</label>
+          <input type="text" id="redirect_target" name="redirect_target" value="${host.redirect_target}" required>
+        </div>
+        <div class="form-group">
+          <label for="redirect_type">Redirect Type</label>
+          <input type="text" id="redirect_type" name="redirect_type" value="${host.redirect_type}" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Update Redirection Host</button>
+          <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
+        </div>
+      `;
+      modal.style.display = "block";
+    } catch (error) {
+      this.showError("Failed to load redirection host details");
+    }
+  }
+
+  async deleteRedirectionHost(hostId) {
+    if (!confirm("Are you sure you want to delete this redirection host?"))
+      return;
+    try {
+      await this.makeRequest(`/nginx/redirection-hosts/${hostId}`, "DELETE");
+      this.showSuccess("Redirection host deleted successfully");
+      this.loadCurrentView();
+    } catch (error) {
+      this.showError("Failed to delete redirection host");
+    }
+  }
+
+  async editStreamHost(hostId) {
+    try {
+      const host = await this.makeRequest(`/nginx/stream-hosts/${hostId}`);
+      const modal = document.getElementById("addHostModal");
+      const form = document.getElementById("addHostForm");
+      form.innerHTML = `
+        <input type="hidden" name="host_id" value="${hostId}">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" value="${host.name}" required>
+        </div>
+        <div class="form-group">
+          <label for="upstream">Upstream</label>
+          <input type="text" id="upstream" name="upstream" value="${host.upstream}" required>
+        </div>
+        <div class="form-group">
+          <label for="protocol">Protocol</label>
+          <input type="text" id="protocol" name="protocol" value="${host.protocol}" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Update Stream Host</button>
+          <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
+        </div>
+      `;
+      modal.style.display = "block";
+    } catch (error) {
+      this.showError("Failed to load stream host details");
+    }
+  }
+
+  async deleteStreamHost(hostId) {
+    if (!confirm("Are you sure you want to delete this stream host?")) return;
+    try {
+      await this.makeRequest(`/nginx/stream-hosts/${hostId}`, "DELETE");
+      this.showSuccess("Stream host deleted successfully");
+      this.loadCurrentView();
+    } catch (error) {
+      this.showError("Failed to delete stream host");
+    }
+  }
+
+  closeModals() {
+    document.querySelectorAll(".modal").forEach((modal) => {
+      modal.style.display = "none";
+    });
+  }
+
+  handleSearch(query) {
+    const elements = document.querySelectorAll(".glass-card");
+    query = query.toLowerCase();
+    elements.forEach((element) => {
+      const text = element.textContent.toLowerCase();
+      element.style.display = text.includes(query) ? "block" : "none";
+    });
+  }
+
+  showAddModal() {
+    const modal = document.getElementById("addHostModal");
+    modal.style.display = "block";
+    this.populateAddHostForm();
+  }
+
+  populateAddHostForm() {
+    const form = document.getElementById("addHostForm");
+    form.innerHTML = `
+      <div class="form-group">
+        <label for="domain_names">Domain Names (comma-separated)</label>
+        <input type="text" id="domain_names" name="domain_names" required>
+      </div>
+      <div class="form-group">
+        <label for="forward_host">Forward Host</label>
+        <input type="text" id="forward_host" name="forward_host" required>
+      </div>
+      <div class="form-group">
+        <label for="forward_port">Forward Port</label>
+        <input type="number" id="forward_port" name="forward_port" required>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="ssl_forced" value="true">
+          Force SSL
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="cache_enabled" value="true">
+          Enable Caching
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Add Host</button>
+        <button type="button" class="btn-secondary" onclick="npmManager.closeModals()">Cancel</button>
+      </div>
+    `;
+  }
+
+  startAutoRefresh() {
+    setInterval(() => {
+      if (document.visibilityState === "visible") {
+        this.loadCurrentView();
+      }
+    }, this.refreshInterval);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        this.loadCurrentView();
+      }
+    });
   }
 }
 
