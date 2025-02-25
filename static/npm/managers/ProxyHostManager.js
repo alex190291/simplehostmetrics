@@ -3,6 +3,17 @@ import { makeRequest } from "../NPMService.js";
 import { showSuccess, showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
+export async function createProxyHost(newData) {
+  try {
+    await makeRequest("/npm-api", "/nginx/proxy-hosts", "POST", newData);
+    showSuccess("Host created successfully");
+    await Views.loadProxyHosts();
+  } catch (error) {
+    showError("Failed to create host");
+    throw error;
+  }
+}
+
 export async function editProxyHost(hostId, updatedData) {
   try {
     await makeRequest(
