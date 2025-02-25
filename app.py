@@ -207,8 +207,8 @@ def npm_proxy(path):
             headers={k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']},
             data=request.get_data(),
             cookies=request.cookies,
-            allow_redirects=False,
-            verify=True  # Set to False if using self-signed cert
+            allow_redirects=True,
+            verify=False  # Set to False if using self-signed cert
         )
 
         app.logger.debug(f"NPM Response status: {response.status_code}")
