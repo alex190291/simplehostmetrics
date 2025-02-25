@@ -33,7 +33,7 @@ function openDnsChallengeModal() {
     }
     modal.style.display = "flex";
 
-    // Updated fetch URL to point to the correct location in your static folder.
+    // Correct URL to load the JSON file from static folder.
     fetch("/static/npm/json/certbot-dns-plugins.json")
       .then((res) => res.json())
       .then((plugins) => {
@@ -99,7 +99,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       if (cert.id == selectedValue) option.selected = true;
       selectElement.appendChild(option);
     });
-    // Append options for new certificate requests
+    // Append new certificate request options
     const optionNoDns = document.createElement("option");
     optionNoDns.value = "new_nodns";
     optionNoDns.textContent = "Request New Certificate (No DNS Challenge)";
@@ -135,6 +135,9 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
   }
 }
 
+// -------------------------
+// Add Host Flow
+// -------------------------
 export function populateAddHostForm() {
   const form = document.getElementById("addHostForm");
   form.innerHTML = `
@@ -226,18 +229,15 @@ export function populateAddHostForm() {
       <button type="button" class="btn btn-secondary modal-close">Cancel</button>
     </div>
   `;
-  // Attach tab switching event listeners
   const tabLinks = form.querySelectorAll(".tab-link");
   tabLinks.forEach((btn) => {
     btn.addEventListener("click", () => {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
-  // Populate dropdown menus
   const certSelect = form.querySelector("#certificate_id");
   populateCertificateDropdown(certSelect);
   const accessListSelect = form.querySelector("#access_list_id");
@@ -248,7 +248,6 @@ export function populateAddHostForm() {
     const submitBtn = form.querySelector("button[type='submit']");
     submitBtn.disabled = true;
     submitBtn.textContent = "Please wait...";
-
     const formData = new FormData(form);
     const certificate_id_raw = formData.get("certificate_id");
     let certificate_id;
@@ -266,7 +265,7 @@ export function populateAddHostForm() {
     const access_list_id =
       access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
 
-    const baseData = {
+    let baseData = {
       domain_names: formData
         .get("domain_names")
         .split(",")
@@ -303,25 +302,61 @@ export function populateAddHostForm() {
       });
     }
 
+    // If new certificate requested, first create certificate via CertificateManager
     if (certificate_id_raw === "new_dns") {
       openDnsChallengeModal()
         .then((dnsData) => {
-          const newData = Object.assign({}, baseData, {
+          const certPayload = {
+            provider: "letsencrypt", // Assuming Let's Encrypt is used for DNS challenge
+            domain_names: baseData.domain_names,
             dns_challenge: dnsData,
+          };
+          import("../managers/CertificateManager.js").then((certMod) => {
+            certMod
+              .createCertificate(certPayload)
+              .then((newCertId) => {
+                baseData.certificate_id = newCertId;
+                finishCreate(baseData);
+              })
+              .catch((err) => {
+                console.error("Failed to create certificate", err);
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Add Host";
+              });
           });
-          finishCreate(newData);
         })
         .catch((err) => {
           console.error("DNS challenge canceled or failed", err);
           submitBtn.disabled = false;
           submitBtn.textContent = "Add Host";
         });
+    } else if (certificate_id_raw === "new_nodns") {
+      const certPayload = {
+        provider: "letsencrypt",
+        domain_names: baseData.domain_names,
+      };
+      import("../managers/CertificateManager.js").then((certMod) => {
+        certMod
+          .createCertificate(certPayload)
+          .then((newCertId) => {
+            baseData.certificate_id = newCertId;
+            finishCreate(baseData);
+          })
+          .catch((err) => {
+            console.error("Failed to create certificate", err);
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Add Host";
+          });
+      });
     } else {
       finishCreate(baseData);
     }
   };
 }
 
+// -------------------------
+// Edit Host Flow
+// -------------------------
 export async function editHostModal(host) {
   const modal = document.getElementById("addHostModal");
   const form = document.getElementById("addHostForm");
@@ -416,18 +451,15 @@ export async function editHostModal(host) {
     </div>
   `;
   modal.style.display = "block";
-  // Attach tab switching event listeners
   const tabLinks = form.querySelectorAll(".tab-link");
   tabLinks.forEach((btn) => {
     btn.addEventListener("click", () => {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
-  // Populate dropdown menus
   const certSelect = form.querySelector("#certificate_id");
   populateCertificateDropdown(certSelect, host.certificate_id || "");
   const accessListSelect = form.querySelector("#access_list_id");
@@ -452,7 +484,7 @@ export async function editHostModal(host) {
     const access_list_id =
       access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
 
-    const baseData = {
+    let baseData = {
       domain_names: formData
         .get("domain_names")
         .split(",")
@@ -476,36 +508,10 @@ export async function editHostModal(host) {
     submitBtn.disabled = true;
     submitBtn.textContent = "Please wait...";
 
-    if (certificate_id_raw === "new_dns") {
-      openDnsChallengeModal()
-        .then((dnsData) => {
-          const newData = Object.assign({}, baseData, {
-            dns_challenge: dnsData,
-          });
-          import("../managers/ProxyHostManager.js").then((mod) => {
-            mod
-              .editProxyHost(host.id, newData)
-              .then(() => {
-                modal.style.display = "none";
-              })
-              .catch((err) => {
-                console.error("Failed to update host", err);
-              })
-              .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.textContent = "Update Host";
-              });
-          });
-        })
-        .catch((err) => {
-          console.error("DNS challenge canceled or failed", err);
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Update Host";
-        });
-    } else {
+    function finishEdit(data) {
       import("../managers/ProxyHostManager.js").then((mod) => {
         mod
-          .editProxyHost(host.id, baseData)
+          .editProxyHost(host.id, data)
           .then(() => {
             modal.style.display = "none";
           })
@@ -517,6 +523,55 @@ export async function editHostModal(host) {
             submitBtn.textContent = "Update Host";
           });
       });
+    }
+
+    if (certificate_id_raw === "new_dns") {
+      openDnsChallengeModal()
+        .then((dnsData) => {
+          const certPayload = {
+            provider: "letsencrypt",
+            domain_names: baseData.domain_names,
+            dns_challenge: dnsData,
+          };
+          import("../managers/CertificateManager.js").then((certMod) => {
+            certMod
+              .createCertificate(certPayload)
+              .then((newCertId) => {
+                baseData.certificate_id = newCertId;
+                finishEdit(baseData);
+              })
+              .catch((err) => {
+                console.error("Failed to create certificate", err);
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Update Host";
+              });
+          });
+        })
+        .catch((err) => {
+          console.error("DNS challenge canceled or failed", err);
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Update Host";
+        });
+    } else if (certificate_id_raw === "new_nodns") {
+      const certPayload = {
+        provider: "letsencrypt",
+        domain_names: baseData.domain_names,
+      };
+      import("../managers/CertificateManager.js").then((certMod) => {
+        certMod
+          .createCertificate(certPayload)
+          .then((newCertId) => {
+            baseData.certificate_id = newCertId;
+            finishEdit(baseData);
+          })
+          .catch((err) => {
+            console.error("Failed to create certificate", err);
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Update Host";
+          });
+      });
+    } else {
+      finishEdit(baseData);
     }
   };
 }

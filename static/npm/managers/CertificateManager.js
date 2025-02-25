@@ -30,11 +30,19 @@ export async function deleteCertificate(certId) {
 
 export async function createCertificate(certData) {
   try {
-    await makeRequest("/npm-api", "/nginx/certificates", "POST", certData);
+    const response = await makeRequest(
+      "/npm-api",
+      "/nginx/certificates",
+      "POST",
+      certData,
+    );
     showSuccess("Certificate created successfully");
     await Views.loadCertificates();
+    // Return the newly created certificate ID so the caller can update the host payload.
+    return response.id;
   } catch (error) {
     showError("Failed to create certificate");
+    throw error;
   }
 }
 
