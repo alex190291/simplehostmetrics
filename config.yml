@@ -1,6 +1,8 @@
 # config.yml
 npm:
-  domain: "npm.ganjagaming.de"
+  domain: "npm:81"
+  identity: "your@email.com"
+  secret: "yoUrPassWord1!"
 logfiles:
   - path: /data/npm/logs/fallback_access.log
     proxy_type: npm

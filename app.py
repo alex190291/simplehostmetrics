@@ -3,7 +3,6 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for, f
 import threading
 import logging
 import time
-from sqlalchemy.orm.query import log
 import yaml
 import requests
 import docker
@@ -94,6 +93,56 @@ load_history(history_data)
 NPM_DOMAIN = config_data["npm"]["domain"]
 NPM_API_URL = f"http://{NPM_DOMAIN}/api"
 docker_client = docker.from_env()
+
+# --- NPM Token Manager for production ---
+class NPMTokenManager:
+    def __init__(self, domain, identity, secret):
+        self.domain = domain
+        self.identity = identity
+        self.secret = secret
+        self.token = None
+        self.token_expiry = 0  # Unix timestamp when token expires
+
+    def get_token(self):
+        now = time.time()
+        if self.token is None or now >= self.token_expiry:
+            self.refresh_token()
+        return self.token
+
+    def refresh_token(self):
+        token_url = f"http://{self.domain}/api/tokens"
+        payload = {
+            "identity": self.identity,
+            "secret": self.secret
+        }
+        try:
+            app.logger.debug(f"Requesting new NPM token from {token_url} with payload {payload}")
+            token_response = requests.post(token_url, json=payload, verify=False)
+            if token_response.status_code != 200:
+                app.logger.error(f"Token retrieval failed: {token_response.text}")
+                raise Exception("Token retrieval failed")
+            json_data = token_response.json()
+            self.token = json_data.get("token")
+            # Assume the response includes 'expires_in' in seconds (default to 3600 if missing)
+            expires_in = json_data.get("expires_in", 3600)
+            # Set expiry 60 seconds before actual expiry for safety
+            self.token_expiry = time.time() + expires_in - 60
+            if not self.token:
+                app.logger.error("Token not found in response")
+                raise Exception("Token not found in response")
+            app.logger.debug(f"Obtained NPM token, expires in {expires_in} seconds")
+        except requests.RequestException as e:
+            app.logger.error(f"Error retrieving token: {str(e)}")
+            raise e
+
+# Initialize the token manager with credentials from config
+npm_config = config_data.get("npm", {})
+NPM_IDENTITY = npm_config.get("identity")
+NPM_SECRET = npm_config.get("secret")
+if not (NPM_DOMAIN and NPM_IDENTITY and NPM_SECRET):
+    app.logger.error("NPM configuration incomplete in config.yml")
+    raise Exception("Incomplete NPM configuration")
+NPM_TOKEN_MANAGER = NPMTokenManager(NPM_DOMAIN, NPM_IDENTITY, NPM_SECRET)
 
 @app.before_request
 def require_user_update():
@@ -194,6 +243,7 @@ def npm_settings():
 @login_required
 def npm_proxy(path):
     npm_domain = config_data['npm']['domain']
+    # Use HTTPS for proxy if required; adjust scheme if necessary.
     npm_url = f'https://{npm_domain}/api/'
     target_url = urljoin(npm_url, path)
 
@@ -202,21 +252,28 @@ def npm_proxy(path):
     app.logger.debug(f"Headers: {dict(request.headers)}")
 
     try:
+        # Get a valid token from the token manager
+        token = NPM_TOKEN_MANAGER.get_token()
+
+        # Prepare headers: forward incoming headers (minus some) and add Authorization
+        headers = {k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']}
+        headers['Authorization'] = f'Bearer {token}'
+
         # Forward the request to NPM
         response = requests.request(
             method=request.method,
             url=target_url,
-            headers={k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']},
+            headers=headers,
             data=request.get_data(),
             cookies=request.cookies,
             allow_redirects=False,
-            verify=True  # Set to False if using self-signed cert
+            verify=True  # Set to False if using self-signed certificate in production adjust accordingly
         )
 
         app.logger.debug(f"NPM Response status: {response.status_code}")
         app.logger.debug(f"NPM Response headers: {dict(response.headers)}")
 
-        # Forward the response from NPM
+        # Return the response from NPM
         return (
             response.content,
             response.status_code,
@@ -226,8 +283,6 @@ def npm_proxy(path):
     except requests.RequestException as e:
         app.logger.error(f"NPM Proxy error: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-
 
 # RTAD logs page
 @app.route('/rtad')
