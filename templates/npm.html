@@ -1,74 +1,190 @@
+<!-- templates/npm.html -->
 {% extends "base.html" %} {% block title %}Nginx Proxy Manager{% endblock %} {%
 block content %}
-<div class="container">
-    <h1>Nginx Proxy Manager</h1>
+<div class="npm-container">
+    <!-- Sidebar Navigation -->
+    <div class="npm-sidebar" id="npmSidebar">
+        <div class="sidebar-group">
+            <div class="sidebar-header" onclick="toggleGroup('hosts')">
+                <span class="sidebar-icon">🌐</span>
+                <span>Hosts</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="sidebar-items" id="hosts">
+                <a
+                    href="#proxy"
+                    class="sidebar-item active"
+                    onclick="switchView('proxy')"
+                    >Proxy Hosts</a
+                >
+                <a
+                    href="#redirection"
+                    class="sidebar-item"
+                    onclick="switchView('redirection')"
+                    >Redirection Hosts</a
+                >
+                <a
+                    href="#stream"
+                    class="sidebar-item"
+                    onclick="switchView('stream')"
+                    >Stream Hosts</a
+                >
+            </div>
+        </div>
 
-    <!-- Tab Navigation -->
-    <ul class="tab-nav">
-        <li class="tab-item active" data-tab="health">API Health</li>
-        <li class="tab-item" data-tab="audit-log">Audit Log</li>
-        <li class="tab-item" data-tab="access-lists">Access Lists</li>
-        <li class="tab-item" data-tab="certificates">Certificates</li>
-        <li class="tab-item" data-tab="proxy-hosts">Proxy Hosts</li>
-    </ul>
+        <div class="sidebar-group">
+            <div class="sidebar-header" onclick="toggleGroup('security')">
+                <span class="sidebar-icon">🔒</span>
+                <span>Security</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="sidebar-items" id="security">
+                <a
+                    href="#access"
+                    class="sidebar-item"
+                    onclick="switchView('access')"
+                    >Access Lists</a
+                >
+                <a
+                    href="#certificates"
+                    class="sidebar-item"
+                    onclick="switchView('certificates')"
+                    >Certificates</a
+                >
+            </div>
+        </div>
 
-    <!-- Tab Content -->
-    <div class="tab-content">
-        <div id="health" class="tab-panel active">
-            <h2>API Health Status</h2>
-            <!-- Für Health-Daten (Objekt) wird aktuell kein Filter benötigt -->
-            <div id="healthData" class="card-content"></div>
-        </div>
-        <div id="audit-log" class="tab-panel">
-            <h2>Audit Log</h2>
-            <!-- Filterfeld -->
-            <input
-                type="text"
-                class="filter-input"
-                data-target="auditLogData"
-                placeholder="Filter Audit Log..."
-            />
-            <div id="auditLogData" class="card-content"></div>
-        </div>
-        <div id="access-lists" class="tab-panel">
-            <h2>Access Lists</h2>
-            <!-- Filterfeld -->
-            <input
-                type="text"
-                class="filter-input"
-                data-target="accessListsData"
-                placeholder="Filter Access Lists..."
-            />
-            <div id="accessListsData" class="card-content"></div>
-        </div>
-        <div id="certificates" class="tab-panel">
-            <h2>Certificates</h2>
-            <!-- Filterfeld -->
-            <input
-                type="text"
-                class="filter-input"
-                data-target="certificatesData"
-                placeholder="Filter Certificates..."
-            />
-            <div id="certificatesData" class="card-content"></div>
-        </div>
-        <div id="proxy-hosts" class="tab-panel">
-            <h2>Proxy Hosts</h2>
-            <!-- Filterfeld -->
-            <input
-                type="text"
-                class="filter-input"
-                data-target="proxyHostsData"
-                placeholder="Filter Proxy Hosts..."
-            />
-            <div id="proxyHostsData" class="card-content"></div>
+        <div class="sidebar-group">
+            <div class="sidebar-header" onclick="toggleGroup('system')">
+                <span class="sidebar-icon">⚙️</span>
+                <span>System</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="sidebar-items" id="system">
+                <a
+                    href="#audit"
+                    class="sidebar-item"
+                    onclick="switchView('audit')"
+                    >Audit Log</a
+                >
+                <a
+                    href="#settings"
+                    class="sidebar-item"
+                    onclick="switchView('settings')"
+                    >Settings</a
+                >
+            </div>
         </div>
     </div>
 
-    <!-- Optional: Aktualisierungsbutton -->
-    <button class="update-btn" id="npmRefreshBtn" onclick="refreshNpmData()">
-        Refresh Now
-    </button>
+    <!-- Main Content Area -->
+    <div class="npm-content">
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <button class="add-btn" id="addNewBtn">Add New</button>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search..." />
+            </div>
+        </div>
+
+        <!-- Dynamic Content Views -->
+        <div id="proxyView" class="content-view active">
+            <div class="card-grid" id="proxyHostsGrid"></div>
+        </div>
+
+        <div id="redirectionView" class="content-view">
+            <div class="card-grid" id="redirectionHostsGrid"></div>
+        </div>
+
+        <div id="streamView" class="content-view">
+            <div class="card-grid" id="streamHostsGrid"></div>
+        </div>
+
+        <div id="accessView" class="content-view">
+            <div class="card-grid" id="accessListsGrid"></div>
+        </div>
+
+        <div id="certificatesView" class="content-view">
+            <div class="certificates-header">
+                <div class="cert-stats">
+                    <div class="stat-card">
+                        <h3>Valid Certificates</h3>
+                        <span id="validCertsCount">0</span>
+                    </div>
+                    <div class="stat-card warning">
+                        <h3>Expiring Soon</h3>
+                        <span id="expiringSoonCount">0</span>
+                    </div>
+                    <div class="stat-card danger">
+                        <h3>Expired</h3>
+                        <span id="expiredCount">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-grid" id="certificatesGrid"></div>
+        </div>
+
+        <div id="auditView" class="content-view">
+            <div class="audit-log-container">
+                <table id="auditLogTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="settingsView" class="content-view">
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <h3>Default Settings</h3>
+                    <form id="defaultSettingsForm">
+                        <!-- Settings form content will be dynamically populated -->
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div id="addHostModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Add New Host</h2>
+        <form id="addHostForm">
+            <!-- Form fields will be dynamically populated based on host type -->
+        </form>
+    </div>
+</div>
+
+<div id="certificateModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Add Certificate</h2>
+        <div class="cert-tabs">
+            <button class="cert-tab active" data-tab="upload">
+                Upload Certificate
+            </button>
+            <button class="cert-tab" data-tab="letsencrypt">
+                Let's Encrypt
+            </button>
+        </div>
+        <div class="cert-content">
+            <form id="uploadCertForm" class="cert-form active">
+                <!-- Upload certificate form fields -->
+            </form>
+            <form id="letsencryptForm" class="cert-form">
+                <!-- Let's Encrypt form fields -->
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %} {% block scripts %}
 <script src="{{ url_for('static', filename='npm.js') }}"></script>
