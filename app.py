@@ -189,6 +189,7 @@ def npm_settings():
     return render_template("npm_settings.html", current_domain=current_domain)
 
 @app.route('/npm-api', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/npm-api/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
 @app.route('/npm-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @login_required
 def npm_proxy(path):
