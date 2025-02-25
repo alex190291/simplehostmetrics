@@ -13,7 +13,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
-      // Use nice_name if available; fallback to joining domain_names, provider, or id
+      // Use nice_name if available; otherwise join domain_names, use provider, or fallback to id
       option.textContent =
         cert.nice_name ||
         (cert.domain_names ? cert.domain_names.join(", ") : "") ||
@@ -150,12 +150,12 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
+  // Attach modal close event listener for the Cancel button
   const modalCloseButtons = form.querySelectorAll(".modal-close");
   modalCloseButtons.forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
-  // Populate the certificate and access list dropdown menus
+  // Populate dropdown menus
   const certSelect = form.querySelector("#certificate_id");
   populateCertificateDropdown(certSelect);
   const accessListSelect = form.querySelector("#access_list_id");
@@ -267,12 +267,12 @@ export async function editHostModal(host) {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
+  // Attach modal close event listener for the Cancel button
   const modalCloseButtons = form.querySelectorAll(".modal-close");
   modalCloseButtons.forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
-  // Populate the certificate and access list dropdown menus
+  // Populate dropdown menus
   const certSelect = form.querySelector("#certificate_id");
   populateCertificateDropdown(certSelect, host.certificate_id || "");
   const accessListSelect = form.querySelector("#access_list_id");
