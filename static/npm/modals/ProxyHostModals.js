@@ -149,7 +149,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
+  // Attach modal close event listeners
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -179,7 +179,7 @@ export function populateAddHostForm() {
       http2_support: formData.get("http2_support") === "on",
       hsts_enabled: formData.get("hsts_enabled") === "on",
       hsts_subdomains: formData.get("hsts_subdomains") === "on",
-      custom_config: formData.get("custom_config"),
+      advanced_config: formData.get("custom_config"),
     };
     import("../managers/ProxyHostManager.js").then((mod) => {
       mod
@@ -329,7 +329,7 @@ export async function editHostModal(host) {
       http2_support: formData.get("http2_support") === "on",
       hsts_enabled: formData.get("hsts_enabled") === "on",
       hsts_subdomains: formData.get("hsts_subdomains") === "on",
-      custom_config: formData.get("custom_config"),
+      advanced_config: formData.get("custom_config"),
     };
     import("../managers/ProxyHostManager.js").then((mod) => {
       mod
