@@ -33,7 +33,8 @@ function openDnsChallengeModal() {
     }
     modal.style.display = "flex";
 
-    fetch("/npm/json/certbot-dns-plugins.json")
+    // Updated fetch URL to point to the correct location in your static folder.
+    fetch("/static/npm/json/certbot-dns-plugins.json")
       .then((res) => res.json())
       .then((plugins) => {
         const optionsDiv = modal.querySelector("#dnsProviderOptions");
@@ -86,9 +87,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       return;
     }
     const certificates = await response.json();
-    // Clear existing options
     selectElement.innerHTML = "";
-    // Add existing certificates
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
@@ -100,7 +99,7 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       if (cert.id == selectedValue) option.selected = true;
       selectElement.appendChild(option);
     });
-    // Append new certificate request options
+    // Append options for new certificate requests
     const optionNoDns = document.createElement("option");
     optionNoDns.value = "new_nodns";
     optionNoDns.textContent = "Request New Certificate (No DNS Challenge)";
@@ -234,7 +233,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners
+  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -246,7 +245,6 @@ export function populateAddHostForm() {
 
   form.onsubmit = (e) => {
     e.preventDefault();
-    // Disable submit button and show waiting feedback
     const submitBtn = form.querySelector("button[type='submit']");
     submitBtn.disabled = true;
     submitBtn.textContent = "Please wait...";
@@ -474,7 +472,6 @@ export async function editHostModal(host) {
       advanced_config: formData.get("custom_config"),
     };
 
-    // Provide UI feedback by disabling submit button during update.
     const submitBtn = form.querySelector("button[type='submit']");
     submitBtn.disabled = true;
     submitBtn.textContent = "Please wait...";
