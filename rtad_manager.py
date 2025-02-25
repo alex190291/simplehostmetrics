@@ -24,6 +24,7 @@ REGEX_NPM = re.compile(
 )
 
 # Instead of normal lists, use deques for stable FIFO with a maxlen
+# => 1000 login + 1000 proxy
 login_attempts_cache = deque(maxlen=1000)
 http_error_logs_cache = deque(maxlen=1000)
 
@@ -210,6 +211,63 @@ def get_country_centroid(country_code):
     return COUNTRY_CENTROIDS.get(country_code.upper(), (0, 0))
 
 ##################################
+# File Offset Tracking
+##################################
+class FileOffsetTracker:
+    """
+    Tracks file offsets so we only parse new lines. If file is rotated/truncated,
+    we reset offset to 0.
+    """
+    def __init__(self):
+        # Map of file_path -> (inode, offset)
+        self.file_offsets = {}
+        self.lock = threading.Lock()
+
+    def get_offset(self, path):
+        with self.lock:
+            return self.file_offsets.get(path, (None, 0))
+
+    def update_offset(self, path, inode, offset):
+        with self.lock:
+            self.file_offsets[path] = (inode, offset)
+
+    def reset_offset(self, path):
+        with self.lock:
+            if path in self.file_offsets:
+                del self.file_offsets[path]
+
+offset_tracker = FileOffsetTracker()
+
+def read_new_lines_from_file(file_path):
+    """
+    Reads only new lines from the file since the last offset. If the file was
+    rotated/truncated, reset offset to 0.
+    """
+    if not os.path.isfile(file_path):
+        return []
+
+    inode = os.stat(file_path).st_ino
+    old_inode, old_offset = offset_tracker.get_offset(file_path)
+
+    # If inode changed or file size < old_offset => log rotation or truncation
+    size = os.path.getsize(file_path)
+    if inode != old_inode or size < old_offset:
+        old_offset = 0
+
+    new_lines = []
+    with open(file_path, 'r') as f:
+        f.seek(old_offset)
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            new_lines.append(line.rstrip('\n'))
+
+        new_offset = f.tell()
+    offset_tracker.update_offset(file_path, inode, new_offset)
+    return new_lines
+
+##################################
 # Log Parsing Classes & Methods
 ##################################
 class LogParser:
@@ -221,16 +279,13 @@ class LogParser:
         self.setup_watchdog()
 
     def process_log_file(self, file_path, line_processor):
-        try:
-            with open(file_path, 'r') as f:
-                new_data = f.read()
-            if new_data:
-                for line in new_data.splitlines():
-                    line = line.strip()
-                    if line:
-                        line_processor(line)
-        except Exception as e:
-            logging.error("Error processing file %s: %s", file_path, e)
+        # Only read new lines since last offset
+        new_lines = read_new_lines_from_file(file_path)
+        if new_lines:
+            for line in new_lines:
+                line = line.strip()
+                if line:
+                    line_processor(line)
 
     def process_files_concurrently(self, files, line_processor):
         with ThreadPoolExecutor() as executor:
@@ -252,6 +307,7 @@ class LogParser:
                 continue
             files = get_log_files(path)
             self.process_files_concurrently(files, lambda line: self.process_http_error_log(line, proxy_type))
+
         # Use only the btmp file for failed login attempts
         self.parse_btmp_file()
 
@@ -286,6 +342,10 @@ class LogParser:
             logging.debug("Line does not meet criteria (code < 400 and parse_all_logs is false): %s", line)
 
     def parse_btmp_file(self):
+        """
+        Parse /var/log/btmp for failed login attempts. We do a partial read as well.
+        If the file is rotated or truncated, we reset offset.
+        """
         logging.debug("Parsing /var/log/btmp using utmp.read")
         try:
             import utmp
@@ -298,26 +358,46 @@ class LogParser:
             logging.warning("/var/log/btmp does not exist.")
             return
 
+        # We'll treat each new read as new records. If the file is rotated, we reset offset.
+        # So let's do a small custom approach to partial read:
+        inode = os.stat(btmp_path).st_ino
+        old_inode, old_offset = offset_tracker.get_offset(btmp_path)
+        size = os.path.getsize(btmp_path)
+        if inode != old_inode or size < old_offset:
+            old_offset = 0
+
+        # We'll read the entire file from old_offset in binary, parse new utmp records only
+        new_records = []
+        with open(btmp_path, "rb") as fd:
+            fd.seek(old_offset)
+            buf = fd.read()
+            new_offset = fd.tell()
+
+        offset_tracker.update_offset(btmp_path, inode, new_offset)
+
+        # Parse the newly read bytes as utmp records
         try:
-            with open(btmp_path, "rb") as fd:
-                buf = fd.read()
             for record in utmp.read(buf):
-                user = getattr(record, "user", None)
-                host = getattr(record, "host", None)
-                ip_address = host  # Use host as IP if no separate IP is available
-                logging.debug("Btmp entry: Time: %s, Type: %s, User: %s, Host/IP: %s",
-                              record.time, record.type, user, host)
-                self.store_failed_login(user, ip_address, host, timestamp=record.time)
+                new_records.append(record)
         except Exception as e:
-            logging.error("Error parsing /var/log/btmp: %s", e)
+            logging.error("Error parsing newly read bytes from /var/log/btmp: %s", e)
+            return
+
+        for record in new_records:
+            user = getattr(record, "user", None)
+            host = getattr(record, "host", None)
+            ip_address = host  # Use host as IP if no separate IP is available
+            logging.debug("Btmp entry: Time: %s, Type: %s, User: %s, Host/IP: %s",
+                          record.time, record.type, user, host)
+            self.store_failed_login(user, ip_address, host, timestamp=record.time)
 
     def store_failed_login(self, user, ip_address, host, timestamp=None):
-        timestamp = normalize_timestamp(timestamp)
+        ts = normalize_timestamp(timestamp)
         with login_attempts_lock:
             login_attempts_cache.append({
                 "user": user,
                 "ip_address": ip_address,
-                "timestamp": timestamp,
+                "timestamp": ts,
                 "failure_reason": "Failed login attempt",
                 "country": "Unknown",
                 "city": "Unknown",
@@ -325,15 +405,15 @@ class LogParser:
                 "lon": None
             })
         logging.debug("Stored failed login attempt: User %s, IP %s, Host %s, Timestamp: %s",
-                      user, ip_address, host, timestamp)
+                      user, ip_address, host, ts)
 
     def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
-        timestamp = normalize_timestamp(timestamp)
+        ts = normalize_timestamp(timestamp)
         with http_error_logs_lock:
             http_error_logs_cache.append({
                 "proxy_type": proxy_type,
                 "error_code": error_code,
-                "timestamp": timestamp,
+                "timestamp": ts,
                 "url": url,
                 "ip_address": ip_address,
                 "domain": domain,
@@ -343,7 +423,7 @@ class LogParser:
                 "lon": None
             })
         logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
-                      proxy_type, error_code, url, ip_address, domain, timestamp)
+                      proxy_type, error_code, url, ip_address, domain, ts)
 
     def setup_watchdog(self):
         logging.debug("Setting up Watchdog Observer")
