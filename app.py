@@ -7,6 +7,7 @@ from sqlalchemy.orm.query import log
 import yaml
 import requests
 import docker
+from urllib.parse import urljoin
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
