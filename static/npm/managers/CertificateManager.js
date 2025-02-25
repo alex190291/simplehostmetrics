@@ -3,6 +3,16 @@ import { makeRequest } from "../NPMService.js";
 import { showSuccess, showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
+// Helper to wrap a promise with a timeout.
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout exceeded")), timeoutMs),
+    ),
+  ]);
+}
+
 export async function renewCertificate(certId) {
   try {
     await makeRequest(
@@ -30,15 +40,21 @@ export async function deleteCertificate(certId) {
 
 export async function createCertificate(certData) {
   try {
-    const response = await makeRequest(
+    let requestPromise = makeRequest(
       "/npm-api",
       "/nginx/certificates",
       "POST",
       certData,
     );
+    if (certData.dns_challenge && certData.dns_challenge.wait_time) {
+      requestPromise = withTimeout(
+        requestPromise,
+        certData.dns_challenge.wait_time * 1000,
+      );
+    }
+    const response = await requestPromise;
     showSuccess("Certificate created successfully");
     await Views.loadCertificates();
-    // Return the newly created certificate ID so the caller can update the host payload.
     return response.id;
   } catch (error) {
     showError("Failed to create certificate");

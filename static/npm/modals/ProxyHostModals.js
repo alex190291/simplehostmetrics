@@ -39,7 +39,6 @@ function openDnsChallengeModal() {
       .then((plugins) => {
         const optionsDiv = modal.querySelector("#dnsProviderOptions");
         optionsDiv.innerHTML = "";
-        // Create a select element for providers
         const select = document.createElement("select");
         select.id = "dnsProviderSelect";
         for (const key in plugins) {
@@ -99,7 +98,6 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
       if (cert.id == selectedValue) option.selected = true;
       selectElement.appendChild(option);
     });
-    // Append new certificate request options
     const optionNoDns = document.createElement("option");
     optionNoDns.value = "new_nodns";
     optionNoDns.textContent = "Request New Certificate (No DNS Challenge)";
@@ -248,6 +246,7 @@ export function populateAddHostForm() {
     const submitBtn = form.querySelector("button[type='submit']");
     submitBtn.disabled = true;
     submitBtn.textContent = "Please wait...";
+
     const formData = new FormData(form);
     const certificate_id_raw = formData.get("certificate_id");
     let certificate_id;
@@ -302,12 +301,11 @@ export function populateAddHostForm() {
       });
     }
 
-    // If new certificate requested, first create certificate via CertificateManager
     if (certificate_id_raw === "new_dns") {
       openDnsChallengeModal()
         .then((dnsData) => {
           const certPayload = {
-            provider: "letsencrypt", // Assuming Let's Encrypt is used for DNS challenge
+            provider: "letsencrypt",
             domain_names: baseData.domain_names,
             dns_challenge: dnsData,
           };
