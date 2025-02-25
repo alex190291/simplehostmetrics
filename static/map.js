@@ -1,4 +1,4 @@
-// map.
+// map.js.
 document.addEventListener("DOMContentLoaded", async function () {
   // Initialize Leaflet map
   const map = L.map("map", {
@@ -72,6 +72,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
+  // Floating marker menu element reference
+  let currentMarkerMenu = null;
+
+  // Function to remove/hide marker menu
+  function removeMarkerMenu() {
+    if (currentMarkerMenu && currentMarkerMenu.parentNode) {
+      currentMarkerMenu.parentNode.removeChild(currentMarkerMenu);
+      currentMarkerMenu = null;
+    }
+  }
+
+  // Dismiss the marker menu when clicking anywhere outside it
+  document.addEventListener("click", function (e) {
+    if (currentMarkerMenu && !currentMarkerMenu.contains(e.target)) {
+      removeMarkerMenu();
+    }
+  });
+
   // Helper: create a marker based on event type with improved coordinate validation
   function createMarker(item) {
     const lat = Number(item.lat);
@@ -86,12 +104,70 @@ document.addEventListener("DOMContentLoaded", async function () {
     const icon = item.type === "login" ? loginIcon : proxyIcon;
     const marker = L.marker([lat, lon], { icon: icon });
     marker.bindPopup(createPopup(item));
+
     marker.on("mouseover", function () {
       this.openPopup();
     });
     marker.on("mouseout", function () {
       this.closePopup();
     });
+
+    // Attach the item data to the marker for later use
+    marker.itemData = item;
+
+    // Add click event for the floating menu
+    marker.on("click", function (e) {
+      // Prevent event propagation so that document click doesn't immediately remove the menu
+      L.DomEvent.stopPropagation(e);
+      // Remove any existing menu
+      removeMarkerMenu();
+
+      // Create menu element
+      const menu = document.createElement("div");
+      menu.className = "marker-menu";
+
+      // Create Copy IP button
+      const copyIPBtn = document.createElement("button");
+      copyIPBtn.textContent = "Copy IP";
+      copyIPBtn.addEventListener("click", function (evt) {
+        evt.stopPropagation();
+        navigator.clipboard.writeText(item.ip_address || "");
+        removeMarkerMenu();
+      });
+      menu.appendChild(copyIPBtn);
+
+      // Create Copy Info button
+      const copyInfoBtn = document.createElement("button");
+      copyInfoBtn.textContent = "Copy Info";
+      copyInfoBtn.addEventListener("click", function (evt) {
+        evt.stopPropagation();
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = createPopup(item);
+        const textContent = tempDiv.textContent || tempDiv.innerText || "";
+        navigator.clipboard.writeText(textContent);
+        removeMarkerMenu();
+      });
+      menu.appendChild(copyInfoBtn);
+
+      // Append menu to the map container
+      map.getContainer().appendChild(menu);
+
+      // Position the menu near the click event (relative to the map container)
+      const mapRect = map.getContainer().getBoundingClientRect();
+      const x = e.originalEvent.clientX - mapRect.left;
+      const y = e.originalEvent.clientY - mapRect.top;
+      menu.style.left = x + "px";
+      menu.style.top = y + "px";
+
+      // Trigger fade-in effect by adding the "show" class after appending
+      setTimeout(() => {
+        menu.classList.add("show");
+      }, 10);
+
+      // Save reference to the current menu
+      currentMarkerMenu = menu;
+    });
+
     return marker;
   }
 

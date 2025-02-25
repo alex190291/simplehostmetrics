@@ -527,3 +527,36 @@ button.update-btn {
         transform: scale(1);
     }
 }
+
+/* Floating Marker Menu */
+.marker-menu {
+    position: absolute;
+    z-index: 2000;
+    background: var(--glass);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.marker-menu.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+.marker-menu button {
+    background: var(--primary);
+    color: var(--text);
+    border: none;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.3rem;
+    margin: 0.2rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.marker-menu button:hover {
+    background: var(--text);
+    color: var(--primary);
+}
