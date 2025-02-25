@@ -162,6 +162,18 @@ export function populateAddHostForm() {
   form.onsubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(form);
+    // Convert certificate_id and access_list_id to proper types:
+    const certificate_id_raw = formData.get("certificate_id");
+    const certificate_id =
+      certificate_id_raw === ""
+        ? null
+        : certificate_id_raw === "new_nodns" || certificate_id_raw === "new_dns"
+          ? certificate_id_raw
+          : parseInt(certificate_id_raw);
+    const access_list_id_raw = formData.get("access_list_id");
+    const access_list_id =
+      access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
+
     const newData = {
       domain_names: formData
         .get("domain_names")
@@ -170,8 +182,8 @@ export function populateAddHostForm() {
       forward_host: formData.get("forward_host"),
       forward_port: parseInt(formData.get("forward_port")),
       forward_scheme: formData.get("forward_scheme"),
-      certificate_id: formData.get("certificate_id"),
-      access_list_id: formData.get("access_list_id") || null,
+      certificate_id: certificate_id,
+      access_list_id: access_list_id,
       caching_enabled: formData.get("cache_assets") === "on",
       allow_websocket_upgrade: formData.get("websockets_support") === "on",
       block_exploits: formData.get("block_exploits") === "on",
@@ -299,7 +311,7 @@ export async function editHostModal(host) {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for the Cancel button
+  // Attach modal close event listeners
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -312,6 +324,17 @@ export async function editHostModal(host) {
   form.onsubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(form);
+    const certificate_id_raw = formData.get("certificate_id");
+    const certificate_id =
+      certificate_id_raw === ""
+        ? null
+        : certificate_id_raw === "new_nodns" || certificate_id_raw === "new_dns"
+          ? certificate_id_raw
+          : parseInt(certificate_id_raw);
+    const access_list_id_raw = formData.get("access_list_id");
+    const access_list_id =
+      access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
+
     const updatedData = {
       domain_names: formData
         .get("domain_names")
@@ -320,8 +343,8 @@ export async function editHostModal(host) {
       forward_host: formData.get("forward_host"),
       forward_port: parseInt(formData.get("forward_port")),
       forward_scheme: formData.get("forward_scheme"),
-      certificate_id: formData.get("certificate_id"),
-      access_list_id: formData.get("access_list_id") || null,
+      certificate_id: certificate_id,
+      access_list_id: access_list_id,
       caching_enabled: formData.get("cache_assets") === "on",
       allow_websocket_upgrade: formData.get("websockets_support") === "on",
       block_exploits: formData.get("block_exploits") === "on",
