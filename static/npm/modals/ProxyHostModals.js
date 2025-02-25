@@ -5,8 +5,11 @@ import { switchTab, closeModals } from "./common.js";
 async function populateCertificateDropdown(selectElement, selectedValue = "") {
   try {
     const response = await fetch("/npm-api/nginx/certificates");
+    if (!response.ok) {
+      console.error("Failed to load certificates", response.statusText);
+      return;
+    }
     const certificates = await response.json();
-    // Append each available certificate as an option
     certificates.forEach((cert) => {
       const option = document.createElement("option");
       option.value = cert.id;
@@ -22,9 +25,13 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
 // Helper function to populate the access list dropdown dynamically
 async function populateAccessListDropdown(selectElement, selectedValue = "") {
   try {
-    const response = await fetch("/npm-api/access-lists");
+    // Updated endpoint to match API description
+    const response = await fetch("/npm-api/nginx/access-lists");
+    if (!response.ok) {
+      console.error("Failed to load access lists", response.statusText);
+      return;
+    }
     const accessLists = await response.json();
-    // Append each available access list as an option
     accessLists.forEach((list) => {
       const option = document.createElement("option");
       option.value = list.id;
@@ -142,7 +149,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners for both the header "×" and cancel button
+  // Attach modal close event listeners for both the header "×" and Cancel button
   const modalCloseButtons = form.querySelectorAll(".modal-close");
   modalCloseButtons.forEach((btn) => {
     btn.addEventListener("click", closeModals);
