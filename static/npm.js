@@ -1,103 +1,102 @@
 // static/npm.js
 class NPMManager {
   constructor() {
-    this.apiBase = "/npm-api"; // Use our proxy endpoint instead of direct NPM URL
+    this.apiBase = "/npm-api";
     this.currentView = "proxy";
     this.refreshInterval = 30000;
     this.retryAttempts = 3;
     this.cache = new Map();
-    this.init();
+    this.initialize(); // Changed from this.init() to this.initialize()
   }
 
-  async makeRequest(endpoint, method = "GET", body = null, retryCount = 0) {
+  async initialize() {
     try {
-      const options = {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      };
-
-      if (body) {
-        options.body = JSON.stringify(body);
+      // First check if NPM is reachable
+      const healthCheck = await this.makeRequest("/");
+      if (healthCheck.status !== "OK") {
+        this.showError("NPM API is not available");
+        return;
       }
-
-      const response = await fetch(`${this.apiBase}${endpoint}`, options);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      this.setupEventListeners();
+      this.loadCurrentView();
+      this.startAutoRefresh();
     } catch (error) {
-      if (retryCount < this.retryAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return this.makeRequest(endpoint, method, body, retryCount + 1);
-      }
-      throw error;
+      this.showError("Failed to connect to NPM API");
+      console.error("Init failed:", error);
     }
   }
 
   setupEventListeners() {
-    // Sidebar navigation
+    // Remove inline onclick handlers and use event listeners
     document.querySelectorAll(".sidebar-item").forEach((item) => {
       item.addEventListener("click", (e) => {
         e.preventDefault();
-        this.switchView(e.target.getAttribute("href").substring(1));
+        const view = e.target.getAttribute("href").substring(1);
+        this.switchView(view);
+      });
+    });
+
+    document.querySelectorAll(".sidebar-header").forEach((header) => {
+      header.addEventListener("click", (e) => {
+        this.toggleGroup(
+          e.target.closest(".sidebar-group").querySelector(".sidebar-items").id,
+        );
       });
     });
 
     // Add new button
-    document.getElementById("addNewBtn").addEventListener("click", () => {
-      this.showAddModal();
-    });
+    const addNewBtn = document.getElementById("addNewBtn");
+    if (addNewBtn) {
+      addNewBtn.addEventListener("click", () => this.showAddModal());
+    }
 
     // Search functionality
-    document.getElementById("searchInput").addEventListener("input", (e) => {
-      this.handleSearch(e.target.value);
-    });
-
-    // Certificate tabs
-    document.querySelectorAll(".cert-tab").forEach((tab) => {
-      tab.addEventListener("click", (e) => {
-        this.switchCertTab(e.target.dataset.tab);
-      });
-    });
-
-    // Modal close buttons
-    document.querySelectorAll(".modal .close").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        this.closeModals();
-      });
-    });
-
-    // Form submissions
-    this.setupFormListeners();
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) =>
+        this.handleSearch(e.target.value),
+      );
+    }
   }
 
-  setupFormListeners() {
-    // Add Host Form
-    document
-      .getElementById("addHostForm")
-      .addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await this.handleHostSubmit(e.target);
-      });
+  switchView(view) {
+    // Hide all views
+    document.querySelectorAll(".content-view").forEach((v) => {
+      v.classList.remove("active");
+    });
 
-    // Certificate Forms
-    document
-      .getElementById("uploadCertForm")
-      .addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await this.handleCertificateUpload(e.target);
-      });
+    // Remove active class from all sidebar items
+    document.querySelectorAll(".sidebar-item").forEach((item) => {
+      item.classList.remove("active");
+    });
 
-    document
-      .getElementById("letsencryptForm")
-      .addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await this.handleLetsEncryptRequest(e.target);
-      });
+    // Show selected view
+    const viewElement = document.getElementById(`${view}View`);
+    if (viewElement) {
+      viewElement.classList.add("active");
+    }
+
+    // Add active class to sidebar item
+    const sidebarItem = document.querySelector(`[href="#${view}"]`);
+    if (sidebarItem) {
+      sidebarItem.classList.add("active");
+    }
+
+    this.currentView = view;
+    this.loadCurrentView();
+  }
+
+  toggleGroup(groupId) {
+    const items = document.getElementById(groupId);
+    const header = items.previousElementSibling;
+
+    if (items.style.display === "none") {
+      items.style.display = "block";
+      header.querySelector(".arrow").style.transform = "rotate(0deg)";
+    } else {
+      items.style.display = "none";
+      header.querySelector(".arrow").style.transform = "rotate(-90deg)";
+    }
   }
 
   async makeRequest(endpoint, method = "GET", body = null, retryCount = 0) {
@@ -105,10 +104,8 @@ class NPMManager {
       const options = {
         method,
         headers: {
-          Authorization: `Bearer ${this.token}`,
           "Content-Type": "application/json",
         },
-        credentials: "include",
       };
 
       if (body) {
@@ -129,6 +126,16 @@ class NPMManager {
       }
       throw error;
     }
+  }
+
+  showError(message) {
+    console.error(message);
+    // Implement error notification
+    const notification = document.createElement("div");
+    notification.className = "notification error";
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
   }
 
   async loadCurrentView() {

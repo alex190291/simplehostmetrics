@@ -5,74 +5,41 @@ block content %}
     <!-- Sidebar Navigation -->
     <div class="npm-sidebar" id="npmSidebar">
         <div class="sidebar-group">
-            <div class="sidebar-header" onclick="toggleGroup('hosts')">
+            <div class="sidebar-header">
                 <span class="sidebar-icon">🌐</span>
                 <span>Hosts</span>
                 <span class="arrow">▼</span>
             </div>
             <div class="sidebar-items" id="hosts">
-                <a
-                    href="#proxy"
-                    class="sidebar-item active"
-                    onclick="switchView('proxy')"
-                    >Proxy Hosts</a
-                >
-                <a
-                    href="#redirection"
-                    class="sidebar-item"
-                    onclick="switchView('redirection')"
+                <a href="#proxy" class="sidebar-item active">Proxy Hosts</a>
+                <a href="#redirection" class="sidebar-item"
                     >Redirection Hosts</a
                 >
-                <a
-                    href="#stream"
-                    class="sidebar-item"
-                    onclick="switchView('stream')"
-                    >Stream Hosts</a
-                >
+                <a href="#stream" class="sidebar-item">Stream Hosts</a>
             </div>
         </div>
 
         <div class="sidebar-group">
-            <div class="sidebar-header" onclick="toggleGroup('security')">
+            <div class="sidebar-header">
                 <span class="sidebar-icon">🔒</span>
                 <span>Security</span>
                 <span class="arrow">▼</span>
             </div>
             <div class="sidebar-items" id="security">
-                <a
-                    href="#access"
-                    class="sidebar-item"
-                    onclick="switchView('access')"
-                    >Access Lists</a
-                >
-                <a
-                    href="#certificates"
-                    class="sidebar-item"
-                    onclick="switchView('certificates')"
-                    >Certificates</a
-                >
+                <a href="#access" class="sidebar-item">Access Lists</a>
+                <a href="#certificates" class="sidebar-item">Certificates</a>
             </div>
         </div>
 
         <div class="sidebar-group">
-            <div class="sidebar-header" onclick="toggleGroup('system')">
+            <div class="sidebar-header">
                 <span class="sidebar-icon">⚙️</span>
                 <span>System</span>
                 <span class="arrow">▼</span>
             </div>
             <div class="sidebar-items" id="system">
-                <a
-                    href="#audit"
-                    class="sidebar-item"
-                    onclick="switchView('audit')"
-                    >Audit Log</a
-                >
-                <a
-                    href="#settings"
-                    class="sidebar-item"
-                    onclick="switchView('settings')"
-                    >Settings</a
-                >
+                <a href="#audit" class="sidebar-item">Audit Log</a>
+                <a href="#settings" class="sidebar-item">Settings</a>
             </div>
         </div>
     </div>
