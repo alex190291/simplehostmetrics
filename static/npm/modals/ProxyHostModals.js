@@ -59,7 +59,11 @@ function openDnsChallengeModal() {
             10,
           );
           modal.style.display = "none";
-          resolve({ provider, credentials, wait_time });
+          resolve({
+            provider: provider,
+            credentials: credentials,
+            wait_time: wait_time,
+          });
         };
         modal.querySelector("#dnsCancel").onclick = () => {
           modal.style.display = "none";
@@ -193,40 +197,40 @@ export function populateAddHostForm() {
       </div>
       <div class="form-group">
         <label>
-          <input type="checkbox" id="ssl_forced" name="ssl_forced">
-          Force SSL
-        </label>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="http2_support" name="http2_support">
-          HTTP/2 Support
-        </label>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="hsts_enabled" name="hsts_enabled">
-          HSTS Enabled
-        </label>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains">
-          HSTS Subdomains
-        </label>
-      </div>
-    </div>
-    <div class="tab-content" id="customTab" style="display:none;">
-      <div class="form-group">
-        <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config" rows="30"></textarea>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">Add Host</button>
-      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-    </div>
-  `;
+        <input type="checkbox" id="ssl_forced" name="ssl_forced">
+                  Force SSL
+                </label>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="http2_support" name="http2_support">
+                  HTTP/2 Support
+                </label>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="hsts_enabled" name="hsts_enabled">
+                  HSTS Enabled
+                </label>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains">
+                  HSTS Subdomains
+                </label>
+              </div>
+            </div>
+            <div class="tab-content" id="customTab" style="display:none;">
+              <div class="form-group">
+                <label for="custom_config">Custom Nginx Config</label>
+                <textarea id="custom_config" name="custom_config" rows="30"></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Add Host</button>
+              <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            </div>
+          `;
   const tabLinks = form.querySelectorAll(".tab-link");
   tabLinks.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -307,7 +311,11 @@ export function populateAddHostForm() {
           const certPayload = {
             provider: "letsencrypt",
             domain_names: baseData.domain_names,
-            dns_challenge: dnsData,
+            dns_challenge: {
+              provider: dnsData.provider,
+              credentials: dnsData.credentials,
+              wait_time: dnsData.wait_time,
+            },
           };
           import("../managers/CertificateManager.js").then((certMod) => {
             certMod
@@ -320,11 +328,12 @@ export function populateAddHostForm() {
                 console.error("Failed to create certificate", err);
                 submitBtn.disabled = false;
                 submitBtn.textContent = "Add Host";
+                alert("Certificate creation failed: " + err.message);
               });
           });
         })
         .catch((err) => {
-          console.error("DNS challenge canceled or failed", err);
+          console.error("DNS challenge setup failed", err);
           submitBtn.disabled = false;
           submitBtn.textContent = "Add Host";
         });
@@ -351,10 +360,6 @@ export function populateAddHostForm() {
     }
   };
 }
-
-// -------------------------
-// Edit Host Flow
-// -------------------------
 export function editHostModal(host) {
   return new Promise((resolve) => {
     const modal = document.getElementById("addHostModal");
