@@ -1,0 +1,75 @@
+{% extends "base.html" %} {% block title %}Nginx Proxy Manager{% endblock %} {%
+block content %}
+<div class="container">
+    <h1>Nginx Proxy Manager</h1>
+
+    <!-- Tab Navigation -->
+    <ul class="tab-nav">
+        <li class="tab-item active" data-tab="health">API Health</li>
+        <li class="tab-item" data-tab="audit-log">Audit Log</li>
+        <li class="tab-item" data-tab="access-lists">Access Lists</li>
+        <li class="tab-item" data-tab="certificates">Certificates</li>
+        <li class="tab-item" data-tab="proxy-hosts">Proxy Hosts</li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <div id="health" class="tab-panel active">
+            <h2>API Health Status</h2>
+            <!-- Für Health-Daten (Objekt) wird aktuell kein Filter benötigt -->
+            <div id="healthData" class="card-content"></div>
+        </div>
+        <div id="audit-log" class="tab-panel">
+            <h2>Audit Log</h2>
+            <!-- Filterfeld -->
+            <input
+                type="text"
+                class="filter-input"
+                data-target="auditLogData"
+                placeholder="Filter Audit Log..."
+            />
+            <div id="auditLogData" class="card-content"></div>
+        </div>
+        <div id="access-lists" class="tab-panel">
+            <h2>Access Lists</h2>
+            <!-- Filterfeld -->
+            <input
+                type="text"
+                class="filter-input"
+                data-target="accessListsData"
+                placeholder="Filter Access Lists..."
+            />
+            <div id="accessListsData" class="card-content"></div>
+        </div>
+        <div id="certificates" class="tab-panel">
+            <h2>Certificates</h2>
+            <!-- Filterfeld -->
+            <input
+                type="text"
+                class="filter-input"
+                data-target="certificatesData"
+                placeholder="Filter Certificates..."
+            />
+            <div id="certificatesData" class="card-content"></div>
+        </div>
+        <div id="proxy-hosts" class="tab-panel">
+            <h2>Proxy Hosts</h2>
+            <!-- Filterfeld -->
+            <input
+                type="text"
+                class="filter-input"
+                data-target="proxyHostsData"
+                placeholder="Filter Proxy Hosts..."
+            />
+            <div id="proxyHostsData" class="card-content"></div>
+        </div>
+    </div>
+
+    <!-- Optional: Aktualisierungsbutton -->
+    <button class="update-btn" id="npmRefreshBtn" onclick="refreshNpmData()">
+        Refresh Now
+    </button>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='npm.js') }}"></script>
+{% endblock %}

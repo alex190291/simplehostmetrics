@@ -88,7 +88,7 @@ history_data = {
 load_history(history_data)
 
 # Set NPM domain and API URL from config_data
-NPM_DOMAIN = config_data["nginx"]["domain"]
+NPM_DOMAIN = config_data["npm"]["domain"]
 NPM_API_URL = f"http://{NPM_DOMAIN}/api"
 docker_client = docker.from_env()
 
@@ -161,29 +161,29 @@ def check_all_status_route():
     return jsonify(status)
 
 # New Nginx Proxy Manager integration endpoints
-@app.route("/nginx", methods=["GET"])
+@app.route("/npm", methods=["GET"])
 @login_required
-def nginx_view():
-    domain = config_data["nginx"]["domain"]
-    return render_template("nginx.html", nginx_domain=domain)
+def npm_view():
+    domain = config_data["npm"]["domain"]
+    return render_template("npm.html", npm_domain=domain)
 
-@app.route("/nginx/settings", methods=["GET", "POST"])
+@app.route("/npm/settings", methods=["GET", "POST"])
 @login_required
-def nginx_settings():
+def npm_settings():
     global NPM_API_URL
     if request.method == "POST":
         new_domain = request.form.get("domain")
         if new_domain:
-            config_data["nginx"]["domain"] = new_domain
+            config_data["npm"]["domain"] = new_domain
             NPM_API_URL = f"http://{new_domain}/api"
             with open("config.yml", "w") as f:
                 yaml.safe_dump(config_data, f)
             flash("NPM domain updated successfully!", "success")
-            return redirect(url_for("nginx_settings"))
+            return redirect(url_for("npm_settings"))
         else:
             flash("Please provide a valid domain.", "error")
-    current_domain = config_data["nginx"]["domain"]
-    return render_template("nginx_settings.html", current_domain=current_domain)
+    current_domain = config_data["npm"]["domain"]
+    return render_template("npm_settings.html", current_domain=current_domain)
 
 # RTAD logs page
 @app.route('/rtad')

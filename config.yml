@@ -1,5 +1,5 @@
 # config.yml
-nginx:
+npm:
   domain: "npm.ganjagaming.de"
 logfiles:
   - path: /data/npm/logs/fallback_access.log
