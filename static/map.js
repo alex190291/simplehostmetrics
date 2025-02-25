@@ -1,4 +1,4 @@
-// staticmap.js
+// map.js
 document.addEventListener("DOMContentLoaded", async function () {
   // Initialize Leaflet map
   const map = L.map("map", {
