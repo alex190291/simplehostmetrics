@@ -267,7 +267,7 @@ def npm_proxy(path):
             data=request.get_data(),
             cookies=request.cookies,
             allow_redirects=False,
-            verify=True  # Set to False if using self-signed certificate in production adjust accordingly
+            verify=False  # Set to False if using self-signed certificate in production adjust accordingly
         )
 
         app.logger.debug(f"NPM Response status: {response.status_code}")
