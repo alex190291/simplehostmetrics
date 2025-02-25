@@ -1,6 +1,77 @@
 // /static/npm/modals/ProxyHostModals.js
 import { switchTab, closeModals } from "./common.js";
 
+// -------------------------
+// DNS Challenge Modal Logic
+// -------------------------
+function openDnsChallengeModal() {
+  return new Promise((resolve, reject) => {
+    // Create modal container if it doesn't exist
+    let modal = document.getElementById("dnsChallengeModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "dnsChallengeModal";
+      modal.className = "modal";
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h2>Select DNS Provider</h2>
+          <div id="dnsProviderOptions"></div>
+          <div class="form-group">
+            <label for="dnsCredentials">API Credentials</label>
+            <textarea id="dnsCredentials" name="dnsCredentials" rows="4" placeholder="Enter credentials exactly as required"></textarea>
+          </div>
+          <div class="form-actions">
+            <button id="dnsConfirm" class="btn btn-primary">Confirm</button>
+            <button id="dnsCancel" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    modal.style.display = "flex";
+
+    // Load the DNS plugins JSON
+    fetch("/npm/json/certbot-dns-plugins.json")
+      .then((res) => res.json())
+      .then((plugins) => {
+        const optionsDiv = modal.querySelector("#dnsProviderOptions");
+        optionsDiv.innerHTML = "";
+        // Create a select element for providers
+        const select = document.createElement("select");
+        select.id = "dnsProviderSelect";
+        for (const key in plugins) {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.textContent = plugins[key].name;
+          select.appendChild(opt);
+        }
+        optionsDiv.appendChild(select);
+
+        // Handler for confirm and cancel buttons
+        modal.querySelector("#dnsConfirm").onclick = () => {
+          const provider = document.getElementById("dnsProviderSelect").value;
+          const credentials = document
+            .getElementById("dnsCredentials")
+            .value.trim();
+          modal.style.display = "none";
+          resolve({ provider, credentials });
+        };
+        modal.querySelector("#dnsCancel").onclick = () => {
+          modal.style.display = "none";
+          reject(new Error("DNS challenge canceled by user."));
+        };
+      })
+      .catch((err) => {
+        modal.style.display = "none";
+        reject(err);
+      });
+  });
+}
+
+// -------------------------
+// End DNS Challenge Modal Logic
+// -------------------------
+
 // Helper function to populate the certificate dropdown dynamically
 async function populateCertificateDropdown(selectElement, selectedValue = "") {
   try {
@@ -149,7 +220,7 @@ export function populateAddHostForm() {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
-  // Attach modal close event listeners
+  // Attach modal close event listeners for the Cancel button
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
@@ -162,7 +233,6 @@ export function populateAddHostForm() {
   form.onsubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(form);
-    // Convert certificate_id and access_list_id to proper types:
     const certificate_id_raw = formData.get("certificate_id");
     const certificate_id =
       certificate_id_raw === ""
@@ -174,7 +244,7 @@ export function populateAddHostForm() {
     const access_list_id =
       access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
 
-    const newData = {
+    const baseData = {
       domain_names: formData
         .get("domain_names")
         .split(",")
@@ -193,16 +263,41 @@ export function populateAddHostForm() {
       hsts_subdomains: formData.get("hsts_subdomains") === "on",
       advanced_config: formData.get("custom_config"),
     };
-    import("../managers/ProxyHostManager.js").then((mod) => {
-      mod
-        .createProxyHost(newData)
-        .then(() => {
-          document.getElementById("addHostModal").style.display = "none";
+
+    // If a DNS challenge is requested, open the DNS challenge modal to collect provider & credentials.
+    if (certificate_id === "new_dns") {
+      openDnsChallengeModal()
+        .then((dnsData) => {
+          // Merge DNS challenge details into the payload under a new property
+          const newData = Object.assign({}, baseData, {
+            dns_challenge: dnsData,
+          });
+          import("../managers/ProxyHostManager.js").then((mod) => {
+            mod
+              .createProxyHost(newData)
+              .then(() => {
+                document.getElementById("addHostModal").style.display = "none";
+              })
+              .catch((err) => {
+                console.error("Failed to create host", err);
+              });
+          });
         })
         .catch((err) => {
-          console.error("Failed to create host", err);
+          console.error("DNS challenge canceled or failed", err);
         });
-    });
+    } else {
+      import("../managers/ProxyHostManager.js").then((mod) => {
+        mod
+          .createProxyHost(baseData)
+          .then(() => {
+            document.getElementById("addHostModal").style.display = "none";
+          })
+          .catch((err) => {
+            console.error("Failed to create host", err);
+          });
+      });
+    }
   };
 }
 
@@ -335,7 +430,7 @@ export async function editHostModal(host) {
     const access_list_id =
       access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
 
-    const updatedData = {
+    const baseData = {
       domain_names: formData
         .get("domain_names")
         .split(",")
@@ -354,15 +449,38 @@ export async function editHostModal(host) {
       hsts_subdomains: formData.get("hsts_subdomains") === "on",
       advanced_config: formData.get("custom_config"),
     };
-    import("../managers/ProxyHostManager.js").then((mod) => {
-      mod
-        .editProxyHost(host.id, updatedData)
-        .then(() => {
-          modal.style.display = "none";
+
+    if (certificate_id === "new_dns") {
+      openDnsChallengeModal()
+        .then((dnsData) => {
+          const newData = Object.assign({}, baseData, {
+            dns_challenge: dnsData,
+          });
+          import("../managers/ProxyHostManager.js").then((mod) => {
+            mod
+              .editProxyHost(host.id, newData)
+              .then(() => {
+                modal.style.display = "none";
+              })
+              .catch((err) => {
+                console.error("Failed to update host", err);
+              });
+          });
         })
         .catch((err) => {
-          console.error("Failed to update host", err);
+          console.error("DNS challenge canceled or failed", err);
         });
-    });
+    } else {
+      import("../managers/ProxyHostManager.js").then((mod) => {
+        mod
+          .editProxyHost(host.id, baseData)
+          .then(() => {
+            modal.style.display = "none";
+          })
+          .catch((err) => {
+            console.error("Failed to update host", err);
+          });
+      });
+    }
   };
 }
