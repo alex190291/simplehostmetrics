@@ -99,8 +99,12 @@ class NPMManager {
     }
   }
 
+  // In the makeRequest method of NPMManager class
   async makeRequest(endpoint, method = "GET", body = null, retryCount = 0) {
     try {
+      console.log(`Making request to: ${this.apiBase}${endpoint}`);
+      console.log(`Method: ${method}`);
+
       const options = {
         method,
         headers: {
@@ -110,17 +114,23 @@ class NPMManager {
 
       if (body) {
         options.body = JSON.stringify(body);
+        console.log("Request body:", body);
       }
 
       const response = await fetch(`${this.apiBase}${endpoint}`, options);
+      console.log(`Response status: ${response.status}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log("Response data:", data);
+      return data;
     } catch (error) {
+      console.error("Request error:", error);
       if (retryCount < this.retryAttempts) {
+        console.log(`Retrying request (attempt ${retryCount + 1})`);
         await new Promise((resolve) => setTimeout(resolve, 1000));
         return this.makeRequest(endpoint, method, body, retryCount + 1);
       }
