@@ -1,4 +1,4 @@
-// map.js
+// static/map.js
 document.addEventListener("DOMContentLoaded", async function () {
   // Initialize Leaflet map
   const map = L.map("map", {
@@ -32,7 +32,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     showCoverageOnHover: false,
     maxClusterRadius: 60,
     autoUnspiderfy: true,
-    //disableClusteringAtZoom: 10,
   });
 
   markers.on("clusterclick", function (a) {
@@ -72,95 +71,38 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Helper: create a marker based on event type with improved coordinate validation
-  function createMarker(item) {
-    const lat = Number(item.lat);
-    const lon = Number(item.lon);
-    console.log(
-      "Creating marker for",
-      item.city,
-      "with coordinates:",
-      lat,
-      lon,
-    );
-    const icon = item.type === "login" ? loginIcon : proxyIcon;
-    const marker = L.marker([lat, lon], { icon: icon });
-    marker.bindPopup(createPopup(item));
-    marker.on("mouseover", function () {
-      this.openPopup();
-    });
-    marker.on("mouseout", function () {
-      this.closePopup();
-    });
-    return marker;
-  }
-
-  // Separate maps for failed login events and HTTP events
-  const loginMarkerMap = new Map();
-  const proxyMarkerMap = new Map();
-  const MAX_FAILED_LOGINS = 1000;
-  const MAX_HTTP_EVENTS = 1000;
-
-  // Remove the oldest marker from a given marker map
-  function removeOldestMarker(markerMap) {
-    let oldestKey = null;
-    let oldestTime = Infinity;
-    for (const [key, markerObj] of markerMap.entries()) {
-      const [timestampStr] = key.split("-");
-      const eventTime = new Date(timestampStr).getTime();
-      if (eventTime < oldestTime) {
-        oldestTime = eventTime;
-        oldestKey = key;
-      }
-    }
-    if (oldestKey) {
-      const oldestMarker = markerMap.get(oldestKey);
-      markers.removeLayer(oldestMarker);
-      markerMap.delete(oldestKey);
-    }
-  }
-
-  async function fetchData() {
-    if (markers._spiderfied) {
-      setTimeout(fetchData, 1000);
-      return;
-    }
+  // Function to render all markers from API data without diffing
+  async function renderMarkers() {
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
 
+      // Clear all markers before re-adding
+      markers.clearLayers();
+
       data.forEach((item) => {
         const lat = Number(item.lat);
         const lon = Number(item.lon);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          // Use a common key format for each event
-          const key = `${item.timestamp}-${item.ip_address}`;
-          if (item.type === "login") {
-            // For failed SSH login events, keep only the last MAX_FAILED_LOGINS markers
-            if (!loginMarkerMap.has(key)) {
-              if (loginMarkerMap.size >= MAX_FAILED_LOGINS) {
-                removeOldestMarker(loginMarkerMap);
-              }
-              const marker = createMarker(item);
-              loginMarkerMap.set(key, marker);
-              markers.addLayer(marker);
-            }
-          } else {
-            // For HTTP (proxy) events, keep only the last MAX_HTTP_EVENTS markers
-            if (!proxyMarkerMap.has(key)) {
-              if (proxyMarkerMap.size >= MAX_HTTP_EVENTS) {
-                removeOldestMarker(proxyMarkerMap);
-              }
-              const marker = createMarker(item);
-              proxyMarkerMap.set(key, marker);
-              markers.addLayer(marker);
-            }
-          }
-        }
+        if (isNaN(lat) || isNaN(lon)) return;
+
+        const icon = item.type === "login" ? loginIcon : proxyIcon;
+        const marker = L.marker([lat, lon], { icon: icon });
+        marker.bindPopup(createPopup(item));
+        marker.on("mouseover", function () {
+          this.openPopup();
+        });
+        marker.on("mouseout", function () {
+          this.closePopup();
+        });
+        markers.addLayer(marker);
       });
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
+  }
+
+  async function fetchData() {
+    await renderMarkers();
     setTimeout(fetchData, 1000);
   }
 
