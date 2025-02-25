@@ -1,4 +1,4 @@
-// static/map.js
+// staticmap.js
 document.addEventListener("DOMContentLoaded", async function () {
   // Initialize Leaflet map
   const map = L.map("map", {
@@ -32,6 +32,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     showCoverageOnHover: false,
     maxClusterRadius: 60,
     autoUnspiderfy: true,
+    //disableClusteringAtZoom: 10,
   });
 
   markers.on("clusterclick", function (a) {
@@ -71,85 +72,92 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
   }
 
-  // Helper: create or update a marker based on event type.
-  // This function only creates a new marker if it does not exist already.
-  function updateOrCreateMarker(item, markerMap) {
+  // Helper: create a marker based on event type with improved coordinate validation
+  function createMarker(item) {
     const lat = Number(item.lat);
     const lon = Number(item.lon);
-    const key = `${item.timestamp}-${item.ip_address}`;
-    const existingMarker = markerMap.get(key);
-
-    if (existingMarker) {
-      // If coordinates have changed, update them
-      const currentPos = existingMarker.getLatLng();
-      if (currentPos.lat !== lat || currentPos.lng !== lon) {
-        existingMarker.setLatLng([lat, lon]);
-      }
-      // Update popup content in case of any change in data
-      existingMarker.bindPopup(createPopup(item));
-    } else {
-      const icon = item.type === "login" ? loginIcon : proxyIcon;
-      const marker = L.marker([lat, lon], { icon: icon });
-      marker.bindPopup(createPopup(item));
-      marker.on("mouseover", function () {
-        this.openPopup();
-      });
-      marker.on("mouseout", function () {
-        this.closePopup();
-      });
-      markerMap.set(key, marker);
-      markers.addLayer(marker);
-    }
-    return key;
+    console.log(
+      "Creating marker for",
+      item.city,
+      "with coordinates:",
+      lat,
+      lon,
+    );
+    const icon = item.type === "login" ? loginIcon : proxyIcon;
+    const marker = L.marker([lat, lon], { icon: icon });
+    marker.bindPopup(createPopup(item));
+    marker.on("mouseover", function () {
+      this.openPopup();
+    });
+    marker.on("mouseout", function () {
+      this.closePopup();
+    });
+    return marker;
   }
 
-  // Separate maps for login events and proxy events.
+  // Separate maps for failed login events and HTTP events
   const loginMarkerMap = new Map();
   const proxyMarkerMap = new Map();
+  const MAX_FAILED_LOGINS = 1000;
+  const MAX_HTTP_EVENTS = 1000;
 
-  // Helper: remove markers older than 24 hours.
-  function removeOldMarkers(markerMap) {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    for (let [key, marker] of markerMap.entries()) {
-      // Extract timestamp from key, which is in ISO string format.
-      const parts = key.split("-");
-      // Assume the timestamp is the first part; if it has a "T", it's ISO.
-      const timestampStr = parts[0];
-      const markerTime = new Date(timestampStr).getTime();
-      if (markerTime < cutoff) {
-        markers.removeLayer(marker);
-        markerMap.delete(key);
+  // Remove the oldest marker from a given marker map
+  function removeOldestMarker(markerMap) {
+    let oldestKey = null;
+    let oldestTime = Infinity;
+    for (const [key, markerObj] of markerMap.entries()) {
+      const [timestampStr] = key.split("-");
+      const eventTime = new Date(timestampStr).getTime();
+      if (eventTime < oldestTime) {
+        oldestTime = eventTime;
+        oldestKey = key;
       }
+    }
+    if (oldestKey) {
+      const oldestMarker = markerMap.get(oldestKey);
+      markers.removeLayer(oldestMarker);
+      markerMap.delete(oldestKey);
     }
   }
 
   async function fetchData() {
+    if (markers._spiderfied) {
+      setTimeout(fetchData, 1000);
+      return;
+    }
     try {
       const response = await fetch("/api/attack_map_data");
       const data = await response.json();
-      const now = Date.now();
-      const cutoff = now - 24 * 60 * 60 * 1000;
 
-      // Process each event from the API.
       data.forEach((item) => {
-        // Only include events from the past 24 hours.
-        const eventTime = new Date(item.timestamp).getTime();
-        if (isNaN(eventTime) || eventTime < cutoff) {
-          return;
-        }
-        if (isNaN(Number(item.lat)) || isNaN(Number(item.lon))) {
-          return;
-        }
-        if (item.type === "login") {
-          updateOrCreateMarker(item, loginMarkerMap);
-        } else {
-          updateOrCreateMarker(item, proxyMarkerMap);
+        const lat = Number(item.lat);
+        const lon = Number(item.lon);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          // Use a common key format for each event
+          const key = `${item.timestamp}-${item.ip_address}`;
+          if (item.type === "login") {
+            // For failed SSH login events, keep only the last MAX_FAILED_LOGINS markers
+            if (!loginMarkerMap.has(key)) {
+              if (loginMarkerMap.size >= MAX_FAILED_LOGINS) {
+                removeOldestMarker(loginMarkerMap);
+              }
+              const marker = createMarker(item);
+              loginMarkerMap.set(key, marker);
+              markers.addLayer(marker);
+            }
+          } else {
+            // For HTTP (proxy) events, keep only the last MAX_HTTP_EVENTS markers
+            if (!proxyMarkerMap.has(key)) {
+              if (proxyMarkerMap.size >= MAX_HTTP_EVENTS) {
+                removeOldestMarker(proxyMarkerMap);
+              }
+              const marker = createMarker(item);
+              proxyMarkerMap.set(key, marker);
+              markers.addLayer(marker);
+            }
+          }
         }
       });
-
-      // Remove markers older than 24 hours.
-      removeOldMarkers(loginMarkerMap);
-      removeOldMarkers(proxyMarkerMap);
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
