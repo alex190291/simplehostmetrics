@@ -1,5 +1,6 @@
-#from operator import imod
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
+from flask_assets import Environment, Bundle
+from flask_scss import Scss
 import threading
 import logging
 import time
@@ -13,10 +14,7 @@ from flask_security.utils import hash_password
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 
 import rtad_manager
-
-# Import our models (User, Role, CustomNetworkGraph defined in models.py)
 from models import db, User, Role, CustomNetworkGraph
-
 import stats
 import docker_manager
 from custom_network import custom_network_bp
@@ -33,17 +31,11 @@ app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = config_data.get('secret_key', 'default-secret-key')
 app.config['SECURITY_PASSWORD_SALT'] = config_data.get('security_password_salt', 'default-salt')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../stats.db'
-
-# Secure password hashing configuration
 app.config['SECURITY_PASSWORD_HASH'] = 'bcrypt'
 app.config['SECURITY_PASSWORD_SINGLE_HASH'] = False
-
-# Disable registration since we'll create a default user
 app.config['SECURITY_REGISTERABLE'] = False
 app.config['SECURITY_SEND_REGISTER_EMAIL'] = False
 app.config['SECURITY_RECOVERABLE'] = False
-
-# Use custom login template (registration is not available)
 app.config['SECURITY_LOGIN_USER_TEMPLATE'] = 'login_user.html'
 app.config['npm'] = config_data.get('npm', {})
 
@@ -59,24 +51,20 @@ security = Security(app, user_datastore)
 with app.app_context():
     # Create tables for User, Role, CustomNetworkGraph, etc.
     db.create_all()
-
-    # Load default admin credentials from config file
     default_admin_email = config_data.get('default_admin_email', 'admin@example.com')
     default_admin_password = config_data.get('default_admin_password', 'changeme')
-
-    # Create default user if no users exist
     if User.query.count() == 0:
         user_datastore.create_user(
             email=default_admin_email,
             password=hash_password(default_admin_password),
-            first_login=True  # Mark as first login so user must update credentials
+            first_login=True
         )
         db.session.commit()
 
 # Register the custom_network blueprint
 app.register_blueprint(custom_network_bp)
 
-# Initialize the legacy database schema (for stats and history) + new RTAD tables
+# Initialize the legacy database schema and load history data
 initialize_database()
 history_data = {
     'cpu_history': stats.cpu_history,
@@ -101,7 +89,7 @@ class NPMTokenManager:
         self.identity = identity
         self.secret = secret
         self.token = None
-        self.token_expiry = 0  # Unix timestamp when token expires
+        self.token_expiry = 0
 
     def get_token(self):
         now = time.time()
@@ -123,9 +111,7 @@ class NPMTokenManager:
                 raise Exception("Token retrieval failed")
             json_data = token_response.json()
             self.token = json_data.get("token")
-            # Assume the response includes 'expires_in' in seconds (default to 3600 if missing)
             expires_in = json_data.get("expires_in", 3600)
-            # Set expiry 60 seconds before actual expiry for safety
             self.token_expiry = time.time() + expires_in - 60
             if not self.token:
                 app.logger.error("Token not found in response")
@@ -135,7 +121,6 @@ class NPMTokenManager:
             app.logger.error(f"Error retrieving token: {str(e)}")
             raise e
 
-# Initialize the token manager with credentials from config
 npm_config = config_data.get("npm", {})
 NPM_IDENTITY = npm_config.get("identity")
 NPM_SECRET = npm_config.get("secret")
@@ -158,7 +143,6 @@ def require_user_update():
 def index():
     return render_template('index.html')
 
-# User Management Tab for updating credentials on first login
 @app.route('/user-management', methods=['GET', 'POST'])
 @login_required
 def user_management():
@@ -212,7 +196,6 @@ def check_all_status_route():
     status = docker_manager.get_all_status()
     return jsonify(status)
 
-# New Nginx Proxy Manager integration endpoints
 @app.route("/npm", methods=["GET"])
 @login_required
 def npm_view():
@@ -243,23 +226,15 @@ def npm_settings():
 @login_required
 def npm_proxy(path):
     npm_domain = config_data['npm']['domain']
-    # Use HTTPS for proxy if required; adjust scheme if necessary.
     npm_url = f'http://{npm_domain}/api/'
     target_url = urljoin(npm_url, path)
-
     app.logger.debug(f"NPM Proxy request to: {target_url}")
     app.logger.debug(f"Method: {request.method}")
     app.logger.debug(f"Headers: {dict(request.headers)}")
-
     try:
-        # Get a valid token from the token manager
         token = NPM_TOKEN_MANAGER.get_token()
-
-        # Prepare headers: forward incoming headers (minus some) and add Authorization
         headers = {k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']}
         headers['Authorization'] = f'Bearer {token}'
-
-        # Forward the request to NPM
         response = requests.request(
             method=request.method,
             url=target_url,
@@ -267,24 +242,19 @@ def npm_proxy(path):
             data=request.get_data(),
             cookies=request.cookies,
             allow_redirects=False,
-            verify=False  # Set to False if using self-signed certificate in production adjust accordingly
+            verify=False
         )
-
         app.logger.debug(f"NPM Response status: {response.status_code}")
         app.logger.debug(f"NPM Response headers: {dict(response.headers)}")
-
-        # Return the response from NPM
         return (
             response.content,
             response.status_code,
             {k: v for k, v in response.headers.items() if k.lower() not in ['content-encoding', 'content-length', 'transfer-encoding']}
         )
-
     except requests.RequestException as e:
         app.logger.error(f"NPM Proxy error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# RTAD logs page
 @app.route('/rtad')
 @login_required
 def rtad():
@@ -293,7 +263,6 @@ def rtad():
 @app.route("/rtad_lastb")
 @login_required
 def rtad_lastb():
-    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     attempts = rtad_manager.fetch_login_attempts()
@@ -306,7 +275,6 @@ def rtad_lastb():
 @app.route("/rtad_proxy")
 @login_required
 def rtad_proxy():
-    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     logs = rtad_manager.fetch_http_error_logs()
@@ -316,22 +284,13 @@ def rtad_proxy():
         logs = logs[-5000:]
     return jsonify(logs)
 
-# Attack map data endpoint
 @app.route('/api/attack_map_data')
 @login_required
 def attack_map_data():
-    """
-    Combine /rtad_lastb and /rtad_proxy data, returning the lat/lon directly
-    as updated in rtad_manager. Returns only the last 1000 login events and
-    the last 1000 proxy events.
-    """
     rtad_manager.update_missing_country_info()
-
     login_data = rtad_manager.fetch_login_attempts()[-1000:]
     proxy_data = rtad_manager.fetch_http_error_logs()[-1000:]
     results = []
-
-    # Merge login attempts
     for item in login_data:
         results.append({
             "ip_address": item.get("ip_address"),
@@ -344,8 +303,6 @@ def attack_map_data():
             "user": item.get("user"),
             "failure_reason": item.get("failure_reason", "")
         })
-
-    # Merge proxy logs
     for item in proxy_data:
         results.append({
             "ip_address": item.get("ip_address"),
@@ -360,10 +317,8 @@ def attack_map_data():
             "url": item.get("url"),
             "proxy_type": item.get("proxy_type", "")
         })
-
     return jsonify(results)
 
-# Background Threads
 def start_rtad_log_parser():
     parser = rtad_manager.LogParser()
     parser.parse_log_files()
@@ -378,10 +333,22 @@ with app.app_context():
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
 
-
 if __name__ == '__main__':
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)
+
+# --- SCSS Integration ---
+assets = Environment(app)
+assets.directory = 'scss'
+assets.url = '/static'
+scss_bundle = Bundle(
+    'main.scss',
+    filters='pyscss',
+    output='style.css',
+    depends='**/*.scss'
+)
+assets.register('scss_all', scss_bundle)
+Scss(app, static_dir='static', asset_dir='scss')
