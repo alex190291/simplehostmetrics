@@ -1,0 +1,43 @@
+/* _tables.scss - Table styles */
+
+/* Table Styles */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    th {
+        background: rgba(0, 0, 0, 0.2);
+        font-weight: 500;
+    }
+
+    tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* Audit Log */
+.audit-log-container {
+    @include glass-effect;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    overflow-x: auto;
+}
+
+.audit-meta {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+        white-space: normal;
+        word-break: break-all;
+    }
+}
