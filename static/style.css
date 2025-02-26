@@ -1,24 +1,38 @@
-/* simplehostmetrics.refac/static/style.css */
+/* Glassmorphism 2.0 Complete CSS File */
+
+/* CSS Variables for Glassmorphism 2.0 */
 :root {
     --bg-color: #0a0a0a;
-    --glass: rgba(18, 18, 18, 0.7);
+    --glass: rgba(18, 18, 18, 0.5); /* refined opacity */
+    --glass-gradient: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.15),
+        rgba(255, 255, 255, 0)
+    );
     --primary: #2d5a4f;
     --text: #aaaaaa;
+    --blur-amount: 15px; /* increased blur for smoother glass effect */
+    --transition-speed: 0.3s;
 }
 
 body.light-mode {
     --bg-color: #f0f0f0;
-    --glass: rgba(5, 112, 85, 0.4);
+    --glass: rgba(255, 255, 255, 0.4);
+    --glass-gradient: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.05),
+        rgba(0, 0, 0, 0)
+    );
     --primary: #8bbabb;
     --text: #000000;
 }
 
+/* Global Resets & Base Styles */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
-
 body {
     font-family: "Inter", sans-serif;
     background: var(--bg-color);
@@ -27,15 +41,19 @@ body {
     position: relative;
     overflow-x: hidden;
     transition:
-        background 0.3s,
-        color 0.3s;
+        background var(--transition-speed),
+        color var(--transition-speed);
 }
 
 /* Navigation Tabs */
 .nav-tabs {
     display: flex;
     background: var(--glass);
+    background-image: var(--glass-gradient);
     padding: 1rem;
+    backdrop-filter: blur(var(--blur-amount));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background var(--transition-speed);
 }
 .nav-tabs a {
     color: var(--text);
@@ -43,13 +61,14 @@ body {
     text-decoration: none;
     margin-right: 1rem;
     border-bottom: 2px solid transparent;
+    transition: border-color var(--transition-speed);
 }
 .nav-tabs a.active {
     border-bottom: 2px solid var(--primary);
     font-weight: bold;
 }
 
-/* Layout und Grid */
+/* Layout & Grid */
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -84,7 +103,6 @@ body {
         opacity: 0.15;
     }
 }
-
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -95,54 +113,46 @@ body {
     grid-column: 1 / -1;
 }
 
-/* Card Styling */
-.card {
+/* Core Glassmorphism Components: Cards, Modals, Sidebars, etc. */
+.card,
+.rtad.card,
+.modal-container,
+.settings-card,
+.npm-sidebar,
+.custom-graph-card,
+.audit-log-container {
     background: var(--glass);
-    backdrop-filter: blur(10px);
+    background-image: var(--glass-gradient);
+    backdrop-filter: blur(var(--blur-amount));
     border-radius: 1rem;
     padding: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid transparent;
+    border-image-slice: 1;
+    border-image-source: var(--glass-gradient);
     position: relative;
     transition:
-        background 0.3s,
-        border 0.3s,
-        transform 0.3s,
-        box-shadow 0.3s;
+        background var(--transition-speed),
+        border var(--transition-speed),
+        transform var(--transition-speed),
+        box-shadow var(--transition-speed);
     cursor: pointer;
     overflow: hidden;
     backface-visibility: hidden;
     transform: translateZ(0);
     will-change: transform;
 }
-.card:hover {
-    transform: scale(1.02) translateZ(0);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.card:hover,
+.rtad.card:hover,
+.modal-container:hover,
+.settings-card:hover,
+.npm-sidebar:hover,
+.custom-graph-card:hover,
+.audit-log-container:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* New RTAD Card: Same as .card but does not expand on click */
-.rtad.card {
-    background: var(--glass);
-    backdrop-filter: blur(10px);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    position: relative;
-    transition:
-        background 0.3s,
-        border 0.3s,
-        transform 0.3s,
-        box-shadow 0.3s;
-    cursor: pointer;
-    overflow: hidden;
-    backface-visibility: hidden;
-    transform: translateZ(0);
-    will-change: transform;
-}
-.rtad.card:hover {
-    transform: scale(1.02) translateZ(0);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
+/* Card Header & Related Elements */
 .card-header {
     display: flex;
     justify-content: space-between;
@@ -221,7 +231,7 @@ body {
     margin-bottom: 0.5rem;
 }
 
-/* Tabellen und Button-Stile */
+/* Table and Button Styles */
 table {
     color: var(--text);
     width: 100%;
@@ -243,7 +253,7 @@ button.update-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    transition: background-color 0.6s ease;
+    transition: background-color var(--transition-speed);
 }
 .spinner {
     display: inline-block;
@@ -277,13 +287,17 @@ button.update-btn {
     cursor: pointer;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
     transition:
-        background 0.3s,
-        color 0.3s;
+        background var(--transition-speed),
+        color var(--transition-speed);
     z-index: 1000;
 }
+
+/* Docker Card */
 .docker-card {
     margin-top: 1.5rem;
 }
+
+/* Status Indicators */
 .status-indicator {
     width: 10px;
     height: 10px;
@@ -326,7 +340,11 @@ button.update-btn {
 }
 .modal-container {
     background: var(--glass);
-    backdrop-filter: blur(10px);
+    background-image: var(--glass-gradient);
+    backdrop-filter: blur(var(--blur-amount));
+    border: 1px solid transparent;
+    border-image-slice: 1;
+    border-image-source: var(--glass-gradient);
     border-radius: 0.5rem;
     width: 90%;
     max-width: 500px;
@@ -354,6 +372,8 @@ button.update-btn {
     color: var(--text);
     cursor: pointer;
 }
+
+/* Form Styles */
 .form-group {
     margin-bottom: 1rem;
     display: flex;
@@ -390,6 +410,7 @@ button.update-btn {
 }
 .custom-graph-card {
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border-radius: 0.5rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
     width: calc(50% - 1rem);
@@ -434,10 +455,11 @@ button.update-btn {
     max-width: 1000px;
     min-height: 500px;
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border-radius: 0.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     overflow: hidden;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(var(--blur-amount));
 }
 .rtad-map {
     width: 100%;
@@ -449,10 +471,11 @@ button.update-btn {
     bottom: 0;
     left: 0;
     background: var(--glass);
+    background-image: var(--glass-gradient);
     padding: 1rem;
     margin: 1rem;
     border-radius: 0.5rem;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(var(--blur-amount));
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text);
 }
@@ -468,79 +491,20 @@ button.update-btn {
     margin-bottom: 0.3rem;
 }
 
-/* Custom Scrollbar Styles */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-::-webkit-scrollbar-track {
-    background: var(--bg-color);
-}
-::-webkit-scrollbar-thumb {
-    background-color: var(--primary);
-    border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background-color: #1e8449;
-}
-
-/* Firefox Scrollbar Styling */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: var(--primary) var(--bg-color);
-}
-
-/* Dark Mode nur auf die Tile Pane anwenden */
-#map.dark-mode .leaflet-tile-pane {
-    filter: invert(100%) hue-rotate(180deg);
-}
-
-/* Text in Markerclusters im Dark Mode schwarz halten */
-#map.dark-mode .marker-cluster,
-#map.dark-mode .marker-cluster div {
-    color: #000 !important;
-}
-
-/* Marker-Popups im Dark Mode: schwarzer Hintergrund, weiße Schrift */
-#map.dark-mode .leaflet-popup-content-wrapper {
-    background: #000 !important;
-    color: #fff !important;
-}
-
-#map.dark-mode .leaflet-popup-tip {
-    background: #000 !important;
-}
-
-/* Animationseffekt für Cluster bei neuen Events */
-.animate-cluster {
-    animation: clusterBounce 0.5s ease;
-}
-
-@keyframes clusterBounce {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.2);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
 /* Floating Marker Menu */
 .marker-menu {
     position: absolute;
     z-index: 2000;
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.5rem;
     padding: 0.5rem;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(var(--blur-amount));
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--transition-speed);
 }
 .marker-menu.show {
     opacity: 1;
@@ -554,16 +518,14 @@ button.update-btn {
     border-radius: 0.3rem;
     margin: 0.2rem;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color var(--transition-speed);
 }
 .marker-menu button:hover {
     background: var(--text);
     color: var(--primary);
 }
-Based on the existing style.css, I'll create the additional CSS needed for the NPM interface. We'll add these styles to the existing file:
 
-```css
-/* NPM Specific Styles - Add to existing style.css */
+/* NPM Specific Styles */
 
 /* NPM Layout */
 .npm-container {
@@ -575,62 +537,55 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
 .npm-sidebar {
     width: 250px;
     background: var(--glass);
-    backdrop-filter: blur(10px);
+    background-image: var(--glass-gradient);
+    backdrop-filter: blur(var(--blur-amount));
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1rem 0;
     flex-shrink: 0;
+    transition:
+        background var(--transition-speed),
+        border var(--transition-speed);
 }
-
 .sidebar-group {
     margin-bottom: 0.5rem;
 }
-
 .sidebar-header {
     padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color var(--transition-speed);
 }
-
 .sidebar-header:hover {
     background: rgba(255, 255, 255, 0.1);
 }
-
 .sidebar-icon {
     margin-right: 0.5rem;
 }
-
 .sidebar-header .arrow {
     margin-left: auto;
-    transition: transform 0.3s;
+    transition: transform var(--transition-speed);
 }
-
 .sidebar-header.collapsed .arrow {
     transform: rotate(-90deg);
 }
-
 .sidebar-items {
     padding: 0.5rem 0;
 }
-
 .sidebar-item {
     display: block;
     padding: 0.5rem 1rem 0.5rem 2.5rem;
     color: var(--text);
     text-decoration: none;
-    transition: background-color 0.3s;
+    transition: background-color var(--transition-speed);
 }
-
 .sidebar-item:hover {
     background: rgba(255, 255, 255, 0.1);
 }
-
 .sidebar-item.active {
     background: var(--primary);
     color: #fff;
 }
-
 /* NPM Content Area */
 .npm-content {
     flex-grow: 1;
@@ -645,7 +600,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     align-items: center;
     margin-bottom: 1.5rem;
 }
-
 .add-btn {
     background: var(--primary);
     color: var(--text);
@@ -653,21 +607,21 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color var(--transition-speed);
 }
-
 .add-btn:hover {
     background: var(--text);
     color: var(--primary);
 }
-
 .search-bar input {
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.5rem;
     padding: 0.5rem 1rem;
     color: var(--text);
     width: 300px;
+    transition: background var(--transition-speed);
 }
 
 /* NPM Cards */
@@ -676,19 +630,18 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
 }
-
 .host-card,
 .cert-card,
 .access-list-card {
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border-radius: 1rem;
     padding: 1.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     transition:
-        transform 0.3s,
-        box-shadow 0.3s;
+        transform var(--transition-speed),
+        box-shadow var(--transition-speed);
 }
-
 .host-card:hover,
 .cert-card:hover,
 .access-list-card:hover {
@@ -702,17 +655,14 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     border-radius: 0.25rem;
     font-size: 0.875rem;
 }
-
 .expiry-indicator.valid {
     background: rgba(30, 132, 73, 0.2);
     color: #2ecc71;
 }
-
 .expiry-indicator.warning {
     background: rgba(241, 196, 15, 0.2);
     color: #f1c40f;
 }
-
 .expiry-indicator.expired {
     background: rgba(192, 57, 43, 0.2);
     color: #e74c3c;
@@ -722,25 +672,22 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
 .certificates-header {
     margin-bottom: 1.5rem;
 }
-
 .cert-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
 }
-
 .stat-card {
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border-radius: 0.5rem;
     padding: 1rem;
     text-align: center;
 }
-
 .stat-card h3 {
     font-size: 0.875rem;
     margin-bottom: 0.5rem;
 }
-
 .stat-card span {
     font-size: 2rem;
     font-weight: bold;
@@ -757,10 +704,10 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     background: rgba(0, 0, 0, 0.5);
     z-index: 1000;
 }
-
 .modal-content {
     background: var(--glass);
-    backdrop-filter: blur(10px);
+    background-image: var(--glass-gradient);
+    backdrop-filter: blur(var(--blur-amount));
     border-radius: 1rem;
     padding: 2rem;
     width: 90%;
@@ -771,16 +718,14 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     transform: translate(-50%, -50%);
 }
 
-/* Form Styles */
+/* Form Styles for NPM */
 .form-group {
     margin-bottom: 1.5rem;
 }
-
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
 }
-
 .form-group input[type="text"],
 .form-group input[type="number"],
 .form-group textarea {
@@ -798,7 +743,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     margin-bottom: 1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-
 .cert-tab {
     padding: 0.5rem 1rem;
     background: none;
@@ -806,8 +750,8 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     color: var(--text);
     cursor: pointer;
     border-bottom: 2px solid transparent;
+    transition: border-color var(--transition-speed);
 }
-
 .cert-tab.active {
     border-bottom: 2px solid var(--primary);
 }
@@ -820,20 +764,18 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     padding: 1rem;
     border-radius: 0.5rem;
     background: var(--glass);
-    backdrop-filter: blur(10px);
+    background-image: var(--glass-gradient);
+    backdrop-filter: blur(var(--blur-amount));
     transform: translateX(120%);
-    transition: transform 0.3s;
+    transition: transform var(--transition-speed);
     z-index: 2000;
 }
-
 .notification.show {
     transform: translateX(0);
 }
-
 .notification.success {
     border-left: 4px solid #2ecc71;
 }
-
 .notification.error {
     border-left: 4px solid #e74c3c;
 }
@@ -843,19 +785,16 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     width: 100%;
     border-collapse: collapse;
 }
-
 .data-table th,
 .data-table td {
     padding: 0.75rem;
     text-align: left;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-
 .data-table th {
     background: rgba(0, 0, 0, 0.2);
     font-weight: 500;
 }
-
 .data-table tr:hover {
     background: rgba(255, 255, 255, 0.05);
 }
@@ -867,7 +806,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     gap: 1rem;
     margin-top: 1.5rem;
 }
-
 .btn-primary {
     background: var(--primary);
     color: var(--text);
@@ -875,9 +813,8 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color var(--transition-speed);
 }
-
 .btn-secondary {
     background: transparent;
     color: var(--text);
@@ -885,14 +822,12 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all var(--transition-speed);
 }
-
 .btn-primary:hover {
     background: var(--text);
     color: var(--primary);
 }
-
 .btn-secondary:hover {
     background: var(--text);
     color: var(--bg-color);
@@ -902,7 +837,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
 .cert-form {
     display: none;
 }
-
 .cert-form.active {
     display: block;
 }
@@ -914,7 +848,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     padding: 1rem;
     margin-top: 1rem;
 }
-
 .dns-provider-select {
     width: 100%;
     padding: 0.5rem;
@@ -925,7 +858,7 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     margin-bottom: 1rem;
 }
 
-/* Status Indicators */
+/* Additional Status Indicators */
 .status-indicator {
     width: 8px;
     height: 8px;
@@ -933,11 +866,9 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     display: inline-block;
     margin-left: 0.5rem;
 }
-
 .status-indicator.active {
     background-color: #2ecc71;
 }
-
 .status-indicator.inactive {
     background-color: #e74c3c;
 }
@@ -956,7 +887,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
 .loading {
     position: relative;
 }
-
 .loading::after {
     content: "";
     position: absolute;
@@ -971,7 +901,6 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     align-items: center;
     border-radius: inherit;
 }
-
 .loading::before {
     content: "";
     position: absolute;
@@ -990,19 +919,18 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
 /* Audit Log Specific */
 .audit-log-container {
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border-radius: 1rem;
     padding: 1.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     overflow-x: auto;
 }
-
 .audit-meta {
     max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
 .audit-meta:hover {
     white-space: normal;
     word-break: break-all;
@@ -1014,9 +942,9 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
 }
-
 .settings-card {
     background: var(--glass);
+    background-image: var(--glass-gradient);
     border-radius: 1rem;
     padding: 1.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1027,26 +955,21 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     .npm-container {
         flex-direction: column;
     }
-
     .npm-sidebar {
         width: 100%;
         border-right: none;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-
     .action-bar {
         flex-direction: column;
         gap: 1rem;
     }
-
     .search-bar input {
         width: 100%;
     }
-
     .cert-stats {
         grid-template-columns: 1fr;
     }
-
     .modal-content {
         width: 95%;
         margin: 1rem;
@@ -1055,7 +978,7 @@ Based on the existing style.css, I'll create the additional CSS needed for the N
     }
 }
 
-/* Accessibility Improvements */
+/* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation: none !important;
@@ -1079,9 +1002,8 @@ select:focus {
         --primary: #ffffff;
         --text: #ffffff;
     }
-
     .card,
-    .modal-content,
+    .modal-container,
     .settings-card {
         border: 2px solid #ffffff;
     }
@@ -1095,15 +1017,12 @@ select:focus {
     .mode-toggle {
         display: none;
     }
-
     .npm-container {
         display: block;
     }
-
     .npm-content {
         padding: 0;
     }
-
     .card {
         break-inside: avoid;
         border: 1px solid #000;
