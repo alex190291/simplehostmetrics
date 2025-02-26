@@ -15,6 +15,10 @@ from watchdog.events import FileSystemEventHandler
 from threading import Timer
 from collections import deque
 
+# Global counters for diff-based updates
+login_attempt_counter = 0
+http_error_log_counter = 0
+
 # Precompiled regex for proxy events
 REGEX_ZORAXY = re.compile(
     r"\[[^\]]+\]\s+\[[^\]]+\]\s+\[origin:(?P<origin>[^\]]*)\]\s+\[client\s+(?P<ip>\d+\.\d+\.\d+\.\d+)\]\s+(?P<method>[A-Z]+)\s+(?P<url>\S+)\s+(?P<code>\d{3})"
@@ -399,7 +403,25 @@ class LogParser:
                           record.time, record.type, user, host)
             self.store_failed_login(user, ip_address, host, timestamp=record.time)
 
-    def store_failed_login(self, user, ip_address, host, timestamp=None):
+def store_failed_login(self, user, ip_address, host, timestamp=None):
+    global login_attempt_counter
+    ts = normalize_timestamp(timestamp)
+    with login_attempts_lock:
+        login_attempt_counter += 1
+        login_attempts_cache.append({
+            "id": login_attempt_counter,
+            "user": user,
+            "ip_address": ip_address,
+            "timestamp": ts,
+            "failure_reason": "Failed login attempt",
+            "country": "Unknown",
+            "city": "Unknown",
+            "lat": None,
+            "lon": None
+        })
+    logging.debug("Stored failed login attempt (ID %s): User %s, IP %s, Host %s, Timestamp: %s",
+                  login_attempt_counter, user, ip_address, host, ts)
+
         ts = normalize_timestamp(timestamp)
         with login_attempts_lock:
             login_attempts_cache.append({
@@ -415,23 +437,27 @@ class LogParser:
         logging.debug("Stored failed login attempt: User %s, IP %s, Host %s, Timestamp: %s",
                       user, ip_address, host, ts)
 
-    def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
-        ts = normalize_timestamp(timestamp)
-        with http_error_logs_lock:
-            http_error_logs_cache.append({
-                "proxy_type": proxy_type,
-                "error_code": error_code,
-                "timestamp": ts,
-                "url": url,
-                "ip_address": ip_address,
-                "domain": domain,
-                "country": "Unknown",
-                "city": "Unknown",
-                "lat": None,
-                "lon": None
-            })
-        logging.debug("Stored HTTP error log: Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
-                      proxy_type, error_code, url, ip_address, domain, ts)
+def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
+    global http_error_log_counter
+    ts = normalize_timestamp(timestamp)
+    with http_error_logs_lock:
+        http_error_log_counter += 1
+        http_error_logs_cache.append({
+            "id": http_error_log_counter,
+            "proxy_type": proxy_type,
+            "error_code": error_code,
+            "timestamp": ts,
+            "url": url,
+            "ip_address": ip_address,
+            "domain": domain,
+            "country": "Unknown",
+            "city": "Unknown",
+            "lat": None,
+            "lon": None
+        })
+    logging.debug("Stored HTTP error log (ID %s): Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
+                  http_error_log_counter, proxy_type, error_code, url, ip_address, domain, ts)
+
 
     def setup_watchdog(self):
         logging.debug("Setting up Watchdog Observer")
