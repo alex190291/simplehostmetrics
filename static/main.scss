@@ -9,5 +9,38 @@
 // Import base styles
 @import "base";
 
-// Import components last
-@import "components";
+// Import layout components
+@import "layout";
+
+// Import navigation
+@import "navigation";
+
+// Import cards
+@import "cards";
+
+// Import chart components
+@import "charts";
+
+// Import forms
+@import "forms";
+
+// Import buttons
+@import "buttons";
+
+// Import modals
+@import "modals";
+
+// Import indicators
+@import "indicators";
+
+// Import tables
+@import "tables";
+
+// Import specialized components
+@import "rtad-components";
+
+// Import animations
+@import "animations";
+
+// Import responsive adjustments (should be last)
+@import "responsive";

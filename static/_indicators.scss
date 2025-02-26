@@ -1,0 +1,82 @@
+/* _indicators.scss - Status indicators and notifications */
+
+/* Status Indicators */
+.status-indicator {
+    @include status-indicator(transparent);
+
+    &.active {
+        background-color: #2ecc71;
+    }
+
+    &.inactive {
+        background-color: #e74c3c;
+    }
+
+    &.status-green {
+        background-color: #1e8449;
+    }
+
+    &.status-yellow {
+        background-color: #f1c40f;
+    }
+
+    &.status-blue {
+        background-color: #21618c;
+    }
+
+    &.status-red {
+        background-color: #c0392b;
+    }
+}
+
+/* Certificate Expiry Indicator */
+.expiry-indicator {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+
+    &.valid {
+        background: rgba(30, 132, 73, 0.2);
+        color: #2ecc71;
+    }
+
+    &.warning {
+        background: rgba(241, 196, 15, 0.2);
+        color: #f1c40f;
+    }
+
+    &.expired {
+        background: rgba(192, 57, 43, 0.2);
+        color: #e74c3c;
+    }
+}
+
+/* Notification Components */
+.notification {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    @include glass-effect;
+    transform: translateX(120%);
+    transition: transform 0.3s;
+    z-index: 2000;
+
+    &.show {
+        transform: translateX(0);
+    }
+
+    &.success {
+        border-left: 4px solid #2ecc71;
+    }
+
+    &.error {
+        border-left: 4px solid #e74c3c;
+    }
+}
+
+/* Loading States */
+.loading {
+    @include loading-spinner;
+}
