@@ -1,5 +1,3 @@
-// rtad.js
-
 let lastbLastId = null;
 let proxyLastId = null;
 let currentSorts = {
@@ -11,7 +9,7 @@ const dateCache = new Map();
 
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
-    // Da alle Timestamps nun im ISO‑8601‑Format vorliegen, wird direkt geparst
+    // Directly parse ISO‑8601 timestamps and cache the millisecond value
     const date = new Date(timestamp);
     dateCache.set(timestamp, date.getTime());
   }
@@ -38,8 +36,7 @@ function sortTable(table, column, direction) {
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
   const isLastbTable = table.id === "lastbTable";
-  // For lastbTable: [IP, Country, City, Timestamp, User, Failure Reason] -> timestamp index 3
-  // For proxyTable: [Domain, IP, Country, City, Timestamp, Proxy Type, Error Code, URL] -> timestamp index 4
+  // For lastbTable, the timestamp is at index 3; for proxyTable, it's at index 4
   const timestampColumn = isLastbTable ? 3 : 4;
 
   const compareFunction = (a, b) => {
@@ -54,6 +51,7 @@ function sortTable(table, column, direction) {
     const aCol = a.children[column].textContent.trim();
     const bCol = b.children[column].textContent.trim();
 
+    // Check for numeric comparison
     if (!isNaN(aCol) && !isNaN(bCol)) {
       const aNum = Number(aCol);
       const bNum = Number(bCol);
@@ -68,6 +66,81 @@ function sortTable(table, column, direction) {
   const sortedRows = rows.sort(compareFunction);
   const fragment = document.createDocumentFragment();
   sortedRows.forEach((row) => fragment.appendChild(row));
+  tbody.innerHTML = "";
+  tbody.appendChild(fragment);
+}
+
+// Row pools for reusing <tr> elements and reducing DOM churn
+const lastbRowPool = [];
+const proxyRowPool = [];
+
+function updateTable(tbodySelector, data, type) {
+  const tbody = document.querySelector(tbodySelector);
+  const existingRows = Array.from(tbody.children);
+  const fragment = document.createDocumentFragment();
+
+  data.forEach((item, index) => {
+    let row;
+    if (existingRows[index]) {
+      row = existingRows[index];
+    } else if (type === "lastb" && lastbRowPool.length > 0) {
+      row = lastbRowPool.pop();
+    } else if (type === "proxy" && proxyRowPool.length > 0) {
+      row = proxyRowPool.pop();
+    } else {
+      row = document.createElement("tr");
+    }
+
+    if (type === "lastb") {
+      const date = new Date(item.timestamp);
+      const formattedDate = date.toLocaleString();
+      row.innerHTML = `
+        <td>${item.ip_address}</td>
+        <td>${item.country || "N/A"}</td>
+        <td>${item.city || "N/A"}</td>
+        <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+        <td>${item.user || ""}</td>
+        <td>${item.failure_reason || ""}</td>
+      `;
+    } else if (type === "proxy") {
+      const date = new Date(item.timestamp);
+      const formattedDate = date.toLocaleString();
+      let errorClass = "";
+      if (item.error_code >= 300 && item.error_code < 400) {
+        errorClass = "status-yellow";
+      } else if (item.error_code === 200) {
+        errorClass = "status-green";
+      } else if (item.error_code === 500) {
+        errorClass = "status-blue";
+      } else if (
+        item.error_code === 404 ||
+        item.error_code === 403 ||
+        (item.error_code >= 400 && item.error_code < 500)
+      ) {
+        errorClass = "status-red";
+      }
+      row.innerHTML = `
+        <td>${item.domain || ""}</td>
+        <td>${item.ip_address || ""}</td>
+        <td>${item.country || "N/A"}</td>
+        <td>${item.city || "N/A"}</td>
+        <td data-timestamp="${item.timestamp}">${formattedDate}</td>
+        <td>${item.proxy_type || ""}</td>
+        <td class="${errorClass}">${item.error_code || ""}</td>
+        <td>${item.url || ""}</td>
+      `;
+    }
+    fragment.appendChild(row);
+  });
+
+  // Pool any extra rows that are no longer needed
+  for (let i = data.length; i < existingRows.length; i++) {
+    if (type === "lastb") {
+      lastbRowPool.push(existingRows[i]);
+    } else if (type === "proxy") {
+      proxyRowPool.push(existingRows[i]);
+    }
+  }
 
   tbody.innerHTML = "";
   tbody.appendChild(fragment);
@@ -83,27 +156,8 @@ function fetchRTADData() {
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      const tbody = document.querySelector("#lastbTable tbody");
-      tbody.innerHTML = "";
-      const fragment = document.createDocumentFragment();
-      data.forEach((item) => {
-        // Da der Timestamp jetzt im ISO‑8601‑Format vorliegt, kann direkt ein Date-Objekt erzeugt werden
-        const date = new Date(item.timestamp);
-        const formattedDate = date.toLocaleString();
-        const row = document.createElement("tr");
-        row.innerHTML = `
-                    <td>${item.ip_address}</td>
-                    <td>${item.country || "N/A"}</td>
-                    <td>${item.city || "N/A"}</td>
-                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.user || ""}</td>
-                    <td>${item.failure_reason || ""}</td>
-                `;
-        fragment.appendChild(row);
-      });
-      tbody.appendChild(fragment);
+      updateTable("#lastbTable tbody", data, "lastb");
       lastbLastId = data[data.length - 1].id;
-
       if (currentSorts.lastbTable && currentSorts.lastbTable.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
@@ -127,45 +181,8 @@ function fetchRTADData() {
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      const tbody = document.querySelector("#proxyTable tbody");
-      tbody.innerHTML = "";
-      const fragment = document.createDocumentFragment();
-      data.forEach((item) => {
-        // Hier wird ebenfalls direkt das ISO‑8601 Datum verarbeitet
-        const date = new Date(item.timestamp);
-        const formattedDate = date.toLocaleString();
-
-        let errorClass = "";
-        if (item.error_code >= 300 && item.error_code < 400) {
-          errorClass = "status-yellow";
-        } else if (item.error_code === 200) {
-          errorClass = "status-green";
-        } else if (item.error_code === 500) {
-          errorClass = "status-blue";
-        } else if (
-          item.error_code === 404 ||
-          item.error_code === 403 ||
-          (item.error_code >= 400 && item.error_code < 500)
-        ) {
-          errorClass = "status-red";
-        }
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-                    <td>${item.domain || ""}</td>
-                    <td>${item.ip_address || ""}</td>
-                    <td>${item.country || "N/A"}</td>
-                    <td>${item.city || "N/A"}</td>
-                    <td data-timestamp="${item.timestamp}">${formattedDate}</td>
-                    <td>${item.proxy_type || ""}</td>
-                    <td class="${errorClass}">${item.error_code || ""}</td>
-                    <td>${item.url || ""}</td>
-                `;
-        fragment.appendChild(row);
-      });
-      tbody.appendChild(fragment);
+      updateTable("#proxyTable tbody", data, "proxy");
       proxyLastId = data[data.length - 1].id;
-
       if (currentSorts.proxyTable && currentSorts.proxyTable.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
