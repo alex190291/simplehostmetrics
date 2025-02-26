@@ -352,6 +352,7 @@ Scss(app, static_dir='static', asset_dir='scss')
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
 with app.app_context():
+    assets.build()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
