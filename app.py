@@ -50,7 +50,7 @@ assets.url = app.static_url_path
 scss_bundle = Bundle(
     'main.scss',
     filters='libsass',
-    output='css/main.css'
+    output='styles.css'
 )
 assets.register('scss_all', scss_bundle)
 scss_bundle.build()
