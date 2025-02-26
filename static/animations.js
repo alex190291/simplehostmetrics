@@ -9,7 +9,7 @@ function randomInt(min, max) {
 function randomFloat(min, max) {
   return Math.random() * (max - min) + min;
 }
-Copyfunction generateHexagons(count) {
+function generateHexagons(count) {
   const container = document.getElementById("hexagon-container");
   for (let i = 0; i < count; i++) {
     const hex = document.createElement("div");
@@ -17,19 +17,21 @@ Copyfunction generateHexagons(count) {
     const top = randomInt(0, 100);
     const left = randomInt(0, 100);
     const size = randomInt(80, 250);
-    const delay = randomFloat(0, 10).toFixed(1);
-    const pulseDuration = randomFloat(10, 20).toFixed(1);
+    const pulseDelay = randomFloat(0, 10).toFixed(1);
+    const bounceDelay = randomFloat(0, 15).toFixed(1);
+    const bounceDuration = randomFloat(10, 20).toFixed(1);
 
     hex.style.top = top + "%";
     hex.style.left = left + "%";
     hex.style.width = size + "px";
     hex.style.height = size + "px";
-    hex.style.setProperty('--delay', delay + "s");
-    hex.style.animationDuration = `8s, ${pulseDuration}s`;
+    hex.style.animationDelay = `${pulseDelay}s, ${bounceDelay}s`;
+    hex.style.animationDuration = `10s, ${bounceDuration}s`;
 
     container.appendChild(hex);
   }
 }
+
 generateHexagons(40);
 
 // -------------------------------
