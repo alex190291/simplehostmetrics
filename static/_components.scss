@@ -50,7 +50,22 @@ button:hover {
 }
 
 /* Cards */
-.card,
+.card {
+    @include glass-effect();
+    padding: 1.5rem;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    max-height: 500px; /* or an appropriate max height */
+    flex-shrink: 0;
+}
+.card:hover {
+    @include hover-effect(1.02, 0 4px 8px rgba(0, 0, 0, 0.2));
+
+
 .rtad.card {
     @include glass-effect();
     padding: 1.5rem;
@@ -61,7 +76,6 @@ button:hover {
     transform: translateZ(0);
     will-change: transform;
 }
-.card:hover,
 .rtad.card:hover {
     @include hover-effect(1.02, 0 4px 8px rgba(0, 0, 0, 0.2));
 }
