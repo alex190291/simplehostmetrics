@@ -354,8 +354,8 @@ Scss(app, static_dir='static', asset_dir='scss')
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
 with app.app_context():
-    # Build assets: use app.static_folder as the output directory for compiled assets.
     cl_env = CommandLineEnvironment(assets, app.static_folder)
+    cl_env.log = logging.getLogger("webassets")  # Assign a proper logger
     cl_env.build()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
@@ -363,8 +363,8 @@ with app.app_context():
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
 
 if __name__ == '__main__':
-    # Build assets: use app.static_folder as the output directory for compiled assets.
     cl_env = CommandLineEnvironment(assets, app.static_folder)
+    cl_env.log = logging.getLogger("webassets")  # Assign a proper logger
     cl_env.build()
 
     # Start background threads
