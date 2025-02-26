@@ -422,21 +422,6 @@ def store_failed_login(self, user, ip_address, host, timestamp=None):
     logging.debug("Stored failed login attempt (ID %s): User %s, IP %s, Host %s, Timestamp: %s",
                   login_attempt_counter, user, ip_address, host, ts)
 
-        ts = normalize_timestamp(timestamp)
-        with login_attempts_lock:
-            login_attempts_cache.append({
-                "user": user,
-                "ip_address": ip_address,
-                "timestamp": ts,
-                "failure_reason": "Failed login attempt",
-                "country": "Unknown",
-                "city": "Unknown",
-                "lat": None,
-                "lon": None
-            })
-        logging.debug("Stored failed login attempt: User %s, IP %s, Host %s, Timestamp: %s",
-                      user, ip_address, host, ts)
-
 def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
     global http_error_log_counter
     ts = normalize_timestamp(timestamp)
