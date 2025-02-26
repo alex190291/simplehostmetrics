@@ -1,6 +1,6 @@
-/* _base.scss - Base styles and global resets */
+/* Glassmorphism 2.0 Base Styles */
 
-// Global Resets & Base Styles
+/* Global Resets & Base Styles */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -19,46 +19,46 @@ body {
         color 0.3s;
 }
 
-// Layouts
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-    position: relative;
-    z-index: 1;
+button {
+    @include glass-effect;
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition:
+        background 0.3s,
+        transform 0.3s,
+        box-shadow 0.3s;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+table {
+    color: var(--text);
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+        padding: 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
 }
 
-.full-width {
-    grid-column: 1 / -1;
+/* Animations */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
-// Background effects
-.hexagons {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    z-index: -1;
-}
-
-.hexagon {
-    position: absolute;
-    background: var(--primary);
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    opacity: 0.1;
-    animation: pulse 10s infinite;
-}
-
-// Animations
 @keyframes pulse {
     0%,
     100% {
@@ -68,15 +68,6 @@ body {
     50% {
         transform: scale(1.2);
         opacity: 0.15;
-    }
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
     }
 }
 
@@ -92,7 +83,25 @@ body {
     }
 }
 
-// Custom Scrollbar Styles
+/* Layout and Grid */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.grid {
+    @include responsive-grid;
+    margin-bottom: 2rem;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+/* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -111,13 +120,13 @@ body {
     }
 }
 
-// Firefox Scrollbar Styling
+/* Firefox Scrollbar Styling */
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--primary) var(--bg-color);
 }
 
-// Accessibility Improvements
+/* Accessibility Improvements */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation: none !important;
@@ -125,7 +134,7 @@ body {
     }
 }
 
-// Focus States
+/* Focus States */
 button:focus,
 input:focus,
 textarea:focus,
@@ -134,14 +143,13 @@ select:focus {
     outline-offset: 2px;
 }
 
-// High Contrast Mode
+/* High Contrast Mode */
 @media (prefers-contrast: high) {
     :root {
         --glass: rgba(0, 0, 0, 0.9);
         --primary: #ffffff;
         --text: #ffffff;
     }
-
     .card,
     .modal-content,
     .settings-card {
@@ -149,7 +157,7 @@ select:focus {
     }
 }
 
-// Print Styles
+/* Print Styles */
 @media print {
     .npm-sidebar,
     .action-bar,
@@ -157,15 +165,12 @@ select:focus {
     .mode-toggle {
         display: none;
     }
-
     .npm-container {
         display: block;
     }
-
     .npm-content {
         padding: 0;
     }
-
     .card {
         break-inside: avoid;
         border: 1px solid #000;

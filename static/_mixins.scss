@@ -1,6 +1,5 @@
-/* _mixins.scss - Reusable SCSS patterns */
+/* Glassmorphism 2.0 Mixins */
 
-// Glass effect mixin
 @mixin glass-effect {
     background: var(--glass);
     background-image: var(--glass-gradient);
@@ -8,27 +7,17 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-// Card hover effect
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 @mixin card-hover {
-    transition:
-        transform 0.3s,
-        box-shadow 0.3s;
-    cursor: pointer;
-
-    &:hover {
-        transform: scale(1.02) translateZ(0);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
-// Media query for responsive design
-@mixin responsive-mobile {
-    @media (max-width: 768px) {
-        @content;
-    }
-}
-
-// Status indicator
 @mixin status-indicator($color) {
     width: 10px;
     height: 10px;
@@ -37,25 +26,12 @@
     background-color: $color;
 }
 
-// Button style
-@mixin button-style {
-    @include glass-effect;
-    color: var(--text);
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition:
-        background 0.3s,
-        transform 0.3s,
-        box-shadow 0.3s;
-
-    &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
+@mixin responsive-grid($min-width: 300px) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax($min-width, 1fr));
+    gap: 1.5rem;
 }
 
-// Loading spinner
 @mixin loading-spinner {
     position: relative;
 
