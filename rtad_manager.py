@@ -437,26 +437,26 @@ def store_failed_login(self, user, ip_address, host, timestamp=None):
         logging.debug("Stored failed login attempt: User %s, IP %s, Host %s, Timestamp: %s",
                       user, ip_address, host, ts)
 
-    def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
-        global http_error_log_counter
-        ts = normalize_timestamp(timestamp)
-        with http_error_logs_lock:
-            http_error_log_counter += 1
-            http_error_logs_cache.append({
-                "id": http_error_log_counter,
-                "proxy_type": proxy_type,
-                "error_code": error_code,
-                "timestamp": ts,
-                "url": url,
-                "ip_address": ip_address,
-                "domain": domain,
-                "country": "Unknown",
-                "city": "Unknown",
-                "lat": None,
-                "lon": None
-            })
-        logging.debug("Stored HTTP error log (ID %s): Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
-                    http_error_log_counter, proxy_type, error_code, url, ip_address, domain, ts)
+def store_http_error_log(self, proxy_type, error_code, url, ip_address, domain, timestamp=None):
+    global http_error_log_counter
+    ts = normalize_timestamp(timestamp)
+    with http_error_logs_lock:
+        http_error_log_counter += 1
+        http_error_logs_cache.append({
+            "id": http_error_log_counter,
+            "proxy_type": proxy_type,
+            "error_code": error_code,
+            "timestamp": ts,
+            "url": url,
+            "ip_address": ip_address,
+            "domain": domain,
+            "country": "Unknown",
+            "city": "Unknown",
+            "lat": None,
+            "lon": None
+        })
+    logging.debug("Stored HTTP error log (ID %s): Proxy %s, Code %s, URL %s, IP %s, Domain %s, Timestamp: %s",
+                http_error_log_counter, proxy_type, error_code, url, ip_address, domain, ts)
 
 
     def setup_watchdog(self):
