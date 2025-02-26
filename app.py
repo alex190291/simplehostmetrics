@@ -377,4 +377,11 @@ with app.app_context():
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
+
+
+if __name__ == '__main__':
+    threading.Thread(target=stats.update_stats_cache, daemon=True).start()
+    threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
+    threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
+    threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)
