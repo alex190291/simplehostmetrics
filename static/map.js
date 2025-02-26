@@ -173,28 +173,33 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Klick-Event-Handler
     marker.on("click", function (e) {
+      // Stop event propagation and verhindern des Standardverhaltens
       L.DomEvent.stopPropagation(e);
-      removeMarkerMenu();
+      e.preventDefault();
 
-      // Falls der Marker Teil eines spiderfied Clusters mit nur einem Marker ist,
-      // kopiere die IP direkt in die Zwischenablage und zeige eine Erfolgsmeldung
+      // Prüfen, ob der Marker Teil eines spiderfied Clusters mit nur einem Marker ist
       if (
         markers._spiderfied &&
         typeof markers._spiderfied.getAllChildMarkers === "function" &&
         markers._spiderfied.getAllChildMarkers().length === 1
       ) {
+        // Direkt IP in die Zwischenablage kopieren und Benachrichtigung anzeigen
         navigator.clipboard
           .writeText(marker.itemData.ip_address || "")
           .then(() => {
             showSuccess("IP copied to clipboard");
+            // Sicherstellen, dass das Popup offen bleibt
+            marker.openPopup();
           })
           .catch(() => {
             showError("Failed to copy IP");
+            marker.openPopup();
           });
         return;
       }
 
-      // Andernfalls: Marker-Menü mit Optionen "Copy IP" und "Copy Info" anzeigen
+      // Falls nicht: Marker-Menü mit Optionen "Copy IP" und "Copy Info" anzeigen
+      removeMarkerMenu();
       const menu = document.createElement("div");
       menu.className = "marker-menu";
 
