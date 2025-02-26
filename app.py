@@ -1,7 +1,4 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
-from flask_assets import Environment, Bundle
-from flask_scss import Scss
-from webassets.script import CommandLineEnvironment
 import threading
 import logging
 import time
@@ -354,19 +351,12 @@ Scss(app, static_dir='static', asset_dir='scss')
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
 with app.app_context():
-    cl_env = CommandLineEnvironment(assets, app.static_folder)
-    cl_env.log = logging.getLogger("webassets")  # Assign a proper logger
-    cl_env.build()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
 
 if __name__ == '__main__':
-    cl_env = CommandLineEnvironment(assets, app.static_folder)
-    cl_env.log = logging.getLogger("webassets")  # Assign a proper logger
-    cl_env.build()
-
     # Start background threads
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
