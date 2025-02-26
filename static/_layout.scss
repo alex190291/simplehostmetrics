@@ -22,7 +22,9 @@
             0% 25%
         );
         opacity: 0.1;
-        animation: pulse 10s infinite;
+        animation:
+            pulse 10s infinite,
+            hexPulse 8s infinite;
     }
 }
 
