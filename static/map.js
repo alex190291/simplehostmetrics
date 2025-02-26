@@ -1,4 +1,3 @@
-// map.js.
 document.addEventListener("DOMContentLoaded", async function () {
   // Initialize Leaflet map
   const map = L.map("map", {
@@ -90,94 +89,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Helper: create a marker based on event type with improved coordinate validation
-  function createMarker(item) {
-    const lat = Number(item.lat);
-    const lon = Number(item.lon);
-    console.log(
-      "Creating marker for",
-      item.city,
-      "with coordinates:",
-      lat,
-      lon,
-    );
-    const icon = item.type === "login" ? loginIcon : proxyIcon;
-    const marker = L.marker([lat, lon], { icon: icon });
-    marker.bindPopup(createPopup(item));
+  // Global marker pool for reusing markers
+  const markerPool = [];
 
-    marker.on("mouseover", function () {
-      this.openPopup();
-    });
-    marker.on("mouseout", function () {
-      this.closePopup();
-    });
-
-    // Attach the item data to the marker for later use
-    marker.itemData = item;
-
-    // Add click event for the floating menu
-    marker.on("click", function (e) {
-      // Prevent event propagation so that document click doesn't immediately remove the menu
-      L.DomEvent.stopPropagation(e);
-      // Remove any existing menu
-      removeMarkerMenu();
-
-      // Create menu element
-      const menu = document.createElement("div");
-      menu.className = "marker-menu";
-
-      // Create Copy IP button
-      const copyIPBtn = document.createElement("button");
-      copyIPBtn.textContent = "Copy IP";
-      copyIPBtn.addEventListener("click", function (evt) {
-        evt.stopPropagation();
-        navigator.clipboard.writeText(item.ip_address || "");
-        removeMarkerMenu();
-      });
-      menu.appendChild(copyIPBtn);
-
-      // Create Copy Info button
-      const copyInfoBtn = document.createElement("button");
-      copyInfoBtn.textContent = "Copy Info";
-      copyInfoBtn.addEventListener("click", function (evt) {
-        evt.stopPropagation();
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = createPopup(item);
-        const textContent = tempDiv.textContent || tempDiv.innerText || "";
-        navigator.clipboard.writeText(textContent);
-        removeMarkerMenu();
-      });
-      menu.appendChild(copyInfoBtn);
-
-      // Append menu to the map container
-      map.getContainer().appendChild(menu);
-
-      // Position the menu near the click event (relative to the map container)
-      const mapRect = map.getContainer().getBoundingClientRect();
-      const x = e.originalEvent.clientX - mapRect.left;
-      const y = e.originalEvent.clientY - mapRect.top;
-      menu.style.left = x + "px";
-      menu.style.top = y + "px";
-
-      // Trigger fade-in effect by adding the "show" class after appending
-      setTimeout(() => {
-        menu.classList.add("show");
-      }, 10);
-
-      // Save reference to the current menu
-      currentMarkerMenu = menu;
-    });
-
-    return marker;
-  }
-
-  // Separate maps for failed login events and HTTP events
-  const loginMarkerMap = new Map();
-  const proxyMarkerMap = new Map();
-  const MAX_FAILED_LOGINS = 1000;
-  const MAX_HTTP_EVENTS = 1000;
-
-  // Remove the oldest marker from a given marker map
+  // Modify removeOldestMarker to push removed markers into the pool
   function removeOldestMarker(markerMap) {
     let oldestKey = null;
     let oldestTime = Infinity;
@@ -193,8 +108,98 @@ document.addEventListener("DOMContentLoaded", async function () {
       const oldestMarker = markerMap.get(oldestKey);
       markers.removeLayer(oldestMarker);
       markerMap.delete(oldestKey);
+      // Push the removed marker to the pool for reuse
+      markerPool.push(oldestMarker);
     }
   }
+
+  // Helper: create or reuse a marker based on event type with improved coordinate validation
+  function createMarker(item) {
+    const lat = Number(item.lat);
+    const lon = Number(item.lon);
+    console.log(
+      "Creating marker for",
+      item.city,
+      "with coordinates:",
+      lat,
+      lon,
+    );
+    const icon = item.type === "login" ? loginIcon : proxyIcon;
+
+    let marker;
+    if (markerPool.length > 0) {
+      // Reuse an existing marker from the pool
+      marker = markerPool.pop();
+      marker.setLatLng([lat, lon]);
+      marker.setIcon(icon);
+      marker.setPopupContent(createPopup(item));
+      marker.itemData = item;
+      // Remove previous event listeners
+      marker.off();
+    } else {
+      // Create a new marker if the pool is empty
+      marker = L.marker([lat, lon], { icon: icon });
+      marker.bindPopup(createPopup(item));
+      marker.itemData = item;
+    }
+
+    // Reattach event listeners
+    marker.on("mouseover", function () {
+      this.openPopup();
+    });
+    marker.on("mouseout", function () {
+      this.closePopup();
+    });
+    marker.on("click", function (e) {
+      L.DomEvent.stopPropagation(e);
+      removeMarkerMenu();
+
+      const menu = document.createElement("div");
+      menu.className = "marker-menu";
+
+      const copyIPBtn = document.createElement("button");
+      copyIPBtn.textContent = "Copy IP";
+      copyIPBtn.addEventListener("click", function (evt) {
+        evt.stopPropagation();
+        navigator.clipboard.writeText(item.ip_address || "");
+        removeMarkerMenu();
+      });
+      menu.appendChild(copyIPBtn);
+
+      const copyInfoBtn = document.createElement("button");
+      copyInfoBtn.textContent = "Copy Info";
+      copyInfoBtn.addEventListener("click", function (evt) {
+        evt.stopPropagation();
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = createPopup(item);
+        const textContent = tempDiv.textContent || tempDiv.innerText || "";
+        navigator.clipboard.writeText(textContent);
+        removeMarkerMenu();
+      });
+      menu.appendChild(copyInfoBtn);
+
+      map.getContainer().appendChild(menu);
+      const mapRect = map.getContainer().getBoundingClientRect();
+      const x = e.originalEvent.clientX - mapRect.left;
+      const y = e.originalEvent.clientY - mapRect.top;
+      menu.style.left = x + "px";
+      menu.style.top = y + "px";
+
+      setTimeout(() => {
+        menu.classList.add("show");
+      }, 10);
+
+      currentMarkerMenu = menu;
+    });
+
+    return marker;
+  }
+
+  // Separate maps for failed login events and HTTP events
+  const loginMarkerMap = new Map();
+  const proxyMarkerMap = new Map();
+  const MAX_FAILED_LOGINS = 1000;
+  const MAX_HTTP_EVENTS = 1000;
 
   async function fetchData() {
     if (markers._spiderfied) {
