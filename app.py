@@ -48,7 +48,7 @@ assets.url = app.static_url_path
 
 # Define the SCSS bundle using libsass
 scss_bundle = Bundle(
-    'scss/main.scss',
+    'main.scss',
     filters='libsass',
     output='css/main.css'
 )
