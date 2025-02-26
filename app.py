@@ -48,9 +48,9 @@ assets.url = app.static_url_path
 
 # Define the SCSS bundle: source in static/scss/main.scss, compiled to static/css/main.css
 scss_bundle = Bundle(
-    'static/main.scss',
+    'main.scss',
     filters='pyscss',
-    output='static/main.css'
+    output='main.css'
 )
 assets.register('scss_all', scss_bundle)
 scss_bundle.build()
