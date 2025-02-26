@@ -1079,9 +1079,7 @@ select:focus {
     .action-bar,
     .card-actions,
     .mode-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: none;
     }
     .npm-container {
         display: block;
