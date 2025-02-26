@@ -1,5 +1,5 @@
 from operator import imod
-from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, before_serving
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, be
 import threading
 import logging
 import time
@@ -362,7 +362,6 @@ def start_rtad_log_parser():
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
 # Start background threads on first request
-@app.before_serving
 def start_background_threads():
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
