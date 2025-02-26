@@ -1028,3 +1028,17 @@ select:focus {
         border: 1px solid #000;
     }
 }
+#map.dark-mode .leaflet-tile-pane {
+    filter: invert(100%) hue-rotate(180deg);
+}
+#map.dark-mode .marker-cluster,
+#map.dark-mode .marker-cluster div {
+    color: #000 !important;
+}
+#map.dark-mode .leaflet-popup-content-wrapper {
+    background: #000 !important;
+    color: #fff !important;
+}
+#map.dark-mode .leaflet-popup-tip {
+    background: #000 !important;
+}
