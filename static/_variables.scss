@@ -6,7 +6,7 @@
     --text: #aaaaaa;
     --glass-gradient: linear-gradient(
         135deg,
-        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0.5),
         rgba(0, 0, 0, 0)
     );
 }
@@ -18,7 +18,7 @@ body.light-mode {
     --text: #000000;
     --glass-gradient: linear-gradient(
         135deg,
-        rgba(0, 0, 0, 0.1),
+        rgba(0, 0, 0, 0.3),
         rgba(0, 0, 0, 0)
     );
 }
