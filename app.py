@@ -324,33 +324,9 @@ def start_rtad_log_parser():
     while True:
         time.sleep(10)
 
-
-
-# --- SCSS Integration ---
-app.config['ASSETS_DEBUG'] = True  # Enable debug mode for assets
-assets = Environment(app)
-assets.auto_build = True         # Automatically build assets on the fly
-assets.debug = True              # Enable asset debug information
-assets.directory = 'scss'        # Directory where your SCSS files reside
-assets.url = '/static'           # URL for serving the compiled CSS
-
-scss_bundle = Bundle(
-    'main.scss',                # Your main SCSS file
-    filters='pyscss',           # Using pyscss to compile SCSS
-    output='style.css',         # Output file will be placed in the static folder
-    depends='**/*.scss'         # Watch all SCSS files in the directory and subdirectories
-)
-assets.register('scss_all', scss_bundle)
-
-# Initialize Flask-Scss to automatically compile SCSS on changes
-from flask_scss import Scss
-Scss(app, static_dir='static', asset_dir='scss')
-
-
-
-threading.Thread(target=start_rtad_log_parser, daemon=True).start()
-
 with app.app_context():
+    # Start background threads
+    threading.Thread(target=start_rtad_log_parser, daemon=True).start()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
@@ -358,6 +334,7 @@ with app.app_context():
 
 if __name__ == '__main__':
     # Start background threads
+    threading.Thread(target=start_rtad_log_parser, daemon=True).start()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
