@@ -1,0 +1,158 @@
+/* _components.scss */
+
+/* Buttons */
+button {
+    @include glass-effect();
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Navigation Tabs */
+.nav-tabs {
+    display: flex;
+    @include glass-effect();
+    padding: 1rem;
+}
+.nav-tabs a {
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    margin-right: 1rem;
+    border-bottom: 2px solid transparent;
+}
+.nav-tabs a.active {
+    border-bottom: 2px solid var(--primary);
+    font-weight: bold;
+}
+
+/* Layout and Grid */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.full-width {
+    grid-column: 1 / -1;
+}
+
+/* Cards */
+.card,
+.rtad.card {
+    @include glass-effect();
+    padding: 1.5rem;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+}
+.card:hover,
+.rtad.card:hover {
+    @include hover-effect(1.02, 0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* Card Header */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.card-title {
+    font-size: 1rem;
+    color: #7d7d7d;
+    margin-right: 0.5rem;
+}
+
+/* Tables */
+table {
+    color: var(--text);
+    width: 100%;
+    border-collapse: collapse;
+}
+table th,
+table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+}
+.modal-container {
+    @include glass-effect();
+    border-radius: 0.5rem;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.modal-header,
+.modal-footer {
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.modal-body {
+    padding: 1rem;
+    overflow-y: auto;
+}
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text);
+    cursor: pointer;
+}
+
+/* Additional Component Styles */
+/* Navigation for NPM, action bars, and responsive adjustments can be added below following similar patterns */
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+    .nav-tabs {
+        flex-direction: column;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .modal-overlay,
+    .card,
+    .container {
+        border: 1px solid #000;
+    }
+}

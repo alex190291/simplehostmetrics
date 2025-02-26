@@ -1,0 +1,21 @@
+/* _mixins.scss */
+// Mixin for glassmorphism effect
+@mixin glass-effect($borderColor: rgba(255, 255, 255, 0.1)) {
+    background: var(--glass);
+    background-image: var(--glass-gradient);
+    backdrop-filter: blur(10px);
+    border: 1px solid $borderColor;
+    border-radius: 0.5rem;
+    transition:
+        background 0.3s,
+        transform 0.3s,
+        box-shadow 0.3s;
+}
+
+// Mixin for hover effect on interactive elements
+@mixin hover-effect($scale: 1.02, $shadow: 0 4px 8px rgba(0, 0, 0, 0.2)) {
+    &:hover {
+        transform: scale($scale);
+        box-shadow: $shadow;
+    }
+}

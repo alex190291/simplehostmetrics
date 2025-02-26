@@ -5,8 +5,8 @@ import time
 import yaml
 import requests
 import docker
+import os
 from urllib.parse import urljoin
-
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_security.utils import hash_password
@@ -18,6 +18,9 @@ import stats
 import docker_manager
 from custom_network import custom_network_bp
 from database import initialize_database, load_history
+
+# Flask-Assets for SCSS compilation
+from flask_assets import Environment, Bundle
 
 # Load configuration from config.yml
 with open('config.yml', 'r') as f:
@@ -37,6 +40,20 @@ app.config['SECURITY_SEND_REGISTER_EMAIL'] = False
 app.config['SECURITY_RECOVERABLE'] = False
 app.config['SECURITY_LOGIN_USER_TEMPLATE'] = 'login_user.html'
 app.config['npm'] = config_data.get('npm', {})
+
+# Initialize Flask-Assets
+assets = Environment(app)
+assets.directory = os.path.join(app.root_path, 'static')
+assets.url = app.static_url_path
+
+# Define the SCSS bundle: source in static/scss/main.scss, compiled to static/css/main.css
+scss_bundle = Bundle(
+    'scss/main.scss',
+    filters='pyscss',
+    output='css/main.css'
+)
+assets.register('scss_all', scss_bundle)
+scss_bundle.build()
 
 # Initialize SQLAlchemy with our app
 db.init_app(app)
