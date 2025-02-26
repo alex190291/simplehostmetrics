@@ -237,7 +237,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (err) {
       console.error("Error loading attack map data:", err);
     }
-    setTimeout(fetchData, 1000);
+    setTimeout(fetchData, 5000);
   }
 
   map.addLayer(markers);
