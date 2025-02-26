@@ -1,13 +1,14 @@
-/* Glassmorphism 2.0 Complete CSS File */
+/* Glassmorphism 2.0 Complete CSS File with Darker Gradients and Map Dark Mode Fix */
 
 /* CSS Variables for Glassmorphism 2.0 */
 :root {
     --bg-color: #0a0a0a;
     --glass: rgba(18, 18, 18, 0.5); /* refined opacity */
+    /* Updated darker gradient for a more pronounced glass effect */
     --glass-gradient: linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.15),
-        rgba(255, 255, 255, 0)
+        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0)
     );
     --primary: #2d5a4f;
     --text: #aaaaaa;
@@ -18,9 +19,10 @@
 body.light-mode {
     --bg-color: #f0f0f0;
     --glass: rgba(255, 255, 255, 0.4);
+    /* Slightly less intense gradient in light mode */
     --glass-gradient: linear-gradient(
         135deg,
-        rgba(0, 0, 0, 0.05),
+        rgba(0, 0, 0, 0.1),
         rgba(0, 0, 0, 0)
     );
     --primary: #8bbabb;
@@ -1028,6 +1030,8 @@ select:focus {
         border: 1px solid #000;
     }
 }
+
+/* Dark Mode for Leaflet Map Elements */
 #map.dark-mode .leaflet-tile-pane {
     filter: invert(100%) hue-rotate(180deg);
 }
