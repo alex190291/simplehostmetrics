@@ -12,7 +12,7 @@
     );
 }
 
-body.light-mode {
+.light-mode {
     --bg-color: #f0f0f0;
     --glass: rgba(5, 112, 85, 0.4);
     --primary: #2d5a4f;
@@ -23,3 +23,13 @@ body.light-mode {
         rgba(0, 0, 0, 0)
     );
 }
+
+// Also add SCSS variables for use in mixins and calculations
+$bg-color-dark: #0a0a0a;
+$glass-dark: rgba(18, 18, 18, 0.5);
+$primary-color: #2d5a4f;
+$text-color-dark: #aaaaaa;
+
+$bg-color-light: #f0f0f0;
+$glass-light: rgba(5, 112, 85, 0.4);
+$text-color-light: #000000;
