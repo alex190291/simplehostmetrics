@@ -7,6 +7,11 @@ let currentSorts = {
 
 const dateCache = new Map();
 
+// Global cumulative stores for the tables
+let cumulativeLastbData = [];
+let cumulativeProxyData = [];
+
+// Caches parsed dates for performance
 function getParsedDate(timestamp) {
   if (!dateCache.has(timestamp)) {
     // Directly parse ISO‑8601 timestamps and cache the millisecond value
@@ -114,44 +119,52 @@ function generateRowHTML(item, type) {
   return "";
 }
 
-// Diff-based update: only update rows that differ from new data
-function updateTable(tbodySelector, data, type) {
-  const tbody = document.querySelector(tbodySelector);
-  const existingRows = Array.from(tbody.children);
-
-  // Update or add rows based on new data
-  data.forEach((item, index) => {
-    const newRowHTML = generateRowHTML(item, type).trim();
-    if (existingRows[index]) {
-      // Compare trimmed innerHTML to avoid unnecessary updates
-      if (existingRows[index].innerHTML.trim() !== newRowHTML) {
-        existingRows[index].innerHTML = newRowHTML;
-      }
-    } else {
-      const newRow = document.createElement("tr");
-      newRow.innerHTML = newRowHTML;
-      tbody.appendChild(newRow);
+// Merge new diff data into the cumulative store without duplicates
+function mergeDiffData(cumulativeData, newData, idKey = "id") {
+  const existingIds = new Set(cumulativeData.map((item) => item[idKey]));
+  newData.forEach((item) => {
+    if (!existingIds.has(item[idKey])) {
+      cumulativeData.push(item);
     }
   });
+  return cumulativeData;
+}
 
-  // Remove extra rows if new data has fewer entries
-  while (tbody.children.length > data.length) {
-    tbody.removeChild(tbody.lastChild);
-  }
+// Re-render table based on the cumulative store
+function updateTableFromStore(tbodySelector, cumulativeData, type) {
+  const tbody = document.querySelector(tbodySelector);
+  const fragment = document.createDocumentFragment();
+  cumulativeData.forEach((item) => {
+    const newRowHTML = generateRowHTML(item, type).trim();
+    const row = document.createElement("tr");
+    row.innerHTML = newRowHTML;
+    fragment.appendChild(row);
+  });
+  tbody.innerHTML = "";
+  tbody.appendChild(fragment);
 }
 
 function fetchRTADData() {
+  // Fetch for lastb (failed login attempts)
   let lastbUrl = "/rtad_lastb";
-  if (lastbLastId !== null) {
-    lastbUrl += "?last_id=" + lastbLastId;
+  // Use the ID of the last record in the cumulative store, if available
+  let lastbLastIdParam =
+    cumulativeLastbData.length > 0
+      ? cumulativeLastbData[cumulativeLastbData.length - 1].id
+      : null;
+  if (lastbLastIdParam !== null) {
+    lastbUrl += "?last_id=" + lastbLastIdParam;
   }
 
   fetch(lastbUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      updateTable("#lastbTable tbody", data, "lastb");
-      lastbLastId = data[data.length - 1].id;
+      cumulativeLastbData = mergeDiffData(cumulativeLastbData, data, "id");
+      // Update the lastbLastId based on the latest cumulative data
+      lastbLastId =
+        cumulativeLastbData[cumulativeLastbData.length - 1].id || lastbLastId;
+      updateTableFromStore("#lastbTable tbody", cumulativeLastbData, "lastb");
       if (currentSorts.lastbTable && currentSorts.lastbTable.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
@@ -166,17 +179,24 @@ function fetchRTADData() {
       console.error("Error fetching /rtad_lastb data:", error);
     });
 
+  // Fetch for proxy logs (HTTP error events)
   let proxyUrl = "/rtad_proxy";
-  if (proxyLastId !== null) {
-    proxyUrl += "?last_id=" + proxyLastId;
+  let proxyLastIdParam =
+    cumulativeProxyData.length > 0
+      ? cumulativeProxyData[cumulativeProxyData.length - 1].id
+      : null;
+  if (proxyLastIdParam !== null) {
+    proxyUrl += "?last_id=" + proxyLastIdParam;
   }
 
   fetch(proxyUrl, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       if (data.length === 0) return;
-      updateTable("#proxyTable tbody", data, "proxy");
-      proxyLastId = data[data.length - 1].id;
+      cumulativeProxyData = mergeDiffData(cumulativeProxyData, data, "id");
+      proxyLastId =
+        cumulativeProxyData[cumulativeProxyData.length - 1].id || proxyLastId;
+      updateTableFromStore("#proxyTable tbody", cumulativeProxyData, "proxy");
       if (currentSorts.proxyTable && currentSorts.proxyTable.column !== null) {
         requestAnimationFrame(() => {
           sortTable(
@@ -193,6 +213,9 @@ function fetchRTADData() {
 }
 
 function refreshRTADData() {
+  // Clear cumulative data and reset IDs for a full reload
+  cumulativeLastbData = [];
+  cumulativeProxyData = [];
   lastbLastId = null;
   proxyLastId = null;
   fetchRTADData();
