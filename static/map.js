@@ -113,27 +113,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  // Notifikationsfunktionen im Stil von /static/npm/NPMUtils.js
-  function showNotification(message, type) {
-    const notification = document.createElement("div");
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.classList.add("show"), 100);
-    setTimeout(() => {
-      notification.classList.remove("show");
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
-  }
-
-  function showError(message) {
-    showNotification(message, "error");
-  }
-
-  function showSuccess(message) {
-    showNotification(message, "success");
-  }
-
   // Helper: create or reuse a marker based on event type with improved coordinate validation
   function createMarker(item) {
     const lat = Number(item.lat);
@@ -155,7 +134,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       marker.setIcon(icon);
       marker.setPopupContent(createPopup(item));
       marker.itemData = item;
-      marker.off(); // Entferne vorherige Event Listener
+      // Remove previous event listeners
+      marker.off();
     } else {
       // Create a new marker if the pool is empty
       marker = L.marker([lat, lon], { icon: icon });
@@ -163,42 +143,17 @@ document.addEventListener("DOMContentLoaded", async function () {
       marker.itemData = item;
     }
 
-    // Popup on hover: show on mouseover and hide on mouseout
+    // Reattach event listeners
     marker.on("mouseover", function () {
       this.openPopup();
     });
     marker.on("mouseout", function () {
       this.closePopup();
     });
-
-    // Klick-Event-Handler
     marker.on("click", function (e) {
-      // Verhindere weitere Eventverarbeitung
-      e.originalEvent.stopImmediatePropagation();
-      e.preventDefault();
-
-      // Prüfen, ob der Marker Teil eines spiderfied Clusters ist und auch in dessen Anzeige enthalten ist
-      if (
-        markers._spiderfied &&
-        typeof markers._spiderfied.getAllChildMarkers === "function" &&
-        markers._spiderfied.getAllChildMarkers().includes(marker)
-      ) {
-        navigator.clipboard
-          .writeText(marker.itemData.ip_address || "")
-          .then(() => {
-            showSuccess("IP copied to clipboard");
-            // Sicherstellen, dass das Popup sichtbar bleibt
-            marker.openPopup();
-          })
-          .catch(() => {
-            showError("Failed to copy IP");
-            marker.openPopup();
-          });
-        return;
-      }
-
-      // Andernfalls: Marker-Menü mit Optionen "Copy IP" und "Copy Info" anzeigen
+      L.DomEvent.stopPropagation(e);
       removeMarkerMenu();
+
       const menu = document.createElement("div");
       menu.className = "marker-menu";
 
@@ -206,14 +161,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       copyIPBtn.textContent = "Copy IP";
       copyIPBtn.addEventListener("click", function (evt) {
         evt.stopPropagation();
-        navigator.clipboard
-          .writeText(item.ip_address || "")
-          .then(() => {
-            showSuccess("IP copied to clipboard");
-          })
-          .catch(() => {
-            showError("Failed to copy IP");
-          });
+        navigator.clipboard.writeText(item.ip_address || "");
         removeMarkerMenu();
       });
       menu.appendChild(copyIPBtn);
@@ -225,14 +173,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = createPopup(item);
         const textContent = tempDiv.textContent || tempDiv.innerText || "";
-        navigator.clipboard
-          .writeText(textContent)
-          .then(() => {
-            showSuccess("Info copied to clipboard");
-          })
-          .catch(() => {
-            showError("Failed to copy Info");
-          });
+        navigator.clipboard.writeText(textContent);
         removeMarkerMenu();
       });
       menu.appendChild(copyInfoBtn);
