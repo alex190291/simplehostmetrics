@@ -243,6 +243,7 @@ def npm_settings():
 @login_required
 def npm_proxy(path):
     npm_domain = config_data['npm']['domain']
+    # Use HTTPS for proxy if required; adjust scheme if necessary.
     npm_url = f'http://{npm_domain}/api/'
     target_url = urljoin(npm_url, path)
 
@@ -251,10 +252,14 @@ def npm_proxy(path):
     app.logger.debug(f"Headers: {dict(request.headers)}")
 
     try:
+        # Get a valid token from the token manager
         token = NPM_TOKEN_MANAGER.get_token()
+
+        # Prepare headers: forward incoming headers (minus some) and add Authorization
         headers = {k: v for k, v in request.headers.items() if k.lower() not in ['host', 'content-length']}
         headers['Authorization'] = f'Bearer {token}'
 
+        # Forward the request to NPM
         response = requests.request(
             method=request.method,
             url=target_url,
@@ -262,12 +267,13 @@ def npm_proxy(path):
             data=request.get_data(),
             cookies=request.cookies,
             allow_redirects=False,
-            verify=False
+            verify=False  # Set to False if using self-signed certificate in production adjust accordingly
         )
 
         app.logger.debug(f"NPM Response status: {response.status_code}")
         app.logger.debug(f"NPM Response headers: {dict(response.headers)}")
 
+        # Return the response from NPM
         return (
             response.content,
             response.status_code,
@@ -287,6 +293,7 @@ def rtad():
 @app.route("/rtad_lastb")
 @login_required
 def rtad_lastb():
+    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     attempts = rtad_manager.fetch_login_attempts()
@@ -299,6 +306,7 @@ def rtad_lastb():
 @app.route("/rtad_proxy")
 @login_required
 def rtad_proxy():
+    # Force an update of country and city info before returning data
     rtad_manager.update_missing_country_info()
     last_id = request.args.get("last_id", default=None, type=int)
     logs = rtad_manager.fetch_http_error_logs()
@@ -308,6 +316,7 @@ def rtad_proxy():
         logs = logs[-5000:]
     return jsonify(logs)
 
+# Attack map data endpoint
 @app.route('/api/attack_map_data')
 @login_required
 def attack_map_data():
@@ -322,6 +331,7 @@ def attack_map_data():
     proxy_data = rtad_manager.fetch_http_error_logs()[-1000:]
     results = []
 
+    # Merge login attempts
     for item in login_data:
         results.append({
             "ip_address": item.get("ip_address"),
@@ -335,6 +345,7 @@ def attack_map_data():
             "failure_reason": item.get("failure_reason", "")
         })
 
+    # Merge proxy logs
     for item in proxy_data:
         results.append({
             "ip_address": item.get("ip_address"),
@@ -352,7 +363,7 @@ def attack_map_data():
 
     return jsonify(results)
 
-# Start the RTAD log parser thread immediately
+# Background Threads
 def start_rtad_log_parser():
     parser = rtad_manager.LogParser()
     parser.parse_log_files()
@@ -361,13 +372,9 @@ def start_rtad_log_parser():
 
 threading.Thread(target=start_rtad_log_parser, daemon=True).start()
 
-# Start background threads on first request
-def start_background_threads():
+if __name__ == '__main__':
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
     threading.Thread(target=docker_manager.docker_info_updater, daemon=True).start()
     threading.Thread(target=docker_manager.check_image_updates, daemon=True).start()
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
-
-# Allow running the development server if executed directly
-if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], use_reloader=True)
