@@ -173,22 +173,21 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Klick-Event-Handler
     marker.on("click", function (e) {
-      // Stop event propagation and verhindern des Standardverhaltens
-      L.DomEvent.stopPropagation(e);
+      // Verhindere weitere Eventverarbeitung
+      e.originalEvent.stopImmediatePropagation();
       e.preventDefault();
 
-      // Prüfen, ob der Marker Teil eines spiderfied Clusters mit nur einem Marker ist
+      // Prüfen, ob der Marker Teil eines spiderfied Clusters ist und auch in dessen Anzeige enthalten ist
       if (
         markers._spiderfied &&
         typeof markers._spiderfied.getAllChildMarkers === "function" &&
-        markers._spiderfied.getAllChildMarkers().length === 1
+        markers._spiderfied.getAllChildMarkers().includes(marker)
       ) {
-        // Direkt IP in die Zwischenablage kopieren und Benachrichtigung anzeigen
         navigator.clipboard
           .writeText(marker.itemData.ip_address || "")
           .then(() => {
             showSuccess("IP copied to clipboard");
-            // Sicherstellen, dass das Popup offen bleibt
+            // Sicherstellen, dass das Popup sichtbar bleibt
             marker.openPopup();
           })
           .catch(() => {
@@ -198,7 +197,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
       }
 
-      // Falls nicht: Marker-Menü mit Optionen "Copy IP" und "Copy Info" anzeigen
+      // Andernfalls: Marker-Menü mit Optionen "Copy IP" und "Copy Info" anzeigen
       removeMarkerMenu();
       const menu = document.createElement("div");
       menu.className = "marker-menu";
