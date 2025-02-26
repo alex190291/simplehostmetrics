@@ -1,96 +1,187 @@
-/* _components.scss */
+/* _components.scss - Styles for UI components */
+
+@import "mixins";
 
 /* Buttons */
 button {
-    @include glass-effect();
+    @include button-style;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 1rem;
+
+    &.primary {
+        background: var(--primary);
+        color: var(--text);
+    }
+
+    &.secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--text);
+    }
+}
+
+.btn-primary {
+    background: var(--primary);
     color: var(--text);
+    border: none;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
-}
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s;
+
+    &:hover {
+        background: var(--text);
+        color: var(--primary);
+    }
 }
 
-/* Navigation Tabs */
-.nav-tabs {
-    display: flex;
-    @include glass-effect();
-    padding: 1rem;
-}
-.nav-tabs a {
+.btn-secondary {
+    background: transparent;
     color: var(--text);
+    border: 1px solid var(--text);
     padding: 0.5rem 1rem;
-    text-decoration: none;
-    margin-right: 1rem;
-    border-bottom: 2px solid transparent;
-}
-.nav-tabs a.active {
-    border-bottom: 2px solid var(--primary);
-    font-weight: bold;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+
+    &:hover {
+        background: var(--text);
+        color: var(--bg-color);
+    }
 }
 
-/* Layout and Grid */
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-    position: relative;
-    z-index: 1;
+button.update-btn {
+    background: var(--primary);
+    color: var(--text);
+    border: none;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.6s ease;
 }
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+
+.settings-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.2rem;
+    cursor: pointer;
+    margin-left: 0.5rem;
 }
-.full-width {
-    grid-column: 1 / -1;
+
+.add-btn {
+    background: var(--primary);
+    color: var(--text);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+
+    &:hover {
+        background: var(--text);
+        color: var(--primary);
+    }
+}
+
+.mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--primary);
+    color: var(--text);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    transition:
+        background 0.3s,
+        color 0.3s;
+    z-index: 1000;
 }
 
 /* Cards */
 .card {
-    @include glass-effect();
+    @include glass-effect;
+    border-radius: 1rem;
     padding: 1.5rem;
     position: relative;
-    cursor: pointer;
-    overflow: hidden;
     backface-visibility: hidden;
     transform: translateZ(0);
     will-change: transform;
-    max-height: 500px; /* or an appropriate max height */
-    flex-shrink: 0;
-}
-.card:hover {
-    @include hover-effect(1.02, 0 4px 8px rgba(0, 0, 0, 0.2));
+    overflow: hidden;
 
+    @include card-hover;
+}
 
 .rtad.card {
-    @include glass-effect();
+    @include glass-effect;
+    border-radius: 1rem;
     padding: 1.5rem;
     position: relative;
-    cursor: pointer;
-    overflow: hidden;
     backface-visibility: hidden;
     transform: translateZ(0);
     will-change: transform;
-}
-.rtad.card:hover {
-    @include hover-effect(1.02, 0 4px 8px rgba(0, 0, 0, 0.2));
+    overflow: hidden;
+
+    @include card-hover;
 }
 
-/* Card Header */
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
 }
+
 .card-title {
     font-size: 1rem;
     color: #7d7d7d;
     margin-right: 0.5rem;
+}
+
+.card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Navigation */
+.nav-tabs {
+    display: flex;
+    @include glass-effect;
+    padding: 1rem;
+
+    a {
+        color: var(--text);
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        margin-right: 1rem;
+        border-bottom: 2px solid transparent;
+
+        &.active {
+            border-bottom: 2px solid var(--primary);
+            font-weight: bold;
+        }
+    }
 }
 
 /* Tables */
@@ -98,15 +189,85 @@ table {
     color: var(--text);
     width: 100%;
     border-collapse: collapse;
-}
-table th,
-table td {
-    padding: 0.5rem;
-    text-align: left;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    th,
+    td {
+        padding: 0.5rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
 }
 
-/* Modal Styles */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    th {
+        background: rgba(0, 0, 0, 0.2);
+        font-weight: 500;
+    }
+
+    tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* Status indicators */
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+
+    &.status-green {
+        background-color: #1e8449;
+    }
+
+    &.status-yellow {
+        background-color: #f1c40f;
+    }
+
+    &.status-blue {
+        background-color: #21618c;
+    }
+
+    &.status-red {
+        background-color: #c0392b;
+    }
+
+    &.active {
+        background-color: #2ecc71;
+    }
+
+    &.inactive {
+        background-color: #e74c3c;
+    }
+}
+
+/* Loaders */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top: 2px solid rgba(255, 255, 255, 1);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-left: 4px;
+}
+
+.loading {
+    @include loading-spinner;
+}
+
+/* Modal */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -119,8 +280,9 @@ table td {
     align-items: center;
     z-index: 1100;
 }
+
 .modal-container {
-    @include glass-effect();
+    @include glass-effect;
     border-radius: 0.5rem;
     width: 90%;
     max-width: 500px;
@@ -129,6 +291,7 @@ table td {
     flex-direction: column;
     overflow: hidden;
 }
+
 .modal-header,
 .modal-footer {
     padding: 1rem;
@@ -137,10 +300,12 @@ table td {
     align-items: center;
     justify-content: space-between;
 }
+
 .modal-body {
     padding: 1rem;
     overflow-y: auto;
 }
+
 .modal-close-btn {
     background: none;
     border: none;
@@ -149,24 +314,216 @@ table td {
     cursor: pointer;
 }
 
-/* Additional Component Styles */
-/* Navigation for NPM, action bars, and responsive adjustments can be added below following similar patterns */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
 
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    .container {
-        padding: 1rem;
-    }
-    .nav-tabs {
-        flex-direction: column;
+    &-content {
+        @include glass-effect;
+        border-radius: 1rem;
+        padding: 2rem;
+        width: 90%;
+        max-width: 600px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
 }
 
-/* Print Styles */
-@media print {
-    .modal-overlay,
-    .card,
-    .container {
-        border: 1px solid #000;
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+
+    label {
+        margin-bottom: 0.5rem;
+    }
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.25rem;
+    color: var(--text);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.search-bar input {
+    background: var(--glass);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    color: var(--text);
+    width: 300px;
+}
+
+/* Statistics */
+.stat-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+    height: 200px;
+    padding: 10px;
+}
+
+.chart-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+}
+
+.color-labels {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+
+.color-label {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.color-box {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    border-radius: 3px;
+    border: 1px solid #000;
+
+    &.free {
+        background-color: #1e8449;
+    }
+
+    &.usage {
+        background-color: #057055;
+    }
+
+    &.used {
+        background-color: #922b21;
+    }
+
+    &.cached {
+        background-color: #21618c;
+    }
+}
+
+.detail-view {
+    margin-top: 1rem;
+    display: none;
+    max-height: 300px;
+    min-height: 200px;
+    overflow: auto;
+
+    .graph-label {
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    @include glass-effect;
+    transform: translateX(120%);
+    transition: transform 0.3s;
+    z-index: 2000;
+
+    &.show {
+        transform: translateX(0);
+    }
+
+    &.success {
+        border-left: 4px solid #2ecc71;
+    }
+
+    &.error {
+        border-left: 4px solid #e74c3c;
+    }
+}
+
+/* Certificate Components */
+.cert-tabs {
+    display: flex;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cert-tab {
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+
+    &.active {
+        border-bottom: 2px solid var(--primary);
+    }
+}
+
+.cert-form {
+    display: none;
+
+    &.active {
+        display: block;
+    }
+}
+
+.expiry-indicator {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+
+    &.valid {
+        background: rgba(30, 132, 73, 0.2);
+        color: #2ecc71;
+    }
+
+    &.warning {
+        background: rgba(241, 196, 15, 0.2);
+        color: #f1c40f;
+    }
+
+    &.expired {
+        background: rgba(192, 57, 43, 0.2);
+        color: #e74c3c;
     }
 }

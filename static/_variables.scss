@@ -1,12 +1,13 @@
-/* _variables.scss */
+/* _variables.scss - Theme variables and color definitions */
+
 :root {
     --bg-color: #0a0a0a;
     --glass: rgba(18, 18, 18, 0.5);
-    --primary: #018b69;
+    --primary: #2d5a4f;
     --text: #aaaaaa;
     --glass-gradient: linear-gradient(
         135deg,
-        rgba(0, 0, 0, 0.5),
+        rgba(0, 0, 0, 0.2),
         rgba(0, 0, 0, 0)
     );
 }
@@ -14,11 +15,11 @@
 body.light-mode {
     --bg-color: #f0f0f0;
     --glass: rgba(5, 112, 85, 0.4);
-    --primary: #018b69;
+    --primary: #8bbabb;
     --text: #000000;
     --glass-gradient: linear-gradient(
         135deg,
-        rgba(0, 0, 0, 0.3),
+        rgba(0, 0, 0, 0.1),
         rgba(0, 0, 0, 0)
     );
 }

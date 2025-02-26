@@ -1,21 +1,91 @@
-/* _mixins.scss */
-// Mixin for glassmorphism effect
-@mixin glass-effect($borderColor: rgba(255, 255, 255, 0.1)) {
+/* _mixins.scss - Reusable SCSS patterns */
+
+// Glass effect mixin
+@mixin glass-effect {
     background: var(--glass);
     background-image: var(--glass-gradient);
     backdrop-filter: blur(10px);
-    border: 1px solid $borderColor;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// Card hover effect
+@mixin card-hover {
+    transition:
+        transform 0.3s,
+        box-shadow 0.3s;
+    cursor: pointer;
+
+    &:hover {
+        transform: scale(1.02) translateZ(0);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+}
+
+// Media query for responsive design
+@mixin responsive-mobile {
+    @media (max-width: 768px) {
+        @content;
+    }
+}
+
+// Status indicator
+@mixin status-indicator($color) {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    background-color: $color;
+}
+
+// Button style
+@mixin button-style {
+    @include glass-effect;
+    color: var(--text);
+    padding: 0.5rem 1rem;
     border-radius: 0.5rem;
+    cursor: pointer;
     transition:
         background 0.3s,
         transform 0.3s,
         box-shadow 0.3s;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
 }
 
-// Mixin for hover effect on interactive elements
-@mixin hover-effect($scale: 1.02, $shadow: 0 4px 8px rgba(0, 0, 0, 0.2)) {
-    &:hover {
-        transform: scale($scale);
-        box-shadow: $shadow;
+// Loading spinner
+@mixin loading-spinner {
+    position: relative;
+
+    &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: inherit;
+    }
+
+    &::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 30px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: var(--text);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        z-index: 1;
     }
 }
