@@ -46,11 +46,11 @@ assets = Environment(app)
 assets.directory = os.path.join(app.root_path, 'static')
 assets.url = app.static_url_path
 
-# Define the SCSS bundle: source in static/scss/main.scss, compiled to static/css/main.css
+# Define the SCSS bundle using libsass
 scss_bundle = Bundle(
-    'main.scss',
-    filters='pyscss',
-    output='main.css'
+    'scss/main.scss',
+    filters='libsass',
+    output='css/main.css'
 )
 assets.register('scss_all', scss_bundle)
 scss_bundle.build()
