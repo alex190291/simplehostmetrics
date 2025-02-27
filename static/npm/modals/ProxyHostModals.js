@@ -77,10 +77,6 @@ function openDnsChallengeModal() {
   });
 }
 
-// -------------------------
-// End DNS Challenge Modal Logic
-// -------------------------
-
 // Helper function to populate the certificate dropdown dynamically
 async function populateCertificateDropdown(selectElement, selectedValue = "") {
   try {
@@ -137,12 +133,31 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
   }
 }
 
-// -------------------------
-// Add Host Flow
-// -------------------------
-export function populateAddHostForm() {
-  const form = document.getElementById("addHostForm");
-  form.innerHTML = `
+// Generate form HTML for host configuration - used by both add and edit modals
+function generateHostFormHTML(host = null) {
+  const isEdit = host !== null;
+  const idField = isEdit
+    ? `<input type="hidden" name="host_id" value="${host.id}">`
+    : "";
+  const domainNames = isEdit ? host.domain_names.join(", ") : "";
+  const forwardHost = isEdit ? host.forward_host : "";
+  const forwardPort = isEdit ? host.forward_port : "";
+  const forwardSchemeHttp =
+    isEdit && host.forward_scheme === "http" ? "selected" : "";
+  const forwardSchemeHttps =
+    isEdit && host.forward_scheme === "https" ? "selected" : "";
+  const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
+  const websocketsSupport = isEdit && host.websockets_support ? "checked" : "";
+  const blockExploits = isEdit && host.block_exploits ? "checked" : "";
+  const sslForced = isEdit && host.ssl_forced ? "checked" : "";
+  const http2Support = isEdit && host.http2_support ? "checked" : "";
+  const hstsEnabled = isEdit && host.hsts_enabled ? "checked" : "";
+  const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
+  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
+  const submitBtnText = isEdit ? "Update Host" : "Add Host";
+
+  return `
+    ${idField}
     <div class="tabs">
       <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
       <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
@@ -150,21 +165,21 @@ export function populateAddHostForm() {
     <div class="tab-content" id="generalTab">
       <div class="form-group">
         <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names" required>
+        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
       </div>
       <div class="form-group">
         <label for="forward_host">Forward Host</label>
-        <input type="text" id="forward_host" name="forward_host" required>
+        <input type="text" id="forward_host" name="forward_host" value="${forwardHost}" required>
       </div>
       <div class="form-group">
         <label for="forward_port">Forward Port</label>
-        <input type="number" id="forward_port" name="forward_port" required>
+        <input type="number" id="forward_port" name="forward_port" value="${forwardPort}" required>
       </div>
       <div class="form-group">
         <label for="forward_scheme">Upstream Scheme</label>
         <select id="forward_scheme" name="forward_scheme" required>
-          <option value="http">http</option>
-          <option value="https">https</option>
+          <option value="http" ${forwardSchemeHttp}>http</option>
+          <option value="https" ${forwardSchemeHttps}>https</option>
         </select>
       </div>
       <div class="form-group">
@@ -179,339 +194,229 @@ export function populateAddHostForm() {
       </div>
       <div class="form-group">
         <label>
-          <input type="checkbox" id="cache_assets" name="cache_assets">
+          <input type="checkbox" id="cache_assets" name="cache_assets" ${cacheAssets}>
           Cache Assets
         </label>
       </div>
       <div class="form-group">
         <label>
-          <input type="checkbox" id="websockets_support" name="websockets_support">
+          <input type="checkbox" id="websockets_support" name="websockets_support" ${websocketsSupport}>
           Websockets Support
         </label>
       </div>
       <div class="form-group">
         <label>
-          <input type="checkbox" id="block_exploits" name="block_exploits">
+          <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
           Block Common Exploits
         </label>
       </div>
       <div class="form-group">
         <label>
-        <input type="checkbox" id="ssl_forced" name="ssl_forced">
-                  Force SSL
-                </label>
-              </div>
-              <div class="form-group">
-                <label>
-                  <input type="checkbox" id="http2_support" name="http2_support">
-                  HTTP/2 Support
-                </label>
-              </div>
-              <div class="form-group">
-                <label>
-                  <input type="checkbox" id="hsts_enabled" name="hsts_enabled">
-                  HSTS Enabled
-                </label>
-              </div>
-              <div class="form-group">
-                <label>
-                  <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains">
-                  HSTS Subdomains
-                </label>
-              </div>
-            </div>
-            <div class="tab-content" id="customTab" style="display:none;">
-              <div class="form-group">
-                <label for="custom_config">Custom Nginx Config</label>
-                <textarea id="custom_config" name="custom_config" rows="30"></textarea>
-              </div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Add Host</button>
-              <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-            </div>
-          `;
+          <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
+          Force SSL
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
+          HTTP/2 Support
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
+          HSTS Enabled
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
+          HSTS Subdomains
+        </label>
+      </div>
+    </div>
+    <div class="tab-content" id="customTab" style="display:none;">
+      <div class="form-group">
+        <label for="custom_config">Custom Nginx Config</label>
+        <textarea id="custom_config" name="custom_config" rows="30">${customConfig}</textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">${submitBtnText}</button>
+      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+    </div>
+  `;
+}
+
+// Process form data from both add and edit forms
+function processHostFormData(formData) {
+  const certificate_id_raw = formData.get("certificate_id");
+  let certificate_id;
+  if (certificate_id_raw === "") {
+    certificate_id = null;
+  } else if (
+    certificate_id_raw === "new_dns" ||
+    certificate_id_raw === "new_nodns"
+  ) {
+    certificate_id = "new";
+  } else {
+    certificate_id = parseInt(certificate_id_raw);
+  }
+  const access_list_id_raw = formData.get("access_list_id");
+  const access_list_id =
+    access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
+
+  return {
+    domain_names: formData
+      .get("domain_names")
+      .split(",")
+      .map((d) => d.trim()),
+    forward_host: formData.get("forward_host"),
+    forward_port: parseInt(formData.get("forward_port")),
+    forward_scheme: formData.get("forward_scheme"),
+    certificate_id: certificate_id,
+    access_list_id: access_list_id,
+    caching_enabled: formData.get("cache_assets") === "on",
+    allow_websocket_upgrade: formData.get("websockets_support") === "on",
+    block_exploits: formData.get("block_exploits") === "on",
+    ssl_forced: formData.get("ssl_forced") === "on",
+    http2_support: formData.get("http2_support") === "on",
+    hsts_enabled: formData.get("hsts_enabled") === "on",
+    hsts_subdomains: formData.get("hsts_subdomains") === "on",
+    advanced_config: formData.get("custom_config"),
+  };
+}
+
+// Create certificate helper
+async function createCertificate(domainNames, hasDnsChallenge = false) {
+  const certPayload = {
+    provider: "letsencrypt",
+    domain_names: domainNames,
+  };
+
+  if (hasDnsChallenge) {
+    const dnsData = await openDnsChallengeModal();
+    certPayload.dns_challenge = {
+      provider: dnsData.provider,
+      credentials: dnsData.credentials,
+      wait_time: dnsData.wait_time,
+    };
+  }
+
+  const certModule = await import("../managers/CertificateManager.js");
+  return certModule.createCertificate(certPayload);
+}
+
+// Setup form for both add and edit
+function setupHostForm(form, isEdit = false) {
+  // Attach tab switching event listeners
   const tabLinks = form.querySelectorAll(".tab-link");
   tabLinks.forEach((btn) => {
     btn.addEventListener("click", () => {
       switchTab(btn.getAttribute("data-tab"), btn);
     });
   });
+
+  // Attach modal close event listeners
   form.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", closeModals);
   });
-  const certSelect = form.querySelector("#certificate_id");
-  populateCertificateDropdown(certSelect);
-  const accessListSelect = form.querySelector("#access_list_id");
-  populateAccessListDropdown(accessListSelect);
 
-  form.onsubmit = (e) => {
+  // Populate dropdown menus
+  const certSelect = form.querySelector("#certificate_id");
+  const accessListSelect = form.querySelector("#access_list_id");
+
+  if (isEdit) {
+    const hostId = form.querySelector("input[name='host_id']").value;
+    populateCertificateDropdown(certSelect, hostId);
+  } else {
+    populateCertificateDropdown(certSelect);
+  }
+
+  populateAccessListDropdown(accessListSelect);
+}
+
+// -------------------------
+// Add Host Flow
+// -------------------------
+export function populateAddHostForm() {
+  const form = document.getElementById("addHostForm");
+  form.innerHTML = generateHostFormHTML();
+  setupHostForm(form, false);
+
+  form.onsubmit = async (e) => {
     e.preventDefault();
     const submitBtn = form.querySelector("button[type='submit']");
     submitBtn.disabled = true;
     submitBtn.textContent = "Please wait...";
 
-    const formData = new FormData(form);
-    const certificate_id_raw = formData.get("certificate_id");
-    let certificate_id;
-    if (certificate_id_raw === "") {
-      certificate_id = null;
-    } else if (
-      certificate_id_raw === "new_dns" ||
-      certificate_id_raw === "new_nodns"
-    ) {
-      certificate_id = "new";
-    } else {
-      certificate_id = parseInt(certificate_id_raw);
-    }
-    const access_list_id_raw = formData.get("access_list_id");
-    const access_list_id =
-      access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
+    try {
+      const formData = new FormData(form);
+      const baseData = processHostFormData(formData);
+      const certificate_id_raw = formData.get("certificate_id");
 
-    let baseData = {
-      domain_names: formData
-        .get("domain_names")
-        .split(",")
-        .map((d) => d.trim()),
-      forward_host: formData.get("forward_host"),
-      forward_port: parseInt(formData.get("forward_port")),
-      forward_scheme: formData.get("forward_scheme"),
-      certificate_id: certificate_id,
-      access_list_id: access_list_id,
-      caching_enabled: formData.get("cache_assets") === "on",
-      allow_websocket_upgrade: formData.get("websockets_support") === "on",
-      block_exploits: formData.get("block_exploits") === "on",
-      ssl_forced: formData.get("ssl_forced") === "on",
-      http2_support: formData.get("http2_support") === "on",
-      hsts_enabled: formData.get("hsts_enabled") === "on",
-      hsts_subdomains: formData.get("hsts_subdomains") === "on",
-      advanced_config: formData.get("custom_config"),
-    };
+      // Handle certificate creation if needed
+      if (certificate_id_raw === "new_dns") {
+        try {
+          const newCertId = await createCertificate(
+            baseData.domain_names,
+            true,
+          );
+          baseData.certificate_id = newCertId;
+        } catch (err) {
+          console.error("Failed to create certificate with DNS challenge", err);
+          alert("Certificate creation failed: " + err.message);
+          throw err;
+        }
+      } else if (certificate_id_raw === "new_nodns") {
+        try {
+          const newCertId = await createCertificate(
+            baseData.domain_names,
+            false,
+          );
+          baseData.certificate_id = newCertId;
+        } catch (err) {
+          console.error("Failed to create certificate", err);
+          throw err;
+        }
+      }
 
-    function finishCreate(data) {
-      import("../managers/ProxyHostManager.js").then((mod) => {
-        mod
-          .createProxyHost(data)
-          .then(() => {
-            document.getElementById("addHostModal").style.display = "none";
-          })
-          .catch((err) => {
-            console.error("Failed to create host", err);
-          })
-          .finally(() => {
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Add Host";
-          });
-      });
-    }
-
-    if (certificate_id_raw === "new_dns") {
-      openDnsChallengeModal()
-        .then((dnsData) => {
-          const certPayload = {
-            provider: "letsencrypt",
-            domain_names: baseData.domain_names,
-            dns_challenge: {
-              provider: dnsData.provider,
-              credentials: dnsData.credentials,
-              wait_time: dnsData.wait_time,
-            },
-          };
-          import("../managers/CertificateManager.js").then((certMod) => {
-            certMod
-              .createCertificate(certPayload)
-              .then((newCertId) => {
-                baseData.certificate_id = newCertId;
-                finishCreate(baseData);
-              })
-              .catch((err) => {
-                console.error("Failed to create certificate", err);
-                submitBtn.disabled = false;
-                submitBtn.textContent = "Add Host";
-                alert("Certificate creation failed: " + err.message);
-              });
-          });
-        })
-        .catch((err) => {
-          console.error("DNS challenge setup failed", err);
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Add Host";
-        });
-    } else if (certificate_id_raw === "new_nodns") {
-      const certPayload = {
-        provider: "letsencrypt",
-        domain_names: baseData.domain_names,
-      };
-      import("../managers/CertificateManager.js").then((certMod) => {
-        certMod
-          .createCertificate(certPayload)
-          .then((newCertId) => {
-            baseData.certificate_id = newCertId;
-            finishCreate(baseData);
-          })
-          .catch((err) => {
-            console.error("Failed to create certificate", err);
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Add Host";
-          });
-      });
-    } else {
-      finishCreate(baseData);
+      // Create the proxy host
+      const ProxyHostManager = await import("../managers/ProxyHostManager.js");
+      await ProxyHostManager.createProxyHost(baseData);
+      document.getElementById("addHostModal").style.display = "none";
+    } catch (err) {
+      console.error("Failed to create host", err);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Add Host";
     }
   };
 }
+
+// -------------------------
+// Edit Host Flow
+// -------------------------
 export function editHostModal(host) {
   return new Promise((resolve) => {
     const modal = document.getElementById("addHostModal");
     const form = document.getElementById("addHostForm");
-    form.innerHTML = `
-      <input type="hidden" name="host_id" value="${host.id}">
-      <div class="tabs">
-        <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
-        <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
-      </div>
-      <div class="tab-content" id="generalTab">
-        <div class="form-group">
-          <label for="domain_names">Domain Names (comma-separated)</label>
-          <input type="text" id="domain_names" name="domain_names" value="${host.domain_names.join(", ")}" required>
-        </div>
-        <div class="form-group">
-          <label for="forward_host">Forward Host</label>
-          <input type="text" id="forward_host" name="forward_host" value="${host.forward_host}" required>
-        </div>
-        <div class="form-group">
-          <label for="forward_port">Forward Port</label>
-          <input type="number" id="forward_port" name="forward_port" value="${host.forward_port}" required>
-        </div>
-        <div class="form-group">
-          <label for="forward_scheme">Upstream Scheme</label>
-          <select id="forward_scheme" name="forward_scheme" required>
-            <option value="http" ${host.forward_scheme === "http" ? "selected" : ""}>http</option>
-            <option value="https" ${host.forward_scheme === "https" ? "selected" : ""}>https</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="certificate_id">Certificate</label>
-          <select id="certificate_id" name="certificate_id" required></select>
-        </div>
-        <div class="form-group">
-          <label for="access_list_id">Access List</label>
-          <select id="access_list_id" name="access_list_id">
-            <option value="">None</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="cache_assets" name="cache_assets" ${host.cache_assets ? "checked" : ""}>
-            Cache Assets
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="websockets_support" name="websockets_support" ${host.websockets_support ? "checked" : ""}>
-            Websockets Support
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${host.block_exploits ? "checked" : ""}>
-            Block Common Exploits
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${host.ssl_forced ? "checked" : ""}>
-            Force SSL
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="http2_support" name="http2_support" ${host.http2_support ? "checked" : ""}>
-            HTTP/2 Support
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${host.hsts_enabled ? "checked" : ""}>
-            HSTS Enabled
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${host.hsts_subdomains ? "checked" : ""}>
-            HSTS Subdomains
-          </label>
-        </div>
-      </div>
-      <div class="tab-content" id="customTab" style="display:none;">
-        <div class="form-group">
-          <label for="custom_config">Custom Nginx Config</label>
-          <textarea id="custom_config" name="custom_config" rows="30">${host.custom_config || ""}</textarea>
-        </div>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Update Host</button>
-        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-      </div>
-    `;
+
+    form.innerHTML = generateHostFormHTML(host);
     modal.style.display = "block";
-    // Attach tab switching event listeners
-    const tabLinks = form.querySelectorAll(".tab-link");
-    tabLinks.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        switchTab(btn.getAttribute("data-tab"), btn);
-      });
-    });
-    // Attach modal close event listeners for the Cancel button
-    form.querySelectorAll(".modal-close").forEach((btn) => {
-      btn.addEventListener("click", closeModals);
-    });
-    // Populate dropdown menus
+    setupHostForm(form, true);
+
+    // Populate certificate and access list dropdowns with existing values
     const certSelect = form.querySelector("#certificate_id");
     populateCertificateDropdown(certSelect, host.certificate_id || "");
+
     const accessListSelect = form.querySelector("#access_list_id");
     populateAccessListDropdown(accessListSelect, host.access_list_id || "");
 
     form.onsubmit = (e) => {
       e.preventDefault();
       const formData = new FormData(form);
-      const certificate_id_raw = formData.get("certificate_id");
-      let certificate_id;
-      if (certificate_id_raw === "") {
-        certificate_id = null;
-      } else if (
-        certificate_id_raw === "new_dns" ||
-        certificate_id_raw === "new_nodns"
-      ) {
-        certificate_id = "new";
-      } else {
-        certificate_id = parseInt(certificate_id_raw);
-      }
-      const access_list_id_raw = formData.get("access_list_id");
-      const access_list_id =
-        access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
-
-      const updatedData = {
-        domain_names: formData
-          .get("domain_names")
-          .split(",")
-          .map((d) => d.trim()),
-        forward_host: formData.get("forward_host"),
-        forward_port: parseInt(formData.get("forward_port")),
-        forward_scheme: formData.get("forward_scheme"),
-        certificate_id: certificate_id,
-        access_list_id: access_list_id,
-        caching_enabled: formData.get("cache_assets") === "on",
-        allow_websocket_upgrade: formData.get("websockets_support") === "on",
-        block_exploits: formData.get("block_exploits") === "on",
-        ssl_forced: formData.get("ssl_forced") === "on",
-        http2_support: formData.get("http2_support") === "on",
-        hsts_enabled: formData.get("hsts_enabled") === "on",
-        hsts_subdomains: formData.get("hsts_subdomains") === "on",
-        advanced_config: formData.get("custom_config"),
-      };
-
-      // Resolve the promise with the collected data.
+      const updatedData = processHostFormData(formData);
       resolve(updatedData);
     };
   });
