@@ -2,9 +2,9 @@
 // Make sure the functions are exposed to the global scope
 
 function closeModals() {
-  const modals = document.querySelectorAll('.modal');
-  modals.forEach(modal => {
-    modal.style.display = 'none';
+  const modals = document.querySelectorAll(".modal");
+  modals.forEach((modal) => {
+    modal.style.display = "none";
   });
 }
 
@@ -14,7 +14,7 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
     xhr.open(method, baseUrl + endpoint, true);
     xhr.setRequestHeader("Content-Type", "application/json");
 
-    xhr.onload = function() {
+    xhr.onload = function () {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const response = JSON.parse(xhr.responseText);
@@ -27,7 +27,7 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
       }
     };
 
-    xhr.onerror = function() {
+    xhr.onerror = function () {
       reject(new Error("Network error occurred"));
     };
 
@@ -209,34 +209,34 @@ function showCreateRedirectionHostModal() {
           form.querySelector("#forward_http_code").value,
         ),
         forward_scheme: form.querySelector("#forward_scheme").value,
-                forward_domain_name: form.querySelector("#forward_domain_name").value,
-                preserve_path: form.querySelector("#preserve_path").value === "true",
-                certificate_id: certificate_id,
-                ssl_forced: form.querySelector("#ssl_forced").checked,
-                hsts_enabled: form.querySelector("#hsts_enabled").checked,
-                hsts_subdomains: form.querySelector("#hsts_subdomains").checked,
-                http2_support: form.querySelector("#http2_support").checked,
-                block_exploits: form.querySelector("#block_exploits").checked,
-                advanced_config: form.querySelector("#advanced_config").value,
-                enabled: form.querySelector("#enabled").checked,
-                meta: JSON.parse(form.querySelector("#meta").value || "{}"),
-              };
-              modal.style.display = "none";
-              resolve(data);
-            };
-          });
-        }
+        forward_domain_name: form.querySelector("#forward_domain_name").value,
+        preserve_path: form.querySelector("#preserve_path").value === "true",
+        certificate_id: certificate_id,
+        ssl_forced: form.querySelector("#ssl_forced").checked,
+        hsts_enabled: form.querySelector("#hsts_enabled").checked,
+        hsts_subdomains: form.querySelector("#hsts_subdomains").checked,
+        http2_support: form.querySelector("#http2_support").checked,
+        block_exploits: form.querySelector("#block_exploits").checked,
+        advanced_config: form.querySelector("#advanced_config").value,
+        enabled: form.querySelector("#enabled").checked,
+        meta: JSON.parse(form.querySelector("#meta").value || "{}"),
+      };
+      modal.style.display = "none";
+      resolve(data);
+    };
+  });
+}
 
-        function showEditRedirectionHostModal(hostId) {
-          return new Promise(async (resolve, reject) => {
-            try {
-              const host = await makeRequest(
-                "/npm-api",
-                `/nginx/redirection-hosts/${hostId}`
-              );
-              const modal = ensureModalExists();
-              const form = modal.querySelector("form");
-              form.innerHTML = `
+function showEditRedirectionHostModal(hostId) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const host = await makeRequest(
+        "/npm-api",
+        `/nginx/redirection-hosts/${hostId}`,
+      );
+      const modal = ensureModalExists();
+      const form = modal.querySelector("form");
+      form.innerHTML = `
                 <input type="hidden" name="id" value="${host.id}">
                 <div class="form-group">
                   <label for="domain_names">Domain Names (comma-separated)</label>
@@ -319,67 +319,68 @@ function showCreateRedirectionHostModal() {
                 </div>
               `;
 
-              // Populate certificate dropdown
-              const certSelect = form.querySelector("#certificate_id");
-              await populateCertificateDropdown(certSelect, host.certificate_id);
+      // Populate certificate dropdown
+      const certSelect = form.querySelector("#certificate_id");
+      await populateCertificateDropdown(certSelect, host.certificate_id);
 
-              modal.style.display = "block";
-              form.onsubmit = (e) => {
-                e.preventDefault();
+      modal.style.display = "block";
+      form.onsubmit = (e) => {
+        e.preventDefault();
 
-                // Process certificate_id
-                let certificate_id = form.querySelector("#certificate_id").value;
-                if (certificate_id === "") {
-                  certificate_id = null;
-                } else if (certificate_id === "new") {
-                  certificate_id = "new";
-                } else {
-                  certificate_id = parseInt(certificate_id);
-                }
-
-                const data = {
-                  domain_names: form
-                    .querySelector("#domain_names")
-                    .value.split(",")
-                    .map((d) => d.trim()),
-                  forward_http_code: parseInt(
-                    form.querySelector("#forward_http_code").value,
-                  ),
-                  forward_scheme: form.querySelector("#forward_scheme").value,
-                  forward_domain_name: form.querySelector("#forward_domain_name").value,
-                  preserve_path: form.querySelector("#preserve_path").value === "true",
-                  certificate_id: certificate_id,
-                  ssl_forced: form.querySelector("#ssl_forced").checked,
-                  hsts_enabled: form.querySelector("#hsts_enabled").checked,
-                  hsts_subdomains: form.querySelector("#hsts_subdomains").checked,
-                  http2_support: form.querySelector("#http2_support").checked,
-                  block_exploits: form.querySelector("#block_exploits").checked,
-                  advanced_config: form.querySelector("#advanced_config").value,
-                  enabled: form.querySelector("#enabled").checked,
-                  meta: JSON.parse(form.querySelector("#meta").value || "{}"),
-                };
-                modal.style.display = "none";
-                resolve(data);
-              };
-            } catch (error) {
-              reject(error);
-            }
-          });
+        // Process certificate_id
+        let certificate_id = form.querySelector("#certificate_id").value;
+        if (certificate_id === "") {
+          certificate_id = null;
+        } else if (certificate_id === "new") {
+          certificate_id = "new";
+        } else {
+          certificate_id = parseInt(certificate_id);
         }
 
-        // Create a global RedirectionHostModals object
-        // This is critical for proper access from other modules
-        window.RedirectionHostModals = {
-          showCreateRedirectionHostModal,
-          showEditRedirectionHostModal,
-          closeModals,
-          ensureModalExists
+        const data = {
+          domain_names: form
+            .querySelector("#domain_names")
+            .value.split(",")
+            .map((d) => d.trim()),
+          forward_http_code: parseInt(
+            form.querySelector("#forward_http_code").value,
+          ),
+          forward_scheme: form.querySelector("#forward_scheme").value,
+          forward_domain_name: form.querySelector("#forward_domain_name").value,
+          preserve_path: form.querySelector("#preserve_path").value === "true",
+          certificate_id: certificate_id,
+          ssl_forced: form.querySelector("#ssl_forced").checked,
+          hsts_enabled: form.querySelector("#hsts_enabled").checked,
+          hsts_subdomains: form.querySelector("#hsts_subdomains").checked,
+          http2_support: form.querySelector("#http2_support").checked,
+          block_exploits: form.querySelector("#block_exploits").checked,
+          advanced_config: form.querySelector("#advanced_config").value,
+          enabled: form.querySelector("#enabled").checked,
+          meta: JSON.parse(form.querySelector("#meta").value || "{}"),
         };
+        modal.style.display = "none";
+        resolve(data);
+      };
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 
-        // Initialize when DOM is loaded
-        document.addEventListener("DOMContentLoaded", () => {
-          // Create modal if it doesn't exist
-          ensureModalExists();
+// Create a global RedirectionHostModals object
+// This is critical for proper access from other modules
+window.RedirectionHostModals = {
+  showCreateRedirectionHostModal,
+  showEditRedirectionHostModal,
+  closeModals,
+  ensureModalExists,
+};
 
-          // Log that RedirectionHostModals is ready
-          console.log("RedirectionHostModals initialized and exposed globally
+// Initialize when DOM is loaded
+document.addEventListener("DOMContentLoaded", () => {
+  // Create modal if it doesn't exist
+  ensureModalExists();
+
+  // Log that RedirectionHostModals is ready
+  console.log("RedirectionHostModals initialized and exposed globally");
+});
