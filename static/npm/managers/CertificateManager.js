@@ -177,7 +177,7 @@ export async function showUploadCertificateModal() {
 /**
  * Shows the validate certificate modal and handles the validation process
  */
-export async function showValidateCertificateModal() {
+export async function handleValidateCertificate() {
   try {
     const formData = await showValidateCertificateModal();
     if (formData) {
