@@ -21,7 +21,8 @@ function generateRedirectionHostFormHTML(host = null) {
   const hstsSubdomains = isEdit ? host.hsts_subdomains : false;
   const http2Support = isEdit ? host.http2_support : false;
   const blockExploits = isEdit ? host.block_exploits : false;
-  const customConfig = isEdit ? host.custom_config : "";
+  // Fix: Properly initialize custom_config to empty string if not present
+  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
   const enabled = isEdit ? host.enabled : true;
 
   return `
@@ -142,6 +143,80 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
   }
 }
 
+// DNS Challenge Modal - Similar to ProxyHostModals.js implementation
+function openDnsChallengeModal() {
+  return new Promise((resolve, reject) => {
+    let modal = document.getElementById("dnsChallengeModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "dnsChallengeModal";
+      modal.className = "modal";
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h2>Select DNS Provider</h2>
+          <div id="dnsProviderOptions"></div>
+          <div class="form-group">
+            <label for="dnsCredentials">API Credentials</label>
+            <textarea id="dnsCredentials" name="dnsCredentials" rows="4" placeholder="Enter credentials exactly as required"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="dnsWaitTime">Waiting Time (seconds)</label>
+            <input type="number" id="dnsWaitTime" name="dnsWaitTime" value="20" min="5">
+          </div>
+          <div class="form-actions">
+            <button id="dnsConfirm" class="btn btn-primary">Confirm</button>
+            <button id="dnsCancel" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    modal.style.display = "flex";
+
+    // Load DNS provider options
+    fetch("/static/npm/json/certbot-dns-plugins.json")
+      .then((res) => res.json())
+      .then((plugins) => {
+        const optionsDiv = modal.querySelector("#dnsProviderOptions");
+        optionsDiv.innerHTML = "";
+        const select = document.createElement("select");
+        select.id = "dnsProviderSelect";
+        for (const key in plugins) {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.textContent = plugins[key].name;
+          select.appendChild(opt);
+        }
+        optionsDiv.appendChild(select);
+
+        modal.querySelector("#dnsConfirm").onclick = () => {
+          const provider = document.getElementById("dnsProviderSelect").value;
+          const credentials = document
+            .getElementById("dnsCredentials")
+            .value.trim();
+          const wait_time = parseInt(
+            document.getElementById("dnsWaitTime").value,
+            10,
+          );
+          modal.style.display = "none";
+          resolve({
+            provider: provider,
+            credentials: credentials,
+            wait_time: wait_time,
+          });
+        };
+        modal.querySelector("#dnsCancel").onclick = () => {
+          modal.style.display = "none";
+          reject(new Error("DNS challenge canceled by user."));
+        };
+      })
+      .catch((err) => {
+        modal.style.display = "none";
+        reject(err);
+      });
+  });
+}
+
 // -------------------------
 // Form Handling
 // -------------------------
@@ -169,16 +244,31 @@ async function handleCertificateCreation(domainNames, certOption) {
 
   try {
     const useDnsChallenge = certOption === "new_dns";
+    let certPayload = {
+      provider: "letsencrypt",
+      domain_names: domainNames,
+    };
+
+    // Handle DNS challenge if selected
+    if (useDnsChallenge) {
+      try {
+        const dnsData = await openDnsChallengeModal();
+        certPayload.dns_challenge = {
+          provider: dnsData.provider,
+          credentials: dnsData.credentials,
+          wait_time: dnsData.wait_time,
+        };
+      } catch (err) {
+        console.error("Failed to configure DNS challenge", err);
+        throw err;
+      }
+    }
+
+    // Create certificate
     const response = await fetch("/npm-api/nginx/certificates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "letsencrypt",
-        domain_names: domainNames,
-        ...(useDnsChallenge && {
-          dns_challenge: await openDnsChallengeModal(),
-        }),
-      }),
+      body: JSON.stringify(certPayload),
     });
 
     if (!response.ok) throw new Error("Certificate creation failed");
@@ -221,24 +311,33 @@ export function showCreateRedirectionHostModal() {
         forward_scheme: formData.get("forward_scheme"),
         forward_domain_name: formData.get("forward_domain_name"),
         preserve_path: formData.get("preserve_path") === "true",
-        certificate_id: await handleCertificateCreation(
-          formData
-            .get("domain_names")
-            .split(",")
-            .map((d) => d.trim()),
-          formData.get("certificate_id"),
-        ),
         ssl_forced: formData.has("ssl_forced"),
         hsts_enabled: formData.has("hsts_enabled"),
         hsts_subdomains: formData.has("hsts_subdomains"),
         http2_support: formData.has("http2_support"),
         block_exploits: formData.has("block_exploits"),
-        custom_config: formData.get("custom_config"),
+        custom_config: formData.get("custom_config") || "", // Fix: Ensure it's never undefined
         enabled: formData.has("enabled"),
       };
 
-      modal.remove();
-      resolve(baseData);
+      // Handle certificate creation if needed
+      try {
+        const certId = formData.get("certificate_id");
+        if (certId.startsWith("new_")) {
+          baseData.certificate_id = await handleCertificateCreation(
+            baseData.domain_names,
+            certId,
+          );
+        } else {
+          baseData.certificate_id = certId === "" ? null : parseInt(certId);
+        }
+
+        modal.remove();
+        resolve(baseData);
+      } catch (error) {
+        console.error("Form submission error:", error);
+        alert("An error occurred: " + error.message);
+      }
     });
 
     document.body.appendChild(modal);
@@ -251,6 +350,11 @@ export async function showEditRedirectionHostModal(hostId) {
     const response = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`);
     if (!response.ok) throw new Error("Failed to fetch host");
     const host = await response.json();
+
+    // Fix: Make sure custom_config is initialized properly
+    if (host.custom_config === undefined) {
+      host.custom_config = "";
+    }
 
     const modal = document.createElement("div");
     modal.className = "modal";
@@ -271,34 +375,47 @@ export async function showEditRedirectionHostModal(hostId) {
         e.preventDefault();
         const formData = new FormData(form);
 
-        const updatedData = {
-          ...host,
-          domain_names: formData
-            .get("domain_names")
-            .split(",")
-            .map((d) => d.trim()),
-          forward_http_code: parseInt(formData.get("forward_http_code")),
-          forward_scheme: formData.get("forward_scheme"),
-          forward_domain_name: formData.get("forward_domain_name"),
-          preserve_path: formData.get("preserve_path") === "true",
-          certificate_id: await handleCertificateCreation(
-            formData
+        try {
+          // Fix: Properly handle custom_config to prevent undefined
+          const customConfig = formData.get("custom_config");
+
+          const updatedData = {
+            ...host,
+            domain_names: formData
               .get("domain_names")
               .split(",")
               .map((d) => d.trim()),
-            formData.get("certificate_id"),
-          ),
-          ssl_forced: formData.has("ssl_forced"),
-          hsts_enabled: formData.has("hsts_enabled"),
-          hsts_subdomains: formData.has("hsts_subdomains"),
-          http2_support: formData.has("http2_support"),
-          block_exploits: formData.has("block_exploits"),
-          custom_config: formData.get("custom_config"),
-          enabled: formData.has("enabled"),
-        };
+            forward_http_code: parseInt(formData.get("forward_http_code")),
+            forward_scheme: formData.get("forward_scheme"),
+            forward_domain_name: formData.get("forward_domain_name"),
+            preserve_path: formData.get("preserve_path") === "true",
+            ssl_forced: formData.has("ssl_forced"),
+            hsts_enabled: formData.has("hsts_enabled"),
+            hsts_subdomains: formData.has("hsts_subdomains"),
+            http2_support: formData.has("http2_support"),
+            block_exploits: formData.has("block_exploits"),
+            custom_config: customConfig || "", // Fix: Ensure it's never undefined
+            enabled: formData.has("enabled"),
+          };
 
-        modal.remove();
-        resolve(updatedData);
+          // Handle certificate selection/creation
+          const certId = formData.get("certificate_id");
+          if (certId.startsWith("new_")) {
+            updatedData.certificate_id = await handleCertificateCreation(
+              updatedData.domain_names,
+              certId,
+            );
+          } else {
+            updatedData.certificate_id =
+              certId === "" ? null : parseInt(certId);
+          }
+
+          modal.remove();
+          resolve(updatedData);
+        } catch (error) {
+          console.error("Form update error:", error);
+          alert("An error occurred: " + error.message);
+        }
       });
 
       document.body.appendChild(modal);
