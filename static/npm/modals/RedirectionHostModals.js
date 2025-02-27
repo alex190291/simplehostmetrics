@@ -3,6 +3,84 @@ import { makeRequest } from "../NPMService.js";
 import { closeModals, switchTab } from "./common.js";
 import * as Views from "../NPMViews.js";
 
+function ensureModalExists() {
+  let modal = document.getElementById("redirectionHostModal");
+
+  // If the modal doesn't exist, create it
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "redirectionHostModal";
+    modal.className = "modal";
+
+    // Create the modal content container
+    const modalContent = document.createElement("div");
+    modalContent.className = "modal-content";
+
+    // Create the form that will be populated
+    const form = document.createElement("form");
+    form.id = "redirectionHostForm";
+
+    // Assemble the modal structure
+    modalContent.appendChild(form);
+    modal.appendChild(modalContent);
+
+    // Add the modal to the body
+    document.body.appendChild(modal);
+  }
+
+  return modal;
+}
+
+// Then modify the showCreateRedirectionHostModal function
+export function showCreateRedirectionHostModal() {
+  return new Promise((resolve) => {
+    const modal = ensureModalExists();
+    const form = modal.querySelector("form");
+
+    form.innerHTML = generateRedirectionHostFormHTML();
+    setupRedirectionHostForm(form, false);
+    modal.style.display = "block";
+
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const data = processRedirectionHostFormData(formData);
+      modal.style.display = "none";
+      resolve(data);
+    };
+  });
+}
+
+// And modify the showEditRedirectionHostModal function
+export function showEditRedirectionHostModal(hostId) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const host = await makeRequest(
+        "/npm-api",
+        `/nginx/redirection-hosts/${hostId}`,
+      );
+
+      const modal = ensureModalExists();
+      const form = modal.querySelector("form");
+
+      form.innerHTML = generateRedirectionHostFormHTML(host);
+      setupRedirectionHostForm(form, true);
+      modal.style.display = "block";
+
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const data = processRedirectionHostFormData(formData);
+        modal.style.display = "none";
+        resolve(data);
+      };
+    } catch (error) {
+      console.error("Error preparing edit modal:", error);
+      reject(error);
+    }
+  });
+}
+
 // Helper function to generate the redirection host form HTML
 function generateRedirectionHostFormHTML(host = null) {
   const isEdit = host !== null;
