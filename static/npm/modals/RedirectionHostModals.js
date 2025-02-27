@@ -4,6 +4,7 @@ import { switchTab, closeModals } from "./common.js";
 // -------------------------
 // Form Generation Utilities
 // -------------------------
+// Updated generateRedirectionHostFormHTML in simplehostmetrics/static/npm/modals/RedirectionHostModals.js
 function generateRedirectionHostFormHTML(host = null) {
   const isEdit = host !== null;
   const idField = isEdit
@@ -28,90 +29,82 @@ function generateRedirectionHostFormHTML(host = null) {
 
   return `
     ${idField}
-    <div class="tabs">
-      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
-      <button type="button" class="btn btn-secondary tab-link" data-tab="advanced">Advanced</button>
+    <div class="form-group">
+      <label for="domain_names">Domain Names (comma-separated)</label>
+      <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
     </div>
 
-    <div class="tab-content" id="generalTab">
-      <div class="form-group">
-        <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_http_code">Redirect HTTP Code</label>
-        <select id="forward_http_code" name="forward_http_code" required>
-          <option value="301" ${forwardHttpCode === 301 ? "selected" : ""}>301 - Permanent Redirect</option>
-          <option value="302" ${forwardHttpCode === 302 ? "selected" : ""}>302 - Temporary Redirect</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_scheme">Protocol</label>
-        <select id="forward_scheme" name="forward_scheme" required>
-          <option value="auto" ${forwardScheme === "auto" ? "selected" : ""}>Auto</option>
-          <option value="http" ${forwardScheme === "http" ? "selected" : ""}>HTTP</option>
-          <option value="https" ${forwardScheme === "https" ? "selected" : ""}>HTTPS</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_domain_name">Destination Domain</label>
-        <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomain}" required>
-      </div>
-
-      <div class="form-group">
-        <label for="preserve_path">Preserve Path</label>
-        <select id="preserve_path" name="preserve_path" required>
-          <option value="true" ${preservePath ? "selected" : ""}>Yes</option>
-          <option value="false" ${!preservePath ? "selected" : ""}>No</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="certificate_id">SSL Certificate</label>
-        <select id="certificate_id" name="certificate_id"></select>
-      </div>
-
-      <div class="form-group checkboxes">
-        <label>
-          <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
-          Force SSL
-        </label>
-        <label>
-          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
-          HSTS Enabled
-        </label>
-        <label>
-          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
-          Include Subdomains
-        </label>
-        <label>
-          <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
-          HTTP/2 Support
-        </label>
-        <label>
-          <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
-          Block Exploits
-        </label>
-        <label>
-          <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
-          Enabled
-        </label>
-      </div>
+    <div class="form-group">
+      <label for="forward_http_code">Redirect HTTP Code</label>
+      <select id="forward_http_code" name="forward_http_code" required>
+        <option value="301" ${forwardHttpCode === 301 ? "selected" : ""}>301 - Permanent Redirect</option>
+        <option value="302" ${forwardHttpCode === 302 ? "selected" : ""}>302 - Temporary Redirect</option>
+      </select>
     </div>
 
-    <div class="tab-content" id="advancedTab" style="display:none;">
-      <div class="form-group">
-        <label for="advanced_config">Custom Configuration</label>
-        <textarea id="advanced_config" name="advanced_config" rows="10">${advancedConfig}</textarea>
-      </div>
+    <div class="form-group">
+      <label for="forward_scheme">Protocol</label>
+      <select id="forward_scheme" name="forward_scheme" required>
+        <option value="auto" ${forwardScheme === "auto" ? "selected" : ""}>Auto</option>
+        <option value="http" ${forwardScheme === "http" ? "selected" : ""}>HTTP</option>
+        <option value="https" ${forwardScheme === "https" ? "selected" : ""}>HTTPS</option>
+      </select>
+    </div>
 
-      <div class="form-group">
-        <label for="meta">Metadata (JSON)</label>
-        <textarea id="meta" name="meta" rows="4">${meta}</textarea>
-      </div>
+    <div class="form-group">
+      <label for="forward_domain_name">Destination Domain</label>
+      <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomain}" required>
+    </div>
+
+    <div class="form-group">
+      <label for="preserve_path">Preserve Path</label>
+      <select id="preserve_path" name="preserve_path" required>
+        <option value="true" ${preservePath ? "selected" : ""}>Yes</option>
+        <option value="false" ${!preservePath ? "selected" : ""}>No</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="certificate_id">SSL Certificate</label>
+      <select id="certificate_id" name="certificate_id"></select>
+    </div>
+
+    <div class="form-group checkboxes">
+      <label>
+        <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
+        Force SSL
+      </label>
+      <label>
+        <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
+        HSTS Enabled
+      </label>
+      <label>
+        <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
+        Include Subdomains
+      </label>
+      <label>
+        <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
+        HTTP/2 Support
+      </label>
+      <label>
+        <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
+        Block Exploits
+      </label>
+      <label>
+        <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
+        Enabled
+      </label>
+    </div>
+
+    <!-- Additional fields for advanced configuration and meta if needed -->
+    <div class="form-group">
+      <label for="advanced_config">Custom Configuration</label>
+      <textarea id="advanced_config" name="advanced_config" rows="10">${advancedConfig}</textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="meta">Metadata (JSON)</label>
+      <textarea id="meta" name="meta" rows="4">${meta}</textarea>
     </div>
 
     <div class="form-actions">
