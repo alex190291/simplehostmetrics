@@ -3,7 +3,14 @@ import { closeModals } from "./common.js";
 
 export function showCreateCertificateModal() {
   return new Promise((resolve) => {
-    const modal = document.getElementById("certificateModal");
+    let modal = document.getElementById("certificateModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "certificateModal";
+      modal.className = "modal";
+      modal.innerHTML = `<div class="modal-content"><form></form></div>`;
+      document.body.appendChild(modal);
+    }
     const form = modal.querySelector("form");
     form.innerHTML = `
       <div class="form-group">
@@ -51,7 +58,14 @@ export function showCreateCertificateModal() {
 
 export function showValidateCertificateModal() {
   return new Promise((resolve) => {
-    const modal = document.getElementById("validateCertificateModal");
+    let modal = document.getElementById("validateCertificateModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "validateCertificateModal";
+      modal.className = "modal";
+      modal.innerHTML = `<div class="modal-content"><form></form></div>`;
+      document.body.appendChild(modal);
+    }
     const form = modal.querySelector("form");
     form.innerHTML = `
       <div class="form-group">
@@ -83,7 +97,15 @@ export function showValidateCertificateModal() {
 
 export function showUploadCertificateModal(certId) {
   return new Promise((resolve) => {
-    const modal = document.getElementById("uploadCertificateModal");
+    let modal = document.getElementById("uploadCertificateModal");
+    if (!modal) {
+      // Create the modal dynamically if it doesn't exist
+      modal = document.createElement("div");
+      modal.id = "uploadCertificateModal";
+      modal.className = "modal";
+      modal.innerHTML = `<div class="modal-content"><form></form></div>`;
+      document.body.appendChild(modal);
+    }
     const form = modal.querySelector("form");
     form.innerHTML = `
       <input type="hidden" name="cert_id" value="${certId}">
