@@ -1,6 +1,3 @@
-You're right. Let's fix the import issue. Since we're using vanilla JavaScript in a static file, we need to adjust how we import and use the RedirectionHostModals.js functionality. Here's the corrected version:
-
-```js
 // /static/npm/managers/NPMManager.js
 import * as ProxyHostManager from "./ProxyHostManager.js";
 import * as RedirectionHostManager from "./RedirectionHostManager.js";
