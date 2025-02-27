@@ -1,3 +1,6 @@
+You're right. Let's fix the import issue. Since we're using vanilla JavaScript in a static file, we need to adjust how we import and use the RedirectionHostModals.js functionality. Here's the corrected version:
+
+```js
 // /static/npm/managers/NPMManager.js
 import * as ProxyHostManager from "./ProxyHostManager.js";
 import * as RedirectionHostManager from "./RedirectionHostManager.js";
@@ -10,7 +13,7 @@ import { makeRequest } from "../NPMService.js";
 import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 import { editHostModal } from "../modals/ProxyHostModals.js";
-import { showEditRedirectionHostModal } from "../modals/RedirectionHostModals.js";
+// Don't import directly from RedirectionHostModals since it doesn't export properly
 
 export class NPMManager {
   constructor() {
@@ -186,13 +189,38 @@ export class NPMManager {
   // Delegate function for editing a redirection host
   async editRedirectionHost(hostId) {
     try {
-      // Open the edit modal and get updated data
-      const updatedData = await showEditRedirectionHostModal(hostId);
-      // Delegate update to RedirectionHostManager
-      await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
-    } catch (error) {
-      console.error("Failed to edit redirection host", error);
-      showError("Failed to edit redirection host");
-    }
-  }
-}
+      // Use the global RedirectionHostModals object that's exposed in the window
+      if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
+        const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
+        // Delegate update to RedirectionHostManager
+        await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
+      } else {
+        // Fallback if RedirectionHostModals use the global RedirectionHostModals object that's exposed in the window
+              if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
+                const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
+                // Delegate update to RedirectionHostManager
+                await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
+              } else {
+                // Fallback if RedirectionHostModals is not available
+                console.error("RedirectionHostModals is not available in the global scope");
+
+                // Load the module dynamically
+                try {
+                  await import("../modals/RedirectionHostModals.js");
+                  if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
+                    const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
+                    await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
+                  } else {
+                    throw new Error("RedirectionHostModals still not available after import");
+                  }
+                } catch (importError) {
+                  console.error("Failed to import RedirectionHostModals:", importError);
+                  showError("Failed to load redirection host editor");
+                }
+              }
+            } catch (error) {
+              console.error("Failed to edit redirection host", error);
+              showError("Failed to edit redirection host");
+            }
+          }
+        }
