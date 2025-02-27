@@ -187,30 +187,57 @@ export class NPMManager {
   async editRedirectionHost(hostId) {
     try {
       // Use the global RedirectionHostModals object that's exposed in the window
-      if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
-        const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
+      if (
+        window.RedirectionHostModals &&
+        typeof window.RedirectionHostModals.showEditRedirectionHostModal ===
+          "function"
+      ) {
+        const updatedData =
+          await window.RedirectionHostModals.showEditRedirectionHostModal(
+            hostId,
+          );
         // Delegate update to RedirectionHostManager
         await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
       } else {
         // Fallback if RedirectionHostModals is not available
-        console.error("RedirectionHostModals is not available in the global scope");
+        console.error(
+          "RedirectionHostModals is not available in the global scope",
+        );
 
         // Load the module dynamically
-        import("../modals/RedirectionHostModals.js").then(async () => {
-          if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
-            const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
-            await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
-          } else {
-            console.error("RedirectionHostModals still not available after import");
+        import("../modals/RedirectionHostModals.js")
+          .then(async () => {
+            if (
+              window.RedirectionHostModals &&
+              typeof window.RedirectionHostModals
+                .showEditRedirectionHostModal === "function"
+            ) {
+              const updatedData =
+                await window.RedirectionHostModals.showEditRedirectionHostModal(
+                  hostId,
+                );
+              await RedirectionHostManager.editRedirectionHost(
+                hostId,
+                updatedData,
+              );
+            } else {
+              console.error(
+                "RedirectionHostModals still not available after import",
+              );
+              showError("Failed to load redirection host editor");
+            }
+          })
+          .catch((importError) => {
+            console.error(
+              "Failed to import RedirectionHostModals:",
+              importError,
+            );
             showError("Failed to load redirection host editor");
-          }
-        }).catch(importError => {
-          console.error("Failed to import RedirectionHostModals:", importError);
-          showError("Failed to load redirection host editor");
-        });
+          });
       }
     } catch (error) {
       console.error("Failed to edit redirection host", error);
       showError("Failed to edit redirection host");
     }
   }
+}
