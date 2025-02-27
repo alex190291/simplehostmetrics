@@ -1,61 +1,42 @@
-// /static/npm/modals/RedirectionHostModals.js
-function closeModals() {
-  const modals = document.querySelectorAll(".modal");
-  modals.forEach((modal) => {
-    modal.style.display = "none";
-  });
-}
-
-function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, baseUrl + endpoint, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-
-    xhr.onload = function () {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve(response);
-        } catch (e) {
-          resolve(xhr.responseText);
-        }
-      } else {
-        reject(new Error(`Request failed with status ${xhr.status}`));
-      }
-    };
-
-    xhr.onerror = function () {
-      reject(new Error("Network error occurred"));
-    };
-
-    if (data) {
-      xhr.send(JSON.stringify(data));
-    } else {
-      xhr.send();
+// Helper function to populate the certificate dropdown dynamically
+async function populateCertificateDropdown(selectElement, selectedValue = "") {
+  try {
+    const response = await fetch("/npm-api/nginx/certificates");
+    if (!response.ok) {
+      console.error("Failed to load certificates", response.statusText);
+      return;
     }
-  });
-}
+    const certificates = await response.json();
+    selectElement.innerHTML = "";
 
-// Ensure the modal exists in the DOM
-function ensureModalExists() {
-  let modal = document.getElementById("redirectionHostModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "redirectionHostModal";
-    modal.className = "modal";
-    modal.innerHTML = `
-      <div class="modal-content">
-        <span class="close" onclick="RedirectionHostModals.closeModals()">&times;</span>
-        <h2>Redirection Host</h2>
-        <form></form>
-      </div>
-    `;
-    document.body.appendChild(modal);
+    // Add default option
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "None (HTTP only)";
+    selectElement.appendChild(defaultOption);
+
+    certificates.forEach((cert) => {
+      const option = document.createElement("option");
+      option.value = cert.id;
+      option.textContent =
+        cert.nice_name ||
+        (cert.domain_names ? cert.domain_names.join(", ") : "") ||
+        cert.provider ||
+        cert.id;
+      if (cert.id == selectedValue) option.selected = true;
+      selectElement.appendChild(option);
+    });
+
+    const optionNoDns = document.createElement("option");
+    optionNoDns.value = "new";
+    optionNoDns.textContent = "Request New Certificate";
+    selectElement.appendChild(optionNoDns);
+  } catch (error) {
+    console.error("Failed to load certificates", error);
   }
-  return modal;
 }
 
+// Update the showCreateRedirectionHostModal function to use the dropdown
 function showCreateRedirectionHostModal() {
   return new Promise((resolve) => {
     const modal = ensureModalExists();
@@ -67,7 +48,7 @@ function showCreateRedirectionHostModal() {
       </div>
       <div class="form-group">
         <label for="forward_http_code">Forward HTTP Code</label>
-        <input type="number" id="forward_http_code" name="forward_http_code" required>
+        <input type="number" id="forward_http_code" name="forward_http_code" value="301" required>
       </div>
       <div class="form-group">
         <label for="forward_scheme">Forward Scheme</label>
@@ -89,8 +70,8 @@ function showCreateRedirectionHostModal() {
         </select>
       </div>
       <div class="form-group">
-        <label for="certificate_id">Certificate ID (or 'new')</label>
-        <input type="text" id="certificate_id" name="certificate_id">
+        <label for="certificate_id">Certificate</label>
+        <select id="certificate_id" name="certificate_id"></select>
       </div>
       <div class="form-group">
         <label>
@@ -141,9 +122,25 @@ function showCreateRedirectionHostModal() {
         <button type="button" class="btn-secondary" onclick="RedirectionHostModals.closeModals()">Cancel</button>
       </div>
     `;
+
+    // Populate certificate dropdown
+    const certSelect = form.querySelector("#certificate_id");
+    populateCertificateDropdown(certSelect);
+
     modal.style.display = "block";
     form.onsubmit = (e) => {
       e.preventDefault();
+
+      // Process certificate_id
+      let certificate_id = form.querySelector("#certificate_id").value;
+      if (certificate_id === "") {
+        certificate_id = null;
+      } else if (certificate_id === "new") {
+        certificate_id = "new";
+      } else {
+        certificate_id = parseInt(certificate_id);
+      }
+
       const data = {
         domain_names: form
           .querySelector("#domain_names")
@@ -155,7 +152,7 @@ function showCreateRedirectionHostModal() {
         forward_scheme: form.querySelector("#forward_scheme").value,
         forward_domain_name: form.querySelector("#forward_domain_name").value,
         preserve_path: form.querySelector("#preserve_path").value === "true",
-        certificate_id: form.querySelector("#certificate_id").value,
+        certificate_id: certificate_id,
         ssl_forced: form.querySelector("#ssl_forced").checked,
         hsts_enabled: form.querySelector("#hsts_enabled").checked,
         hsts_subdomains: form.querySelector("#hsts_subdomains").checked,
@@ -171,6 +168,7 @@ function showCreateRedirectionHostModal() {
   });
 }
 
+// Update the showEditRedirectionHostModal function to use the dropdown
 function showEditRedirectionHostModal(hostId) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -210,8 +208,8 @@ function showEditRedirectionHostModal(hostId) {
                     </select>
                   </div>
                   <div class="form-group">
-                    <label for="certificate_id">Certificate ID (or 'new')</label>
-                    <input type="text" id="certificate_id" name="certificate_id" value="${host.certificate_id || ""}">
+                    <label for="certificate_id">Certificate</label>
+                    <select id="certificate_id" name="certificate_id"></select>
                   </div>
                   <div class="form-group">
                     <label>
@@ -262,9 +260,25 @@ function showEditRedirectionHostModal(hostId) {
                     <button type="button" class="btn-secondary" onclick="RedirectionHostModals.closeModals()">Cancel</button>
                   </div>
                 `;
+
+      // Populate certificate dropdown
+      const certSelect = form.querySelector("#certificate_id");
+      await populateCertificateDropdown(certSelect, host.certificate_id);
+
       modal.style.display = "block";
       form.onsubmit = (e) => {
         e.preventDefault();
+
+        // Process certificate_id
+        let certificate_id = form.querySelector("#certificate_id").value;
+        if (certificate_id === "") {
+          certificate_id = null;
+        } else if (certificate_id === "new") {
+          certificate_id = "new";
+        } else {
+          certificate_id = parseInt(certificate_id);
+        }
+
         const data = {
           domain_names: form
             .querySelector("#domain_names")
@@ -276,7 +290,7 @@ function showEditRedirectionHostModal(hostId) {
           forward_scheme: form.querySelector("#forward_scheme").value,
           forward_domain_name: form.querySelector("#forward_domain_name").value,
           preserve_path: form.querySelector("#preserve_path").value === "true",
-          certificate_id: form.querySelector("#certificate_id").value,
+          certificate_id: certificate_id,
           ssl_forced: form.querySelector("#ssl_forced").checked,
           hsts_enabled: form.querySelector("#hsts_enabled").checked,
           hsts_subdomains: form.querySelector("#hsts_subdomains").checked,
@@ -294,16 +308,3 @@ function showEditRedirectionHostModal(hostId) {
     }
   });
 }
-
-// Expose functions globally
-window.RedirectionHostModals = {
-  showCreateRedirectionHostModal,
-  showEditRedirectionHostModal,
-  closeModals,
-};
-
-// Initialize when DOM is loaded
-document.addEventListener("DOMContentLoaded", () => {
-  // Create modal if it doesn't exist
-  ensureModalExists();
-});
