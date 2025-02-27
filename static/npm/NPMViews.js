@@ -2,6 +2,11 @@
 import { makeRequest } from "./NPMService.js";
 import { showError } from "./NPMUtils.js";
 
+// Import modal functions from the different modal files
+import { populateAddHostForm } from "./modals/ProxyHostModals.js";
+import { showCreateRedirectionHostModal } from "./modals/RedirectionHostModals.js";
+import { showCreateCertificateModal } from "./modals/CertificateModals.js";
+
 const API_BASE = "/npm-api";
 
 // Proxy Hosts
@@ -376,3 +381,54 @@ export function createUserCard(user) {
   `;
   return card;
 }
+
+/* --- Add New Button Binding --- */
+export function bindAddNewButton() {
+  const addNewBtn = document.getElementById("addNewBtn");
+  if (!addNewBtn) {
+    console.error("Add New button not found");
+    return;
+  }
+
+  addNewBtn.addEventListener("click", async () => {
+    // Determine the active view by its id
+    const activeView = document.querySelector(".content-view.active")?.id;
+    if (!activeView) {
+      console.error("No active view detected.");
+      return;
+    }
+
+    try {
+      switch (activeView) {
+        case "proxyView":
+          // For Proxy Hosts: populate the form and show the modal
+          populateAddHostForm();
+          document.getElementById("addHostModal").style.display = "block";
+          break;
+        case "redirectionView":
+          // For Redirection Hosts: show the redirection host modal
+          await showCreateRedirectionHostModal();
+          break;
+        case "streamView":
+          // For Streams: implement or log a message (functionality can be added later)
+          console.log("Stream host add functionality is not implemented yet.");
+          break;
+        case "accessView":
+          // For Access Lists: implement or log a message (functionality can be added later)
+          console.log("Access list add functionality is not implemented yet.");
+          break;
+        case "certificatesView":
+          // For Certificates: show the certificate creation modal
+          await showCreateCertificateModal();
+          break;
+        default:
+          console.warn("No add action defined for active view:", activeView);
+      }
+    } catch (error) {
+      console.error("Error processing Add New action:", error);
+    }
+  });
+}
+
+// Automatically bind the Add New button when the document is loaded
+document.addEventListener("DOMContentLoaded", bindAddNewButton);
