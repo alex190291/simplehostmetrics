@@ -75,7 +75,7 @@ export class NPMManager {
         // Example: open proxy host add modal (imported from modals/ProxyHostModals.js)
         import("../modals/ProxyHostModals.js").then((modals) => {
           modals.populateAddHostForm();
-          document.getElementById("addHostModal").style.display = "block";
+          document.getElementById("addHostModal").style.display = "flex";
         });
       });
     }

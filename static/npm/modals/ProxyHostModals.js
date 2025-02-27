@@ -403,7 +403,8 @@ export function editHostModal(host) {
     const form = document.getElementById("addHostForm");
 
     form.innerHTML = generateHostFormHTML(host);
-    modal.style.display = "block";
+    // Change display to "flex" to center the modal
+    modal.style.display = "flex";
     setupHostForm(form, true);
 
     // Populate certificate and access list dropdowns with existing values
