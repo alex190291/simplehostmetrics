@@ -4,7 +4,6 @@ import { switchTab, closeModals } from "./common.js";
 // -------------------------
 // Form Generation Utilities
 // -------------------------
-// Updated generateRedirectionHostFormHTML in simplehostmetrics/static/npm/modals/RedirectionHostModals.js
 function generateRedirectionHostFormHTML(host = null) {
   const isEdit = host !== null;
   const idField = isEdit
@@ -17,96 +16,94 @@ function generateRedirectionHostFormHTML(host = null) {
   const forwardScheme = isEdit ? host.forward_scheme : "auto";
   const forwardDomain = isEdit ? host.forward_domain_name : "";
   const preservePath = isEdit ? host.preserve_path : true;
-  const certId = isEdit ? host.certificate_id : "";
   const sslForced = isEdit ? host.ssl_forced : false;
   const hstsEnabled = isEdit ? host.hsts_enabled : false;
   const hstsSubdomains = isEdit ? host.hsts_subdomains : false;
   const http2Support = isEdit ? host.http2_support : false;
   const blockExploits = isEdit ? host.block_exploits : false;
-  const advancedConfig = isEdit ? host.advanced_config : "";
+  const customConfig = isEdit ? host.custom_config : "";
   const enabled = isEdit ? host.enabled : true;
-  const meta = isEdit ? JSON.stringify(host.meta || {}) : "{}";
 
   return `
     ${idField}
-    <div class="form-group">
-      <label for="domain_names">Domain Names (comma-separated)</label>
-      <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
+    <div class="tabs">
+      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
+      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
     </div>
+    <div class="tab-content" id="generalTab">
+      <div class="form-group">
+        <label for="domain_names">Domain Names (comma-separated)</label>
+        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
+      </div>
 
-    <div class="form-group">
-      <label for="forward_http_code">Redirect HTTP Code</label>
-      <select id="forward_http_code" name="forward_http_code" required>
-        <option value="301" ${forwardHttpCode === 301 ? "selected" : ""}>301 - Permanent Redirect</option>
-        <option value="302" ${forwardHttpCode === 302 ? "selected" : ""}>302 - Temporary Redirect</option>
-      </select>
+      <div class="form-group">
+        <label for="forward_http_code">Redirect HTTP Code</label>
+        <select id="forward_http_code" name="forward_http_code" required>
+          <option value="301" ${forwardHttpCode === "301" ? "selected" : ""}>301 - Permanent Redirect</option>
+          <option value="302" ${forwardHttpCode === "302" ? "selected" : ""}>302 - Temporary Redirect</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="forward_scheme">Protocol</label>
+        <select id="forward_scheme" name="forward_scheme" required>
+          <option value="auto" ${forwardScheme === "auto" ? "selected" : ""}>Auto</option>
+          <option value="http" ${forwardScheme === "http" ? "selected" : ""}>HTTP</option>
+          <option value="https" ${forwardScheme === "https" ? "selected" : ""}>HTTPS</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="forward_domain_name">Destination Domain</label>
+        <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomain}" required>
+      </div>
+
+      <div class="form-group">
+        <label for="preserve_path">Preserve Path</label>
+        <select id="preserve_path" name="preserve_path" required>
+          <option value="true" ${preservePath ? "selected" : ""}>Yes</option>
+          <option value="false" ${!preservePath ? "selected" : ""}>No</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="certificate_id">SSL Certificate</label>
+        <select id="certificate_id" name="certificate_id"></select>
+      </div>
+
+      <div class="form-group checkboxes">
+        <label>
+          <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
+          Force SSL
+        </label>
+        <label>
+          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
+          HSTS Enabled
+        </label>
+        <label>
+          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
+          Include Subdomains
+        </label>
+        <label>
+          <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
+          HTTP/2 Support
+        </label>
+        <label>
+          <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
+          Block Exploits
+        </label>
+        <label>
+          <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
+          Enabled
+        </label>
+      </div>
     </div>
-
-    <div class="form-group">
-      <label for="forward_scheme">Protocol</label>
-      <select id="forward_scheme" name="forward_scheme" required>
-        <option value="auto" ${forwardScheme === "auto" ? "selected" : ""}>Auto</option>
-        <option value="http" ${forwardScheme === "http" ? "selected" : ""}>HTTP</option>
-        <option value="https" ${forwardScheme === "https" ? "selected" : ""}>HTTPS</option>
-      </select>
+    <div class="tab-content" id="customTab" style="display:none;">
+      <div class="form-group">
+        <label for="custom_config">Custom Nginx Config</label>
+        <textarea id="custom_config" name="custom_config" rows="10">${customConfig}</textarea>
+      </div>
     </div>
-
-    <div class="form-group">
-      <label for="forward_domain_name">Destination Domain</label>
-      <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomain}" required>
-    </div>
-
-    <div class="form-group">
-      <label for="preserve_path">Preserve Path</label>
-      <select id="preserve_path" name="preserve_path" required>
-        <option value="true" ${preservePath ? "selected" : ""}>Yes</option>
-        <option value="false" ${!preservePath ? "selected" : ""}>No</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="certificate_id">SSL Certificate</label>
-      <select id="certificate_id" name="certificate_id"></select>
-    </div>
-
-    <div class="form-group checkboxes">
-      <label>
-        <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
-        Force SSL
-      </label>
-      <label>
-        <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
-        HSTS Enabled
-      </label>
-      <label>
-        <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
-        Include Subdomains
-      </label>
-      <label>
-        <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
-        HTTP/2 Support
-      </label>
-      <label>
-        <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
-        Block Exploits
-      </label>
-      <label>
-        <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
-        Enabled
-      </label>
-    </div>
-
-    <!-- Additional fields for advanced configuration and meta if needed -->
-    <div class="form-group">
-      <label for="advanced_config">Custom Configuration</label>
-      <textarea id="advanced_config" name="advanced_config" rows="10">${advancedConfig}</textarea>
-    </div>
-
-    <div class="form-group">
-      <label for="meta">Metadata (JSON)</label>
-      <textarea id="meta" name="meta" rows="4">${meta}</textarea>
-    </div>
-
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">${isEdit ? "Update" : "Create"} Redirection</button>
       <button type="button" class="btn btn-secondary modal-close">Cancel</button>
@@ -128,8 +125,8 @@ async function populateCertificateDropdown(selectElement, selectedValue = "") {
         (
           cert,
         ) => `<option value="${cert.id}" ${cert.id === selectedValue ? "selected" : ""}>
-        ${cert.nice_name || cert.domain_names?.join(", ") || cert.id}
-      </option>`,
+          ${cert.nice_name || cert.domain_names?.join(", ") || cert.id}
+        </option>`,
       )
       .join("");
 
@@ -236,9 +233,8 @@ export function showCreateRedirectionHostModal() {
         hsts_subdomains: formData.has("hsts_subdomains"),
         http2_support: formData.has("http2_support"),
         block_exploits: formData.has("block_exploits"),
-        advanced_config: formData.get("advanced_config"),
+        custom_config: formData.get("custom_config"),
         enabled: formData.has("enabled"),
-        meta: JSON.parse(formData.get("meta") || "{}"),
       };
 
       modal.remove();
@@ -297,9 +293,8 @@ export async function showEditRedirectionHostModal(hostId) {
           hsts_subdomains: formData.has("hsts_subdomains"),
           http2_support: formData.has("http2_support"),
           block_exploits: formData.has("block_exploits"),
-          advanced_config: formData.get("advanced_config"),
+          custom_config: formData.get("custom_config"),
           enabled: formData.has("enabled"),
-          meta: JSON.parse(formData.get("meta") || "{}"),
         };
 
         modal.remove();
