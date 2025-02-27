@@ -19,12 +19,21 @@ export class NPMManager {
     this.retryAttempts = 3;
     this.initialize();
 
-    // Expose delegate functions so that global calls like npmManager.editHost() work
+    // Expose delegate functions so that global calls like npmManager.editHost() work.
+    // Proxy Host delegate functions:
     this.editHost = this.editHost.bind(this);
     this.deleteHost = ProxyHostManager.deleteProxyHost;
     this.enableProxyHost = ProxyHostManager.enableProxyHost;
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
-    // Additional delegate methods can be added similarly
+
+    // Redirection Host delegate functions:
+    this.editRedirectionHost = RedirectionHostManager.editRedirectionHost;
+    this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
+    this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
+    this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
+    this.disableRedirectionHost = RedirectionHostManager.disableRedirectionHost;
+
+    // Additional manager functions can be attached similarly.
   }
 
   async initialize() {
