@@ -214,6 +214,3 @@ export class NPMManager {
       showError("Failed to edit redirection host");
     }
   }
-
-
-  The issue was with the nested try/catch block using await with import(). I've replaced it with a Promise-based approach using .then() and .catch() which should work better in this context.
