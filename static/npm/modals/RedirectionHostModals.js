@@ -226,10 +226,10 @@ function setupRedirectionForm(form, isEdit = false) {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab, btn));
   });
 
-  // Close button
-  form.querySelectorAll(".modal-close").forEach((btn) => {
-    btn.addEventListener("click", closeModals);
-  });
+  // // Close button
+  // form.querySelectorAll(".modal-close").forEach((btn) => {
+  //   btn.addEventListener("click", closeModals);
+  // });
 
   // Certificate dropdown
   const certSelect = form.querySelector("#certificate_id");
