@@ -3,10 +3,6 @@ import { makeRequest } from "../NPMService.js";
 import { showSuccess, showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
-/**
- * Edit an existing redirection host.
- * Calls the proxy endpoint: PUT /nginx/redirection-hosts/<hostId>
- */
 export async function editRedirectionHost(hostId, updatedData) {
   try {
     await makeRequest(
@@ -22,10 +18,6 @@ export async function editRedirectionHost(hostId, updatedData) {
   }
 }
 
-/**
- * Delete a redirection host.
- * Calls the proxy endpoint: DELETE /nginx/redirection-hosts/<hostId>
- */
 export async function deleteRedirectionHost(hostId) {
   if (!confirm("Are you sure you want to delete this redirection host?"))
     return;
@@ -42,10 +34,6 @@ export async function deleteRedirectionHost(hostId) {
   }
 }
 
-/**
- * Create a new redirection host.
- * Calls the proxy endpoint: POST /nginx/redirection-hosts
- */
 export async function createRedirectionHost(redirData) {
   try {
     await makeRequest(
@@ -61,10 +49,6 @@ export async function createRedirectionHost(redirData) {
   }
 }
 
-/**
- * Enable a redirection host.
- * Calls the proxy endpoint: POST /nginx/redirection-hosts/<hostId>/enable
- */
 export async function enableRedirectionHost(hostId) {
   try {
     await makeRequest(
@@ -79,10 +63,6 @@ export async function enableRedirectionHost(hostId) {
   }
 }
 
-/**
- * Disable a redirection host.
- * Calls the proxy endpoint: POST /nginx/redirection-hosts/<hostId>/disable
- */
 export async function disableRedirectionHost(hostId) {
   try {
     await makeRequest(
