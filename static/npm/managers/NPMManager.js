@@ -21,32 +21,32 @@ export class NPMManager {
     this.retryAttempts = 3;
     this.initialize();
 
-    // Expose delegate functions so that global calls like npmManager.editHost() work.
-    // Proxy Host delegate functions:
+    // Expose delegate functions for Proxy Hosts:
     this.editHost = this.editHost.bind(this);
     this.deleteHost = ProxyHostManager.deleteProxyHost;
     this.enableProxyHost = ProxyHostManager.enableProxyHost;
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 
-    // Redirection Host delegate functions:
+    // Expose delegate functions for Redirection Hosts:
     this.editRedirectionHost = this.editRedirectionHost.bind(this);
     this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
     this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
     this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
     this.disableRedirectionHost = RedirectionHostManager.disableRedirectionHost;
 
-    // Certificate functions:
+    // Expose Certificate functions:
     this.renewCertificate = CertificateManager.renewCertificate;
     this.deleteCertificate = CertificateManager.deleteCertificate;
     this.downloadCertificate = CertificateManager.downloadCertificate;
-    // Expose a certificate update flow that shows the upload modal and then calls uploadCertificate.
-    this.showUploadCertificateModal = async function (certId) {
+
+    // New function for uploading a new custom certificate.
+    this.uploadNewCertificate = async function () {
       try {
         const modals = await import("../modals/CertificateModals.js");
-        const formData = await modals.showUploadCertificateModal(certId);
-        await CertificateManager.uploadCertificate(certId, formData);
+        const certDetails = await modals.showUploadNewCertificateModal();
+        await CertificateManager.uploadNewCertificate(certDetails);
       } catch (error) {
-        console.error("Failed to update certificate", error);
+        console.error("Failed to upload new certificate", error);
       }
     };
   }
@@ -90,6 +90,13 @@ export class NPMManager {
           modals.populateAddHostForm();
           document.getElementById("addHostModal").style.display = "flex";
         });
+      });
+    }
+    // New upload button for custom certificates.
+    const uploadBtn = document.getElementById("uploadCertificateBtn");
+    if (uploadBtn) {
+      uploadBtn.addEventListener("click", () => {
+        this.uploadNewCertificate();
       });
     }
     const searchInput = document.getElementById("searchInput");

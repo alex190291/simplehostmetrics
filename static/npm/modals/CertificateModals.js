@@ -37,7 +37,6 @@ export function showCreateCertificateModal() {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    // Use flex-based styling as with the proxy host modals.
     modal.style.display = "flex";
     form.onsubmit = (e) => {
       e.preventDefault();
@@ -95,20 +94,33 @@ export function showValidateCertificateModal() {
   });
 }
 
-export function showUploadCertificateModal(certId) {
+/**
+ * New modal for uploading a custom certificate as a new entry.
+ * This modal collects:
+ *   - A certificate name (nice_name)
+ *   - Domain names (optional, comma-separated)
+ *   - Certificate file, key, and an optional intermediate certificate.
+ */
+export function showUploadNewCertificateModal() {
   return new Promise((resolve) => {
-    let modal = document.getElementById("uploadCertificateModal");
+    let modal = document.getElementById("uploadNewCertificateModal");
     if (!modal) {
-      // Create the modal dynamically if it doesn't exist
       modal = document.createElement("div");
-      modal.id = "uploadCertificateModal";
+      modal.id = "uploadNewCertificateModal";
       modal.className = "modal";
       modal.innerHTML = `<div class="modal-content"><form></form></div>`;
       document.body.appendChild(modal);
     }
     const form = modal.querySelector("form");
     form.innerHTML = `
-      <input type="hidden" name="cert_id" value="${certId}">
+      <div class="form-group">
+        <label for="nice_name">Certificate Name</label>
+        <input type="text" id="nice_name" name="nice_name" required>
+      </div>
+      <div class="form-group">
+        <label for="domain_names">Domain Names (comma-separated)</label>
+        <input type="text" id="domain_names" name="domain_names">
+      </div>
       <div class="form-group">
         <label for="certificate">Certificate File</label>
         <input type="file" id="certificate" name="certificate" required>
@@ -129,9 +141,31 @@ export function showUploadCertificateModal(certId) {
     modal.style.display = "flex";
     form.onsubmit = (e) => {
       e.preventDefault();
-      const formData = new FormData(form);
+      const niceName = form.querySelector("#nice_name").value;
+      const domainNames = form.querySelector("#domain_names").value
+        ? form
+            .querySelector("#domain_names")
+            .value.split(",")
+            .map((d) => d.trim())
+        : [];
+      // Create a FormData object for file uploads.
+      const fileData = new FormData();
+      const certificateFile = form.querySelector("#certificate").files[0];
+      const certificateKeyFile =
+        form.querySelector("#certificate_key").files[0];
+      const intermediateFile = form.querySelector("#intermediate_certificate")
+        .files[0];
+      fileData.append("certificate", certificateFile);
+      fileData.append("certificate_key", certificateKeyFile);
+      if (intermediateFile) {
+        fileData.append("intermediate_certificate", intermediateFile);
+      }
       modal.style.display = "none";
-      resolve(formData);
+      resolve({
+        nice_name: niceName,
+        domain_names: domainNames,
+        fileData: fileData,
+      });
     };
   });
 }
