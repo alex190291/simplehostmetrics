@@ -1,5 +1,5 @@
 // simplehostmetrics/static/npm/modals/RedirectionHostModals.js
-import { switchTab, closeModals } from "./common.js";
+import { switchTab, closeModals } from "/static/npm/common.js";
 
 // -------------------------
 // Form Generation Utilities
