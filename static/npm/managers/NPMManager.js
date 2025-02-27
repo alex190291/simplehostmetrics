@@ -192,32 +192,28 @@ export class NPMManager {
         // Delegate update to RedirectionHostManager
         await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
       } else {
-        // Fallback if RedirectionHostModals use the global RedirectionHostModals object that's exposed in the window
-              if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
-                const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
-                // Delegate update to RedirectionHostManager
-                await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
-              } else {
-                // Fallback if RedirectionHostModals is not available
-                console.error("RedirectionHostModals is not available in the global scope");
+        // Fallback if RedirectionHostModals is not available
+        console.error("RedirectionHostModals is not available in the global scope");
 
-                // Load the module dynamically
-                try {
-                  await import("../modals/RedirectionHostModals.js");
-                  if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
-                    const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
-                    await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
-                  } else {
-                    throw new Error("RedirectionHostModals still not available after import");
-                  }
-                } catch (importError) {
-                  console.error("Failed to import RedirectionHostModals:", importError);
-                  showError("Failed to load redirection host editor");
-                }
-              }
-            } catch (error) {
-              console.error("Failed to edit redirection host", error);
-              showError("Failed to edit redirection host");
-            }
+        // Load the module dynamically
+        import("../modals/RedirectionHostModals.js").then(async () => {
+          if (window.RedirectionHostModals && typeof window.RedirectionHostModals.showEditRedirectionHostModal === 'function') {
+            const updatedData = await window.RedirectionHostModals.showEditRedirectionHostModal(hostId);
+            await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
+          } else {
+            console.error("RedirectionHostModals still not available after import");
+            showError("Failed to load redirection host editor");
           }
-        }
+        }).catch(importError => {
+          console.error("Failed to import RedirectionHostModals:", importError);
+          showError("Failed to load redirection host editor");
+        });
+      }
+    } catch (error) {
+      console.error("Failed to edit redirection host", error);
+      showError("Failed to edit redirection host");
+    }
+  }
+
+
+  The issue was with the nested try/catch block using await with import(). I've replaced it with a Promise-based approach using .then() and .catch() which should work better in this context.
