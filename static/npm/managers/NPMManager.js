@@ -10,6 +10,7 @@ import { makeRequest } from "../NPMService.js";
 import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 import { editHostModal } from "../modals/ProxyHostModals.js";
+import { showEditRedirectionHostModal } from "../modals/RedirectionHostModals.js";
 
 export class NPMManager {
   constructor() {
@@ -27,7 +28,7 @@ export class NPMManager {
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 
     // Redirection Host delegate functions:
-    this.editRedirectionHost = RedirectionHostManager.editRedirectionHost;
+    this.editRedirectionHost = this.editRedirectionHost.bind(this);
     this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
     this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
     this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
@@ -179,6 +180,19 @@ export class NPMManager {
       await ProxyHostManager.editProxyHost(hostId, updatedData);
     } catch (error) {
       console.error("Failed to edit host", error);
+    }
+  }
+
+  // Delegate function for editing a redirection host
+  async editRedirectionHost(hostId) {
+    try {
+      // Open the edit modal and get updated data
+      const updatedData = await showEditRedirectionHostModal(hostId);
+      // Delegate update to RedirectionHostManager
+      await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
+    } catch (error) {
+      console.error("Failed to edit redirection host", error);
+      showError("Failed to edit redirection host");
     }
   }
 }
