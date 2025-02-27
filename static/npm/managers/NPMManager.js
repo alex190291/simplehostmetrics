@@ -12,7 +12,6 @@ import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 import { editHostModal } from "../modals/ProxyHostModals.js";
 import * as RedirectionHostModals from "../modals/RedirectionHostModals.js";
-import { createCertificateActionButtons } from "../modals/CertificateModals.js";
 
 export class NPMManager {
   constructor() {
@@ -39,11 +38,6 @@ export class NPMManager {
     this.renewCertificate = CertificateManager.renewCertificate;
     this.deleteCertificate = CertificateManager.deleteCertificate;
     this.downloadCertificate = CertificateManager.downloadCertificate;
-    this.showNewCertificateModal = CertificateManager.showNewCertificateModal;
-    this.showUploadCertificateModal =
-      CertificateManager.showUploadCertificateModal;
-    this.showValidateCertificateModal =
-      CertificateManager.showValidateCertificateModal;
 
     // New function for uploading a new custom certificate.
     this.uploadNewCertificate = async function () {
@@ -55,14 +49,6 @@ export class NPMManager {
         console.error("Failed to upload new certificate", error);
       }
     };
-
-    // Add the instance to the window object for global access
-    if (typeof window.npmManager === "undefined") {
-      window.npmManager = this;
-    } else {
-      // Merge with existing npmManager if it exists
-      Object.assign(window.npmManager, this);
-    }
   }
 
   async initialize() {
@@ -75,20 +61,9 @@ export class NPMManager {
       this.setupEventListeners();
       await this.loadCurrentView();
       this.startAutoRefresh();
-      this.initCertificateActions();
     } catch (error) {
       showError("Failed to connect to NPM API");
       console.error("Init failed:", error);
-    }
-  }
-
-  initCertificateActions() {
-    // Add the certificate action buttons to the appropriate container
-    const actionContainer = document.getElementById(
-      "certificateActionsContainer",
-    );
-    if (actionContainer) {
-      actionContainer.innerHTML = createCertificateActionButtons();
     }
   }
 
@@ -108,29 +83,14 @@ export class NPMManager {
         this.toggleGroup(groupElem.id);
       });
     });
-
-    // New certificate buttons
+    // Removed the generic "add new" button listener.
+    // New upload button for custom certificates.
     const uploadBtn = document.getElementById("uploadCertificateBtn");
     if (uploadBtn) {
       uploadBtn.addEventListener("click", () => {
         this.uploadNewCertificate();
       });
     }
-
-    const newCertBtn = document.getElementById("newCertificateBtn");
-    if (newCertBtn) {
-      newCertBtn.addEventListener("click", () => {
-        this.showNewCertificateModal();
-      });
-    }
-
-    const validateCertBtn = document.getElementById("validateCertificateBtn");
-    if (validateCertBtn) {
-      validateCertBtn.addEventListener("click", () => {
-        this.showValidateCertificateModal();
-      });
-    }
-
     const searchInput = document.getElementById("searchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) =>
@@ -158,11 +118,6 @@ export class NPMManager {
     }
     this.currentView = view;
     this.loadCurrentView();
-
-    // If we're switching to certificates view, initialize the certificate actions
-    if (view === "certificates") {
-      this.initCertificateActions();
-    }
   }
 
   toggleGroup(groupId) {
@@ -247,9 +202,3 @@ export class NPMManager {
     }
   }
 }
-
-// Initialize NPMManager when DOM is loaded
-document.addEventListener("DOMContentLoaded", function () {
-  // Create a new instance of NPMManager, this will also add it to window.npmManager
-  new NPMManager();
-});
