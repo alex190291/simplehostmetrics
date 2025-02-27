@@ -1,5 +1,5 @@
 // /static/npm/modals/ProxyHostModals.js
-import { switchTab, closeModals } from "./common.js";
+import { switchTab, closeModals } from "/static/npm/common.js";
 
 // -------------------------
 // DNS Challenge Modal Logic
@@ -76,7 +76,6 @@ function openDnsChallengeModal() {
       });
   });
 }
-
 // Helper function to populate the certificate dropdown dynamically
 async function populateCertificateDropdown(selectElement, selectedValue = "") {
   try {
@@ -421,3 +420,4 @@ export function editHostModal(host) {
     };
   });
 }
+//test
