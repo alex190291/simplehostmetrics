@@ -1,5 +1,5 @@
 // /static/npm/modals/CertificateModals.js
-import { closeModals } from "/static/npm/common.js";
+import { closeModals } from "./common.js";
 
 export function showCreateCertificateModal() {
   return new Promise((resolve) => {
