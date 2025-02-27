@@ -21,6 +21,7 @@ function generateRedirectionHostFormHTML(host = null) {
   const hstsSubdomains = isEdit ? host.hsts_subdomains : false;
   const http2Support = isEdit ? host.http2_support : false;
   const blockExploits = isEdit ? host.block_exploits : false;
+  // Use the property name "custom_config" for the custom configuration.
   const customConfig = isEdit ? host.custom_config : "";
   const enabled = isEdit ? host.enabled : true;
 
@@ -30,7 +31,7 @@ function generateRedirectionHostFormHTML(host = null) {
       <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
       <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
     </div>
-    <div class="tab-content" id="generalTab">
+    <div class="tab-content" id="generalTab" data-tab="general">
       <div class="form-group">
         <label for="domain_names">Domain Names (comma-separated)</label>
         <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
@@ -98,7 +99,7 @@ function generateRedirectionHostFormHTML(host = null) {
         </label>
       </div>
     </div>
-    <div class="tab-content" id="customTab" style="display:none;">
+    <div class="tab-content" id="customTab" data-tab="custom" style="display:none;">
       <div class="form-group">
         <label for="custom_config">Custom Nginx Config</label>
         <textarea id="custom_config" name="custom_config" rows="10">${customConfig}</textarea>
