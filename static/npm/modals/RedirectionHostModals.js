@@ -2,6 +2,10 @@
 import { makeRequest } from "../NPMService.js";
 import { closeModals } from "./common.js";
 
+/**
+ * Display modal for creating a new redirection host.
+ * When the form is submitted, resolve with the data object.
+ */
 export function showCreateRedirectionHostModal() {
   return new Promise((resolve) => {
     const modal = document.getElementById("redirectionHostModal");
@@ -117,6 +121,11 @@ export function showCreateRedirectionHostModal() {
   });
 }
 
+/**
+ * Display modal for editing an existing redirection host.
+ * Fetches the host data from the proxy endpoint: GET /nginx/redirection-hosts/<hostId>
+ * and then populates the form.
+ */
 export function showEditRedirectionHostModal(hostId) {
   return new Promise(async (resolve, reject) => {
     try {
