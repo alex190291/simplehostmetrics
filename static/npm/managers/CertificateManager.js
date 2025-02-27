@@ -24,6 +24,7 @@ export async function renewCertificate(certId) {
     await Views.loadCertificates();
   } catch (error) {
     showError("Failed to renew certificate");
+    throw error;
   }
 }
 
@@ -35,6 +36,7 @@ export async function deleteCertificate(certId) {
     await Views.loadCertificates();
   } catch (error) {
     showError("Failed to delete certificate");
+    throw error;
   }
 }
 
@@ -46,18 +48,48 @@ export async function createCertificate(certData) {
       "POST",
       certData,
     );
+
+    // Apply timeout if DNS challenge with wait time is specified
     if (certData.dns_challenge && certData.dns_challenge.wait_time) {
       requestPromise = withTimeout(
         requestPromise,
         certData.dns_challenge.wait_time * 1000,
       );
     }
+
     const response = await requestPromise;
     showSuccess("Certificate created successfully");
     await Views.loadCertificates();
     return response.id;
   } catch (error) {
-    showError("Failed to create certificate");
+    showError("Failed to create certificate: " + error.message);
+    throw error;
+  }
+}
+
+export async function getCertificate(certId) {
+  try {
+    const response = await makeRequest(
+      "/npm-api",
+      `/nginx/certificates/${certId}`,
+    );
+    return response;
+  } catch (error) {
+    showError("Failed to fetch certificate details");
+    throw error;
+  }
+}
+
+export async function getAllCertificates(expand = "") {
+  try {
+    const queryParams = expand ? `?expand=${expand}` : "";
+    const response = await makeRequest(
+      "/npm-api",
+      `/nginx/certificates${queryParams}`,
+    );
+    return response;
+  } catch (error) {
+    showError("Failed to fetch certificates");
     throw error;
   }
 }
@@ -69,32 +101,41 @@ export async function validateCertificate(formData) {
       "/nginx/certificates/validate",
       "POST",
       formData,
+      true, // is multipart/form-data
     );
     showSuccess("Certificate validated successfully");
-    await Views.loadCertificates();
+    return true;
   } catch (error) {
-    showError("Failed to validate certificate");
+    showError("Failed to validate certificate: " + error.message);
+    return false;
   }
 }
 
 export async function testHttpReach(domains) {
   try {
+    const domainsStr = Array.isArray(domains)
+      ? JSON.stringify(domains)
+      : domains;
     await makeRequest(
       "/npm-api",
-      `/nginx/certificates/test-http?domains=${encodeURIComponent(JSON.stringify(domains))}`,
+      `/nginx/certificates/test-http?domains=${encodeURIComponent(domainsStr)}`,
     );
-    showSuccess("HTTP reachability test completed");
+    showSuccess("HTTP reachability test successful");
+    return true;
   } catch (error) {
-    showError("HTTP reachability test failed");
+    showError("HTTP reachability test failed: " + error.message);
+    return false;
   }
 }
 
 export async function downloadCertificate(certId) {
   try {
-    const url = `/npm-api/nginx/certificates/${certId}/download`;
-    window.location.href = url;
+    // For direct download, we don't use makeRequest but redirect the browser
+    window.location.href = `/npm-api/nginx/certificates/${certId}/download`;
+    return true;
   } catch (error) {
     showError("Failed to download certificate");
+    return false;
   }
 }
 
@@ -105,10 +146,13 @@ export async function uploadCertificate(certId, formData) {
       `/nginx/certificates/${certId}/upload`,
       "POST",
       formData,
+      true, // is multipart/form-data
     );
     showSuccess("Certificate uploaded successfully");
     await Views.loadCertificates();
+    return true;
   } catch (error) {
-    showError("Failed to upload certificate");
+    showError("Failed to upload certificate: " + error.message);
+    return false;
   }
 }

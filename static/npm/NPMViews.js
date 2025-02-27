@@ -219,6 +219,7 @@ export function createCertificateCard(cert) {
       <button class="btn btn-secondary" onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
       <button class="btn btn-secondary" onclick="npmManager.downloadCertificate(${cert.id})">Download</button>
+      <button class="btn btn-secondary" onclick="npmManager.showUploadCertificateModal(${cert.id})">Update</button>
     </div>
   `;
   return card;

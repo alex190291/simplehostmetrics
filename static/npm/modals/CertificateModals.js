@@ -30,7 +30,8 @@ export function showCreateCertificateModal() {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    modal.style.display = "block";
+    // Use flex-based styling as with the proxy host modals.
+    modal.style.display = "flex";
     form.onsubmit = (e) => {
       e.preventDefault();
       const data = {
@@ -70,7 +71,7 @@ export function showValidateCertificateModal() {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    modal.style.display = "block";
+    modal.style.display = "flex";
     form.onsubmit = (e) => {
       e.preventDefault();
       const formData = new FormData(form);
@@ -103,7 +104,7 @@ export function showUploadCertificateModal(certId) {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    modal.style.display = "block";
+    modal.style.display = "flex";
     form.onsubmit = (e) => {
       e.preventDefault();
       const formData = new FormData(form);

@@ -6,11 +6,12 @@ import * as ReportManager from "./ReportManager.js";
 import * as SettingManager from "./SettingManager.js";
 import * as TokenManager from "./TokenManager.js";
 import * as UserManager from "./UserManager.js";
+import * as CertificateManager from "./CertificateManager.js";
 import { makeRequest } from "../NPMService.js";
 import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 import { editHostModal } from "../modals/ProxyHostModals.js";
-import * as RedirectionHostModals from "../modals/RedirectionHostModals.js"; // Direct import of RedirectionHostModals
+import * as RedirectionHostModals from "../modals/RedirectionHostModals.js";
 
 export class NPMManager {
   constructor() {
@@ -34,7 +35,20 @@ export class NPMManager {
     this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
     this.disableRedirectionHost = RedirectionHostManager.disableRedirectionHost;
 
-    // Additional manager functions can be attached similarly.
+    // Certificate functions:
+    this.renewCertificate = CertificateManager.renewCertificate;
+    this.deleteCertificate = CertificateManager.deleteCertificate;
+    this.downloadCertificate = CertificateManager.downloadCertificate;
+    // Expose a certificate update flow that shows the upload modal and then calls uploadCertificate.
+    this.showUploadCertificateModal = async function (certId) {
+      try {
+        const modals = await import("../modals/CertificateModals.js");
+        const formData = await modals.showUploadCertificateModal(certId);
+        await CertificateManager.uploadCertificate(certId, formData);
+      } catch (error) {
+        console.error("Failed to update certificate", error);
+      }
+    };
   }
 
   async initialize() {
@@ -72,7 +86,6 @@ export class NPMManager {
     const addNewBtn = document.getElementById("addNewBtn");
     if (addNewBtn) {
       addNewBtn.addEventListener("click", () => {
-        // Example: open proxy host add modal (imported from modals/ProxyHostModals.js)
         import("../modals/ProxyHostModals.js").then((modals) => {
           modals.populateAddHostForm();
           document.getElementById("addHostModal").style.display = "flex";
@@ -166,29 +179,23 @@ export class NPMManager {
     }
   }
 
-  // Delegate function for editing a proxy host.
   async editHost(hostId) {
     try {
-      // Load current host details.
       const host = await makeRequest(
         this.apiBase,
         `/nginx/proxy-hosts/${hostId}`,
       );
-      // Open the edit modal from the ProxyHostModals.
       const updatedData = await editHostModal(host);
-      // Delegate update to ProxyHostManager.
       await ProxyHostManager.editProxyHost(hostId, updatedData);
     } catch (error) {
       console.error("Failed to edit host", error);
     }
   }
 
-  // Delegate function for editing a redirection host using direct module import
   async editRedirectionHost(hostId) {
     try {
       const updatedData =
         await RedirectionHostModals.showEditRedirectionHostModal(hostId);
-      // Delegate update to RedirectionHostManager
       await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
     } catch (error) {
       console.error("Failed to edit redirection host", error);
