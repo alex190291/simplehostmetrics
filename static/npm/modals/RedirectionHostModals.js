@@ -1,8 +1,43 @@
 // /static/npm/modals/RedirectionHostModals.js
-import { makeRequest } from "../NPMService.js";
-import { closeModals } from "./common.js";
+function closeModals() {
+  const modals = document.querySelectorAll(".modal");
+  modals.forEach((modal) => {
+    modal.style.display = "none";
+  });
+}
 
-export function showCreateRedirectionHostModal() {
+function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, baseUrl + endpoint, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          resolve(xhr.responseText);
+        }
+      } else {
+        reject(new Error(`Request failed with status ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = function () {
+      reject(new Error("Network error occurred"));
+    };
+
+    if (data) {
+      xhr.send(JSON.stringify(data));
+    } else {
+      xhr.send();
+    }
+  });
+}
+
+function showCreateRedirectionHostModal() {
   return new Promise((resolve) => {
     const modal = document.getElementById("redirectionHostModal");
     const form = modal.querySelector("form");
@@ -117,7 +152,7 @@ export function showCreateRedirectionHostModal() {
   });
 }
 
-export function showEditRedirectionHostModal(hostId) {
+function showEditRedirectionHostModal(hostId) {
   return new Promise(async (resolve, reject) => {
     try {
       const host = await makeRequest(
@@ -149,65 +184,65 @@ export function showEditRedirectionHostModal(hostId) {
           <input type="text" id="forward_domain_name" name="forward_domain_name" value="${host.forward_domain_name}" required>
         </div>
         <div class="form-group">
-          <label for="preserve_path">Preserve Path</label>
-          <select id="preserve_path" name="preserve_path" required>
-            <option value="true" ${host.preserve_path ? "selected" : ""}>Yes</option>
-            <option value="false" ${!host.preserve_path ? "selected" : ""}>No</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="certificate_id">Certificate ID (or 'new')</label>
-          <input type="text" id="certificate_id" name="certificate_id" value="${host.certificate_id || ""}">
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${host.ssl_forced ? "checked" : ""}>
-            Force SSL
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${host.hsts_enabled ? "checked" : ""}>
-            HSTS Enabled
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${host.hsts_subdomains ? "checked" : ""}>
-            HSTS Subdomains
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="http2_support" name="http2_support" ${host.http2_support ? "checked" : ""}>
-            HTTP2 Support
-          </label>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${host.block_exploits ? "checked" : ""}>
-            Block Exploits
-          </label>
-        </div>
-        <div class="form-group">
-          <label for="advanced_config">Advanced Config</label>
-          <textarea id="advanced_config" name="advanced_config">${host.advanced_config || ""}</textarea>
-        </div>
-        <div class="form-group">
-          <label>
-            <input type="checkbox" id="enabled" name="enabled" ${host.enabled ? "checked" : ""}>
-            Enabled
-          </label>
-        </div>
-        <div class="form-group">
-          <label for="meta">Meta (JSON)</label>
-          <textarea id="meta" name="meta">${JSON.stringify(host.meta || {})}</textarea>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn-primary">Update Redirection Host</button>
-          <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
-        </div>
-      `;
+                  <label for="preserve_path">Preserve Path</label>
+                  <select id="preserve_path" name="preserve_path" required>
+                    <option value="true" ${host.preserve_path ? "selected" : ""}>Yes</option>
+                    <option value="false" ${!host.preserve_path ? "selected" : ""}>No</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="certificate_id">Certificate ID (or 'new')</label>
+                  <input type="text" id="certificate_id" name="certificate_id" value="${host.certificate_id || ""}">
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="ssl_forced" name="ssl_forced" ${host.ssl_forced ? "checked" : ""}>
+                    Force SSL
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${host.hsts_enabled ? "checked" : ""}>
+                    HSTS Enabled
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${host.hsts_subdomains ? "checked" : ""}>
+                    HSTS Subdomains
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="http2_support" name="http2_support" ${host.http2_support ? "checked" : ""}>
+                    HTTP2 Support
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="block_exploits" name="block_exploits" ${host.block_exploits ? "checked" : ""}>
+                    Block Exploits
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label for="advanced_config">Advanced Config</label>
+                  <textarea id="advanced_config" name="advanced_config">${host.advanced_config || ""}</textarea>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input type="checkbox" id="enabled" name="enabled" ${host.enabled ? "checked" : ""}>
+                    Enabled
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label for="meta">Meta (JSON)</label>
+                  <textarea id="meta" name="meta">${JSON.stringify(host.meta || {})}</textarea>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn-primary">Update Redirection Host</button>
+                  <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
+                </div>
+              `;
       modal.style.display = "block";
       form.onsubmit = (e) => {
         e.preventDefault();
@@ -240,3 +275,28 @@ export function showEditRedirectionHostModal(hostId) {
     }
   });
 }
+
+// Expose functions globally
+window.RedirectionHostModals = {
+  showCreateRedirectionHostModal,
+  showEditRedirectionHostModal,
+  closeModals,
+};
+
+// Initialize when DOM is loaded
+document.addEventListener("DOMContentLoaded", () => {
+  // Create modal if it doesn't exist
+  if (!document.getElementById("redirectionHostModal")) {
+    const modal = document.createElement("div");
+    modal.id = "redirectionHostModal";
+    modal.className = "modal";
+    modal.innerHTML = `
+              <div class="modal-content">
+                <span class="close" onclick="RedirectionHostModals.closeModals()">&times;</span>
+                <h2>Redirection Host</h2>
+                <form></form>
+              </div>
+            `;
+    document.body.appendChild(modal);
+  }
+});
