@@ -153,10 +153,15 @@ function generateHostFormHTML(host = null) {
   const http2Support = isEdit && host.http2_support ? "checked" : "";
   const hstsEnabled = isEdit && host.hsts_enabled ? "checked" : "";
   const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
+  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
   const submitBtnText = isEdit ? "Update Host" : "Add Host";
 
   return `
     ${idField}
+    <div class="tabs">
+      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
+      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
+    </div>
     <div class="tab-content" id="generalTab">
       <div class="form-group">
         <label for="domain_names">Domain Names (comma-separated)</label>
@@ -230,6 +235,12 @@ function generateHostFormHTML(host = null) {
         </label>
       </div>
     </div>
+    <div class="tab-content" id="customTab" style="display:none;">
+      <div class="form-group">
+        <label for="custom_config">Custom Nginx Config</label>
+        <textarea id="custom_config" name="custom_config" rows="30">${customConfig}</textarea>
+      </div>
+    </div>
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">${submitBtnText}</button>
       <button type="button" class="btn btn-secondary modal-close">Cancel</button>
@@ -272,7 +283,7 @@ function processHostFormData(formData) {
     http2_support: formData.get("http2_support") === "on",
     hsts_enabled: formData.get("hsts_enabled") === "on",
     hsts_subdomains: formData.get("hsts_subdomains") === "on",
-    // advanced_config field removed
+    advanced_config: formData.get("custom_config"),
   };
 }
 
@@ -392,7 +403,7 @@ export function editHostModal(host) {
     const form = document.getElementById("addHostForm");
 
     form.innerHTML = generateHostFormHTML(host);
-    modal.style.display = "flex";
+    modal.style.display = "block";
     setupHostForm(form, true);
 
     // Populate certificate and access list dropdowns with existing values
