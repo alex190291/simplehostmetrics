@@ -1,5 +1,5 @@
 // /static/npm/modals/ProxyHostModals.js
-import { switchTab, closeModals } from "static/npm/common.js";
+import { switchTab, closeModals } from "/static/npm/common.js";
 
 // -------------------------
 // DNS Challenge Modal Logic
