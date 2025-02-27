@@ -13,6 +13,7 @@ export function showCreateCertificateModal() {
     }
     const form = modal.querySelector("form");
     form.innerHTML = `
+      <h2>Create Certificate</h2>
       <div class="form-group">
         <label for="provider">Provider</label>
         <select id="provider" name="provider" required>
@@ -67,6 +68,7 @@ export function showValidateCertificateModal() {
     }
     const form = modal.querySelector("form");
     form.innerHTML = `
+      <h2>Validate Certificate</h2>
       <div class="form-group">
         <label for="certificate">Certificate File</label>
         <input type="file" id="certificate" name="certificate" required>
@@ -113,6 +115,7 @@ export function showUploadNewCertificateModal() {
     }
     const form = modal.querySelector("form");
     form.innerHTML = `
+      <h2>Upload Certificate</h2>
       <div class="form-group">
         <label for="nice_name">Certificate Name</label>
         <input type="text" id="nice_name" name="nice_name" required>
@@ -168,4 +171,22 @@ export function showUploadNewCertificateModal() {
       });
     };
   });
+}
+
+/**
+ * Function to create HTML for certificate action buttons
+ * Adds both "Add New" and "Upload Certificate" buttons
+ * @returns {string} HTML string for the action buttons
+ */
+export function createCertificateActionButtons() {
+  return `
+    <div class="action-buttons">
+      <button class="btn btn-primary" onclick="npmManager.showNewCertificateModal()">
+        <i class="fas fa-plus"></i> Add New
+      </button>
+      <button class="btn btn-primary" onclick="npmManager.showUploadCertificateModal()">
+        <i class="fas fa-upload"></i> Upload Certificate
+      </button>
+    </div>
+  `;
 }

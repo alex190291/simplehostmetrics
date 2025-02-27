@@ -2,6 +2,11 @@
 import { makeRequest } from "../NPMService.js";
 import { showSuccess, showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
+import {
+  showCreateCertificateModal,
+  showValidateCertificateModal,
+  showUploadNewCertificateModal,
+} from "../modals/CertificateModals.js";
 
 // Helper to wrap a promise with a timeout.
 function withTimeout(promise, timeoutMs) {
@@ -114,7 +119,7 @@ export async function uploadCertificate(certId, formData) {
 }
 
 /**
- * New function that handles uploading a new custom certificate.
+ * Handles uploading a new custom certificate.
  * It first creates a certificate record (provider "other") and then uploads the certificate files.
  */
 export async function uploadNewCertificate(certDetails) {
@@ -132,8 +137,53 @@ export async function uploadNewCertificate(certDetails) {
     );
     const certId = response.id;
     await uploadCertificate(certId, certDetails.fileData);
+    showSuccess("Certificate uploaded successfully");
+    await Views.loadCertificates();
+    return certId;
   } catch (error) {
     showError("Failed to upload new certificate");
     throw error;
+  }
+}
+
+/**
+ * Shows the create certificate modal and handles the creation process
+ */
+export async function showNewCertificateModal() {
+  try {
+    const certData = await showCreateCertificateModal();
+    if (certData) {
+      await createCertificate(certData);
+    }
+  } catch (error) {
+    showError("Failed to create certificate");
+  }
+}
+
+/**
+ * Shows the upload certificate modal and handles the upload process
+ */
+export async function showUploadCertificateModal() {
+  try {
+    const certDetails = await showUploadNewCertificateModal();
+    if (certDetails) {
+      await uploadNewCertificate(certDetails);
+    }
+  } catch (error) {
+    showError("Failed to upload certificate");
+  }
+}
+
+/**
+ * Shows the validate certificate modal and handles the validation process
+ */
+export async function showValidateCertificateModal() {
+  try {
+    const formData = await showValidateCertificateModal();
+    if (formData) {
+      await validateCertificate(formData);
+    }
+  } catch (error) {
+    showError("Failed to validate certificate");
   }
 }
