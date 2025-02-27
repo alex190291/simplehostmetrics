@@ -3,17 +3,9 @@ import { closeModals } from "./common.js";
 
 export function showCreateCertificateModal() {
   return new Promise((resolve) => {
-    let modal = document.getElementById("certificateModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "certificateModal";
-      modal.className = "modal";
-      modal.innerHTML = `<div class="modal-content"><form></form></div>`;
-      document.body.appendChild(modal);
-    }
+    const modal = document.getElementById("certificateModal");
     const form = modal.querySelector("form");
     form.innerHTML = `
-      <h2>Create Certificate</h2>
       <div class="form-group">
         <label for="provider">Provider</label>
         <select id="provider" name="provider" required>
@@ -38,7 +30,7 @@ export function showCreateCertificateModal() {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    modal.style.display = "flex";
+    modal.style.display = "block";
     form.onsubmit = (e) => {
       e.preventDefault();
       const data = {
@@ -58,17 +50,9 @@ export function showCreateCertificateModal() {
 
 export function showValidateCertificateModal() {
   return new Promise((resolve) => {
-    let modal = document.getElementById("validateCertificateModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "validateCertificateModal";
-      modal.className = "modal";
-      modal.innerHTML = `<div class="modal-content"><form></form></div>`;
-      document.body.appendChild(modal);
-    }
+    const modal = document.getElementById("validateCertificateModal");
     const form = modal.querySelector("form");
     form.innerHTML = `
-      <h2>Validate Certificate</h2>
       <div class="form-group">
         <label for="certificate">Certificate File</label>
         <input type="file" id="certificate" name="certificate" required>
@@ -86,7 +70,7 @@ export function showValidateCertificateModal() {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    modal.style.display = "flex";
+    modal.style.display = "block";
     form.onsubmit = (e) => {
       e.preventDefault();
       const formData = new FormData(form);
@@ -96,34 +80,12 @@ export function showValidateCertificateModal() {
   });
 }
 
-/**
- * New modal for uploading a custom certificate as a new entry.
- * This modal collects:
- *   - A certificate name (nice_name)
- *   - Domain names (optional, comma-separated)
- *   - Certificate file, key, and an optional intermediate certificate.
- */
-export function showUploadNewCertificateModal() {
+export function showUploadCertificateModal(certId) {
   return new Promise((resolve) => {
-    let modal = document.getElementById("uploadNewCertificateModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "uploadNewCertificateModal";
-      modal.className = "modal";
-      modal.innerHTML = `<div class="modal-content"><form></form></div>`;
-      document.body.appendChild(modal);
-    }
+    const modal = document.getElementById("uploadCertificateModal");
     const form = modal.querySelector("form");
     form.innerHTML = `
-      <h2>Upload Certificate</h2>
-      <div class="form-group">
-        <label for="nice_name">Certificate Name</label>
-        <input type="text" id="nice_name" name="nice_name" required>
-      </div>
-      <div class="form-group">
-        <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names">
-      </div>
+      <input type="hidden" name="cert_id" value="${certId}">
       <div class="form-group">
         <label for="certificate">Certificate File</label>
         <input type="file" id="certificate" name="certificate" required>
@@ -141,52 +103,12 @@ export function showUploadNewCertificateModal() {
         <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
       </div>
     `;
-    modal.style.display = "flex";
+    modal.style.display = "block";
     form.onsubmit = (e) => {
       e.preventDefault();
-      const niceName = form.querySelector("#nice_name").value;
-      const domainNames = form.querySelector("#domain_names").value
-        ? form
-            .querySelector("#domain_names")
-            .value.split(",")
-            .map((d) => d.trim())
-        : [];
-      // Create a FormData object for file uploads.
-      const fileData = new FormData();
-      const certificateFile = form.querySelector("#certificate").files[0];
-      const certificateKeyFile =
-        form.querySelector("#certificate_key").files[0];
-      const intermediateFile = form.querySelector("#intermediate_certificate")
-        .files[0];
-      fileData.append("certificate", certificateFile);
-      fileData.append("certificate_key", certificateKeyFile);
-      if (intermediateFile) {
-        fileData.append("intermediate_certificate", intermediateFile);
-      }
+      const formData = new FormData(form);
       modal.style.display = "none";
-      resolve({
-        nice_name: niceName,
-        domain_names: domainNames,
-        fileData: fileData,
-      });
+      resolve(formData);
     };
   });
-}
-
-/**
- * Function to create HTML for certificate action buttons
- * Adds both "Add New" and "Upload Certificate" buttons
- * @returns {string} HTML string for the action buttons
- */
-export function createCertificateActionButtons() {
-  return `
-    <div class="action-buttons">
-      <button class="btn btn-primary" onclick="npmManager.showNewCertificateModal()">
-        <i class="fas fa-plus"></i> Add New
-      </button>
-      <button class="btn btn-primary" onclick="npmManager.showUploadCertificateModal()">
-        <i class="fas fa-upload"></i> Upload Certificate
-      </button>
-    </div>
-  `;
 }
