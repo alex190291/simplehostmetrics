@@ -83,7 +83,15 @@ export class NPMManager {
         this.toggleGroup(groupElem.id);
       });
     });
-    // Removed the generic "add new" button listener.
+    const addNewBtn = document.getElementById("addNewBtn");
+    if (addNewBtn) {
+      addNewBtn.addEventListener("click", () => {
+        import("../modals/ProxyHostModals.js").then((modals) => {
+          modals.populateAddHostForm();
+          document.getElementById("addHostModal").style.display = "flex";
+        });
+      });
+    }
     // New upload button for custom certificates.
     const uploadBtn = document.getElementById("uploadCertificateBtn");
     if (uploadBtn) {
