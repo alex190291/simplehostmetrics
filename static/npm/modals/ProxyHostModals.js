@@ -1,5 +1,6 @@
 // /static/npm/modals/ProxyHostModals.js
 import { switchTab, closeModals } from "/static/npm/common.js";
+import { showSuccess, showError } from "../NPMUtils.js";
 
 // -------------------------
 // DNS Challenge Modal Logic
@@ -319,22 +320,28 @@ function processHostFormData(formData) {
 
 // Create certificate helper
 async function createCertificate(domainNames, hasDnsChallenge = false) {
-  const certPayload = {
-    provider: "letsencrypt",
-    domain_names: domainNames,
-  };
-
-  if (hasDnsChallenge) {
-    const dnsData = await openDnsChallengeModal();
-    certPayload.dns_challenge = {
-      provider: dnsData.provider,
-      credentials: dnsData.credentials,
-      wait_time: dnsData.wait_time,
+  try {
+    const certPayload = {
+      provider: "letsencrypt",
+      domain_names: domainNames,
     };
-  }
 
-  const certModule = await import("../managers/CertificateManager.js");
-  return certModule.createCertificate(certPayload);
+    if (hasDnsChallenge) {
+      const dnsData = await openDnsChallengeModal();
+      certPayload.dns_challenge = {
+        provider: dnsData.provider,
+        credentials: dnsData.credentials,
+        wait_time: dnsData.wait_time,
+      };
+    }
+
+    const certModule = await import("../managers/CertificateManager.js");
+    return certModule.createCertificate(certPayload);
+  } catch (error) {
+    console.error("Certificate creation failed:", error);
+    showError("Failed to create certificate");
+    throw error;
+  }
 }
 
 // Setup form for both add and edit
@@ -395,7 +402,7 @@ export function populateAddHostForm() {
           baseData.certificate_id = newCertId;
         } catch (err) {
           console.error("Failed to create certificate with DNS challenge", err);
-          alert("Certificate creation failed: " + err.message);
+          showError("Certificate creation failed");
           throw err;
         }
       } else if (certificate_id_raw === "new_nodns") {
@@ -417,6 +424,7 @@ export function populateAddHostForm() {
       document.getElementById("addHostModal").style.display = "none";
     } catch (err) {
       console.error("Failed to create host", err);
+      showError("Failed to create host");
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "Add Host";

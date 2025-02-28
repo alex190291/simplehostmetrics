@@ -22,13 +22,13 @@ export class NPMManager {
     this.initialize();
 
     // Expose delegate functions for Proxy Hosts:
-    //this.editHost = ProxyHostManager.editHostWithModal;
+    this.editHost = ProxyHostManager.editHostWithModal;
     this.deleteHost = ProxyHostManager.deleteProxyHost;
     this.enableProxyHost = ProxyHostManager.enableProxyHost;
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 
     // Expose delegate functions for Redirection Hosts:
-    //this.editRedirectionHost = RedirectionHostManager.editRedirectionHostWithModal;
+    this.editRedirectionHost = RedirectionHostManager.editRedirectionHostWithModal;
     this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
     this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
     this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;

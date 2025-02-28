@@ -38,7 +38,8 @@ export function populateRedirectionHostForm(host = null) {
       // Create or update the redirection host
       const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
       if (host) {
-        await RedirectionHostManager.updateRedirectionHost(host.id, baseData);
+        // Change from updateRedirectionHost to editRedirectionHost
+        await RedirectionHostManager.editRedirectionHost(host.id, baseData);
       } else {
         await RedirectionHostManager.createRedirectionHost(baseData);
       }
