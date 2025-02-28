@@ -2,10 +2,13 @@
 import { makeRequest } from "./NPMService.js";
 import { showError } from "./NPMUtils.js";
 
-// Import modal functions from the different modal files
+
+// Import all modal functions
 import { populateAddHostForm } from "./modals/ProxyHostModals.js";
-import { showCreateRedirectionHostModal } from "./modals/RedirectionHostModals.js";
-import { showCreateCertificateModal } from "./modals/CertificateModals.js";
+import { populateRedirectionHostForm } from "./modals/RedirectionHostModals.js";
+import { populateStreamHostForm } from "./modals/StreamModals.js";
+import { populateAccessListForm } from "./modals/AccessListModals.js";
+import { populateCertificateForm } from "./modals/CertificateModals.js";
 
 const API_BASE = "/npm-api";
 
@@ -450,12 +453,6 @@ function bindViewButtons() {
   }
 }
 
-// Import all modal functions
-import { populateAddHostForm } from "./modals/ProxyHostModals.js";
-import { populateRedirectionHostForm } from "./modals/RedirectionHostModals.js";
-import { populateStreamHostForm } from "./modals/StreamModals.js";
-import { populateAccessListForm } from "./modals/AccessListModals.js";
-import { populateCertificateForm } from "./modals/CertificateModals.js";
 
 // Bind view-specific buttons when the document is loaded
 document.addEventListener("DOMContentLoaded", bindViewButtons);
