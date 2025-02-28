@@ -1,5 +1,6 @@
 // /static/npm/managers/RedirectionHostManager.js
 import { showSuccess, showError } from "../NPMUtils.js";
+import * as Views from "../NPMViews.js";
 
 function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
   return new Promise((resolve, reject) => {
@@ -32,6 +33,7 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
   });
 }
 
+/* // Keep this function for backward compatibility, but it won't be used for view updates
 export async function loadRedirectionHosts() {
   try {
     const hosts = await makeRequest("/npm-api", "/nginx/redirection-hosts");
@@ -123,7 +125,7 @@ export async function loadRedirectionHosts() {
     showError("Failed to load redirection hosts");
     console.error(error);
   }
-}
+} */
 
 export async function editRedirectionHost(hostId, updatedData) {
   try {
@@ -151,7 +153,7 @@ export async function editRedirectionHost(hostId, updatedData) {
       dataToSend,
     );
     showSuccess("Redirection host updated successfully");
-    await loadRedirectionHosts();
+    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
   } catch (error) {
     showError("Failed to update redirection host");
   }
@@ -184,7 +186,7 @@ export async function updateRedirectionHost(hostId, updatedData) {
     );
     
     showSuccess("Redirection host updated successfully");
-    await loadRedirectionHosts();
+    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
   } catch (error) {
     showError("Failed to update redirection host");
     console.error("Update error:", error);
@@ -201,7 +203,7 @@ export async function deleteRedirectionHost(hostId) {
       "DELETE",
     );
     showSuccess("Redirection host deleted successfully");
-    await loadRedirectionHosts();
+    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
   } catch (error) {
     showError("Failed to delete redirection host");
   }
@@ -233,9 +235,10 @@ export async function createRedirectionHost(redirData) {
       dataToSend,
     );
     showSuccess("Redirection host created successfully");
-    await loadRedirectionHosts();
+    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
   } catch (error) {
     showError("Failed to create redirection host");
+    console.error("Creation error:", error);
     }
 }
 
@@ -247,7 +250,7 @@ export async function enableRedirectionHost(hostId) {
       "POST",
     );
     showSuccess("Redirection host enabled successfully");
-    await loadRedirectionHosts();
+    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
   } catch (error) {
     showError("Failed to enable redirection host");
   }
@@ -261,7 +264,7 @@ export async function disableRedirectionHost(hostId) {
       "POST",
     );
     showSuccess("Redirection host disabled successfully");
-    await loadRedirectionHosts();
+    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
   } catch (error) {
     showError("Failed to disable redirection host");
   }
