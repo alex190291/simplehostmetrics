@@ -417,8 +417,18 @@ export function editHostModal(host) {
       e.preventDefault();
       const formData = new FormData(form);
       const updatedData = processHostFormData(formData);
+      
+      // Close the modal after form submission - make sure this happens
+      modal.style.display = "none";
+      
+      // Resolve the promise with the updated data
       resolve(updatedData);
     };
+    
+    // Also close the modal when Cancel button is clicked
+    form.querySelector(".modal-close").addEventListener("click", () => {
+      modal.style.display = "none";
+    });
   });
 }
 
