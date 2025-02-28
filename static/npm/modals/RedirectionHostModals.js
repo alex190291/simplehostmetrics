@@ -236,9 +236,14 @@ function setupRedirectionForm(form, isEdit = false) {
 // Process form data from both create and edit forms
 function processRedirectionFormData(formData) {
   // Convert form data to an object for API
+  const domainName = formData.get("forward_domain_name");
+  if (!domainName || domainName.trim() === "") {
+    throw new Error("Destination domain is required");
+  }
+  
   const data = {
     domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
-    forward_domain_name: formData.get("forward_domain_name"), // Fixed field name
+    forward_domain_name: domainName.trim(), // Ensure it's not null or empty
     forward_scheme: formData.get("forward_scheme"),
     forward_http_code: parseInt(formData.get("forward_http_code")),
     preserve_path: formData.get("preserve_path") === "true",
@@ -250,7 +255,7 @@ function processRedirectionFormData(formData) {
     advanced_config: formData.get("advanced_config") || "",
     enabled: formData.has("enabled"),
     certificate_id: formData.get("certificate_id") ? 
-      parseInt(formData.get("certificate_id")) : 0, // Add certificate_id
+      parseInt(formData.get("certificate_id")) : 0,
     meta: {}
   };
   
@@ -322,23 +327,31 @@ export function showCreateRedirectionHostModal() {
 
 export async function editRedirectionHostModal(hostId) {
   try {
-    const host = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`).then(r => r.json());
-    console.log("Fetched host data:", host); // Log to see what we get from the API
+    // Fetch the host data by ID
+    const host = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`).then(r => {
+      if (!r.ok) throw new Error(`Failed to fetch host data: ${r.status}`);
+      return r.json();
+    });
     
     return new Promise((resolve, reject) => {
-      const modal = document.createElement("div"); // Create the modal if it doesn't exist
-      modal.id = "redirectionHostModal";
-      modal.className = "modal";
-      modal.innerHTML = `
-        <div class="modal-content">
-          <h2>Edit Redirection Host</h2>
-          <form id="redirectionHostForm"></form>
-        </div>
-      `;
-      document.body.appendChild(modal);
+      // Create the modal if it doesn't exist
+      let modal = document.getElementById("redirectionHostModal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "redirectionHostModal";
+        modal.className = "modal";
+        modal.innerHTML = `
+          <div class="modal-content">
+            <h2>Edit Redirection Host</h2>
+            <form id="redirectionHostForm"></form>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
       
-      const form = document.getElementById("redirectionHostForm");
+      const form = modal.querySelector("#redirectionHostForm");
       
+      // Generate the form HTML with the host data
       form.innerHTML = generateRedirectionHostFormHTML(host);
       modal.style.display = "flex";
       setupRedirectionForm(form, true);
@@ -346,35 +359,32 @@ export async function editRedirectionHostModal(hostId) {
       // Add form submission handling
       form.onsubmit = async (e) => {
         e.preventDefault();
-        const formData = new FormData(form);
-        const data = processRedirectionFormData(formData);
+        const submitBtn = form.querySelector("button[type='submit']");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Please wait...";
         
-        // Handle certificate ID properly
-        const certId = formData.get("certificate_id");
-        if (certId && certId.startsWith("new_")) {
-          try {
-            data.certificate_id = await handleCertificateCreation(
-              data.domain_names,
-              certId
-            );
-          } catch (err) {
-            showError("Failed to create certificate");
-            console.error("Failed to create certificate", err);
-            throw err;
+        try {
+          const formData = new FormData(form);
+          const data = processRedirectionFormData(formData);
+          
+          // Make sure forward_domain_name is not null
+          if (!data.forward_domain_name) {
+            throw new Error("Destination domain cannot be empty");
           }
-        } else {
-          data.certificate_id = certId === "" ? 0 : parseInt(certId);
+          
+          modal.style.display = "none";
+          resolve(data);
+        } catch (error) {
+          showError(error.message);
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Update";
+          reject(error);
         }
-        
-        modal.style.display = "none";
-        modal.remove(); // Remove the modal from the DOM
-        resolve(data);
       };
       
-      // Add a cancel button handler
+      // Handle cancel button
       form.querySelector(".modal-close").addEventListener("click", () => {
         modal.style.display = "none";
-        modal.remove();
         reject(new Error("Edit cancelled by user"));
       });
     });
