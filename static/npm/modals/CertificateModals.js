@@ -75,7 +75,7 @@ export function showCreateCertificateModal() {
       }
     });
 
-    modal.style.display = "block";
+    modal.style.display = "flex";
     form.onsubmit = (e) => {
       e.preventDefault();
       const data = {
@@ -92,7 +92,7 @@ export function showCreateCertificateModal() {
           : undefined,
         meta: JSON.parse(form.querySelector("#meta").value || "{}"),
       };
-      modal.style.display = "none";
+      modal.style.display = "flex";
       resolve(data);
     };
   });
