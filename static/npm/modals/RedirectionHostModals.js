@@ -74,8 +74,8 @@ function generateRedirectionHostFormHTML(host = null) {
   const hstsSubdomains = isEdit ? host.hsts_subdomains : false;
   const http2Support = isEdit ? host.http2_support : false;
   const blockExploits = isEdit ? host.block_exploits : false;
-  // Fix: Properly initialize custom_config to empty string if not present
-  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
+  // Fix: Properly initialize advanced_config to empty string if not present
+  const customConfig = isEdit && host.advanced_config ? host.advanced_config : "";
   const enabled = isEdit ? host.enabled : true;
 
   return `
@@ -154,8 +154,8 @@ function generateRedirectionHostFormHTML(host = null) {
     </div>
     <div class="tab-content" id="customTab" style="display:none;">
       <div class="form-group">
-        <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config" rows="10">${customConfig}</textarea>
+        <label for="advanced_config">Custom Nginx Config</label>
+        <textarea id="advanced_config" name="advanced_config" rows="10">${customConfig}</textarea>
       </div>
     </div>
     <div class="form-actions">
@@ -369,7 +369,7 @@ export function showCreateRedirectionHostModal() {
         hsts_subdomains: formData.has("hsts_subdomains"),
         http2_support: formData.has("http2_support"),
         block_exploits: formData.has("block_exploits"),
-        custom_config: formData.get("custom_config") || "", // Fix: Ensure it's never undefined
+        advanced_config: formData.get("advanced_config") || "", // Fix: Ensure it's never undefined
         enabled: formData.has("enabled"),
       };
 
@@ -404,9 +404,9 @@ export async function showEditRedirectionHostModal(hostId) {
     if (!response.ok) throw new Error("Failed to fetch host");
     const host = await response.json();
 
-    // Fix: Make sure custom_config is initialized properly
-    if (host.custom_config === undefined) {
-      host.custom_config = "";
+    // Fix: Make sure advanced_config is initialized properly
+    if (host.advanced_config === undefined) {
+      host.advanced_config = "";
     }
 
     const modal = document.createElement("div");
@@ -429,8 +429,8 @@ export async function showEditRedirectionHostModal(hostId) {
         const formData = new FormData(form);
 
         try {
-          // Fix: Properly handle custom_config to prevent undefined
-          const customConfig = formData.get("custom_config");
+          // Fix: Properly handle advanced_config to prevent undefined
+          const customConfig = formData.get("advanced_config");
 
           const updatedData = {
             ...host,
@@ -447,7 +447,7 @@ export async function showEditRedirectionHostModal(hostId) {
             hsts_subdomains: formData.has("hsts_subdomains"),
             http2_support: formData.has("http2_support"),
             block_exploits: formData.has("block_exploits"),
-            custom_config: customConfig || "", // Fix: Ensure it's never undefined
+            advanced_config: customConfig || "", // Fix: Ensure it's never undefined
             enabled: formData.has("enabled"),
           };
 
