@@ -74,12 +74,18 @@ function generateCertificateFormHTML(certificate = null) {
       <label for="domain_names">Domain Names (comma-separated)</label>
       <input type="text" id="domain_names" name="domain_names" value="${domainNames}">
     </div>
-    <div class="form-group">
+    
+    <!-- Replace checkbox with toggle switch -->
+    <div class="form-group toggle">
       <label>
-        <input type="checkbox" id="dns_challenge" name="dns_challenge" ${dnsChallenge ? "checked" : ""}>
-        Enable DNS Challenge
+        <span class="toggle-switch">
+          <input type="checkbox" id="dns_challenge" name="dns_challenge" ${dnsChallenge ? "checked" : ""}>
+          <span class="slider"></span>
+        </span>
+        <span class="toggle-label">Enable DNS Challenge</span>
       </label>
     </div>
+    
     <div class="form-group" id="dns_provider_group" style="display: ${dnsChallenge ? "block" : "none"}">
       <label for="dns_provider">DNS Challenge Provider</label>
       <select id="dns_provider" name="dns_provider">

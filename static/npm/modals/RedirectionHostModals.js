@@ -125,30 +125,64 @@ function generateRedirectionHostFormHTML(host = null) {
         <select id="certificate_id" name="certificate_id"></select>
       </div>
 
-      <div class="form-group checkboxes">
+      <!-- Replace checkboxes with toggle switches -->
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
-          Force SSL
+          <span class="toggle-switch">
+            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Force SSL</span>
         </label>
+      </div>
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
-          HSTS Enabled
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Enabled</span>
         </label>
+      </div>
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
-          Include Subdomains
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Include Subdomains</span>
         </label>
+      </div>
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
-          HTTP/2 Support
+          <span class="toggle-switch">
+            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HTTP/2 Support</span>
         </label>
+      </div>
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
-          Block Exploits
+          <span class="toggle-switch">
+            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Block Exploits</span>
         </label>
+      </div>
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
-          Enabled
+          <span class="toggle-switch">
+            <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Enabled</span>
         </label>
       </div>
     </div>

@@ -64,12 +64,18 @@ function generateAccessListFormHTML(accessList = null) {
         <option value="false" ${!satisfyAny ? "selected" : ""}>Satisfy All</option>
       </select>
     </div>
-    <div class="form-group">
+    
+    <!-- Replace checkbox with toggle switch -->
+    <div class="form-group toggle">
       <label>
-        <input type="checkbox" id="pass_auth" name="pass_auth" ${passAuth ? "checked" : ""}>
-        Pass Auth to Upstream
+        <span class="toggle-switch">
+          <input type="checkbox" id="pass_auth" name="pass_auth" ${passAuth ? "checked" : ""}>
+          <span class="slider"></span>
+        </span>
+        <span class="toggle-label">Pass Auth to Upstream</span>
       </label>
     </div>
+    
     <div class="form-group">
       <label>Clients</label>
       <div id="clientsList">

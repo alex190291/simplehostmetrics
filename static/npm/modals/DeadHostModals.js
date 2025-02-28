@@ -15,30 +15,48 @@ export function showCreateDeadHostModal() {
         <label for="certificate_id">Certificate ID</label>
         <input type="text" id="certificate_id" name="certificate_id">
       </div>
-      <div class="form-group">
+      
+      <!-- Replace checkboxes with toggle switches -->
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="ssl_forced" name="ssl_forced">
-          Force SSL
+          <span class="toggle-switch">
+            <input type="checkbox" id="ssl_forced" name="ssl_forced">
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Force SSL</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="hsts_enabled" name="hsts_enabled">
-          HSTS Enabled
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_enabled" name="hsts_enabled">
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Enabled</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains">
-          HSTS Subdomains
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains">
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Subdomains</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="http2_support" name="http2_support">
-          HTTP2 Support
+          <span class="toggle-switch">
+            <input type="checkbox" id="http2_support" name="http2_support">
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HTTP2 Support</span>
         </label>
       </div>
+      
       <div class="form-group">
         <label for="advanced_config">Advanced Config</label>
         <textarea id="advanced_config" name="advanced_config"></textarea>
@@ -90,30 +108,48 @@ export function showEditDeadHostModal(hostId) {
           <label for="certificate_id">Certificate ID</label>
           <input type="text" id="certificate_id" name="certificate_id" value="${host.certificate_id || ""}">
         </div>
-        <div class="form-group">
+        
+        <!-- Replace checkboxes with toggle switches -->
+        <div class="form-group toggle">
           <label>
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${host.ssl_forced ? "checked" : ""}>
-            Force SSL
+            <span class="toggle-switch">
+              <input type="checkbox" id="ssl_forced" name="ssl_forced" ${host.ssl_forced ? "checked" : ""}>
+              <span class="slider"></span>
+            </span>
+            <span class="toggle-label">Force SSL</span>
           </label>
         </div>
-        <div class="form-group">
+        
+        <div class="form-group toggle">
           <label>
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${host.hsts_enabled ? "checked" : ""}>
-            HSTS Enabled
+            <span class="toggle-switch">
+              <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${host.hsts_enabled ? "checked" : ""}>
+              <span class="slider"></span>
+            </span>
+            <span class="toggle-label">HSTS Enabled</span>
           </label>
         </div>
-        <div class="form-group">
+        
+        <div class="form-group toggle">
           <label>
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${host.hsts_subdomains ? "checked" : ""}>
-            HSTS Subdomains
+            <span class="toggle-switch">
+              <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${host.hsts_subdomains ? "checked" : ""}>
+              <span class="slider"></span>
+            </span>
+            <span class="toggle-label">HSTS Subdomains</span>
           </label>
         </div>
-        <div class="form-group">
+        
+        <div class="form-group toggle">
           <label>
-            <input type="checkbox" id="http2_support" name="http2_support" ${host.http2_support ? "checked" : ""}>
-            HTTP2 Support
+            <span class="toggle-switch">
+              <input type="checkbox" id="http2_support" name="http2_support" ${host.http2_support ? "checked" : ""}>
+              <span class="slider"></span>
+            </span>
+            <span class="toggle-label">HTTP2 Support</span>
           </label>
         </div>
+        
         <div class="form-group">
           <label for="advanced_config">Advanced Config</label>
           <textarea id="advanced_config" name="advanced_config">${host.advanced_config || ""}</textarea>

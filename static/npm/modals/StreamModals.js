@@ -69,24 +69,38 @@ function generateStreamFormHTML(stream = null) {
       <label for="forwarding_port">Forward Port</label>
       <input type="number" id="forwarding_port" name="forwarding_port" value="${forwardingPort}" required min="1" max="65535">
     </div>
-    <div class="form-group">
+    
+    <!-- Replace checkboxes with toggle switches -->
+    <div class="form-group toggle">
       <label>
-        <input type="checkbox" id="tcp_forwarding" name="tcp_forwarding" ${tcpForwarding ? "checked" : ""}>
-        TCP Forwarding
+        <span class="toggle-switch">
+          <input type="checkbox" id="tcp_forwarding" name="tcp_forwarding" ${tcpForwarding ? "checked" : ""}>
+          <span class="slider"></span>
+        </span>
+        <span class="toggle-label">TCP Forwarding</span>
       </label>
     </div>
-    <div class="form-group">
+    
+    <div class="form-group toggle">
       <label>
-        <input type="checkbox" id="udp_forwarding" name="udp_forwarding" ${udpForwarding ? "checked" : ""}>
-        UDP Forwarding
+        <span class="toggle-switch">
+          <input type="checkbox" id="udp_forwarding" name="udp_forwarding" ${udpForwarding ? "checked" : ""}>
+          <span class="slider"></span>
+        </span>
+        <span class="toggle-label">UDP Forwarding</span>
       </label>
     </div>
-    <div class="form-group">
+    
+    <div class="form-group toggle">
       <label>
-        <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
-        Enabled
+        <span class="toggle-switch">
+          <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
+          <span class="slider"></span>
+        </span>
+        <span class="toggle-label">Enabled</span>
       </label>
     </div>
+    
     <div class="form-actions">
       <button type="submit" class="btn-primary">${isEdit ? "Update" : "Create"} Stream</button>
       <button type="button" class="btn-secondary modal-close">Cancel</button>
