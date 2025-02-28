@@ -159,7 +159,7 @@ export async function editRedirectionHost(hostId, updatedData) {
   }
 }
 
-export async function updateRedirectionHost(hostId, updatedData) {
+/* export async function updateRedirectionHost(hostId, updatedData) {
   try {
     // Ensure the data matches the expected schema
     const dataToSend = {
@@ -191,7 +191,7 @@ export async function updateRedirectionHost(hostId, updatedData) {
     showError("Failed to update redirection host");
     console.error("Update error:", error);
   }
-}
+} */
 
 export async function deleteRedirectionHost(hostId) {
   if (!confirm("Are you sure you want to delete this redirection host?"))
@@ -282,7 +282,7 @@ export async function disableRedirectionHost(hostId) {
 
 // Expose functions globally
 window.RedirectionHostManager = {
-  updateRedirectionHost,
+//  updateRedirectionHost,
   editRedirectionHost,
   deleteRedirectionHost,
   createRedirectionHost,
