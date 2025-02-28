@@ -1,123 +1,99 @@
 // /static/npm/modals/StreamModals.js
-import { closeModals } from "./common.js";
+import { closeModals } from "../common.js";
 
-export function showCreateStreamModal() {
-  return new Promise((resolve) => {
-    const modal = document.getElementById("streamModal");
-    const form = modal.querySelector("form");
-    form.innerHTML = `
-      <div class="form-group">
-        <label for="incoming_port">Incoming Port</label>
-        <input type="number" id="incoming_port" name="incoming_port" required>
-      </div>
-      <div class="form-group">
-        <label for="forwarding_host">Forwarding Host</label>
-        <input type="text" id="forwarding_host" name="forwarding_host" required>
-      </div>
-      <div class="form-group">
-        <label for="forwarding_port">Forwarding Port</label>
-        <input type="number" id="forwarding_port" name="forwarding_port" required>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="tcp_forwarding" name="tcp_forwarding">
-          TCP Forwarding
-        </label>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="udp_forwarding" name="udp_forwarding">
-          UDP Forwarding
-        </label>
-      </div>
-      <div class="form-group">
-        <label for="certificate_id">Certificate ID</label>
-        <input type="text" id="certificate_id" name="certificate_id">
-      </div>
-      <div class="form-group">
-        <label for="meta">Meta (JSON)</label>
-        <textarea id="meta" name="meta" placeholder='{}'></textarea>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn-primary">Create Stream</button>
-        <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
-      </div>
-    `;
-    modal.style.display = "block";
-    form.onsubmit = (e) => {
-      e.preventDefault();
+export function populateStreamHostForm(stream = null) {
+  const form = document.getElementById("streamHostForm");
+  if (!form) {
+    console.error("Stream host form not found");
+    return;
+  }
+
+  form.innerHTML = generateStreamFormHTML(stream);
+  setupStreamForm(form, !!stream);
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const submitBtn = form.querySelector("button[type='submit']");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Please wait...";
+
+    try {
+      const formData = new FormData(form);
       const data = {
-        incoming_port: parseInt(form.querySelector("#incoming_port").value),
-        forwarding_host: form.querySelector("#forwarding_host").value,
-        forwarding_port: parseInt(form.querySelector("#forwarding_port").value),
-        tcp_forwarding: form.querySelector("#tcp_forwarding").checked,
-        udp_forwarding: form.querySelector("#udp_forwarding").checked,
-        certificate_id: form.querySelector("#certificate_id").value,
-        meta: JSON.parse(form.querySelector("#meta").value || "{}"),
+        incoming_port: parseInt(formData.get("incoming_port")),
+        forwarding_host: formData.get("forwarding_host"),
+        forwarding_port: parseInt(formData.get("forwarding_port")),
+        tcp_forwarding: formData.has("tcp_forwarding"),
+        udp_forwarding: formData.has("udp_forwarding"),
+        enabled: formData.has("enabled")
       };
-      modal.style.display = "none";
-      resolve(data);
-    };
-  });
+
+      // Create or update the stream
+      const StreamManager = await import("../managers/StreamManager.js");
+      if (stream) {
+        await StreamManager.updateStream(stream.id, data);
+      } else {
+        await StreamManager.createStream(data);
+      }
+
+      document.getElementById("streamHostModal").style.display = "none";
+    } catch (error) {
+      console.error("Form submission error:", error);
+      alert("An error occurred: " + error.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = stream ? "Update" : "Create";
+    }
+  };
 }
 
-export function editStreamModal(stream) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById("streamModal");
-    const form = modal.querySelector("form");
-    form.innerHTML = `
-      <input type="hidden" name="id" value="${stream.id}">
-      <div class="form-group">
-        <label for="incoming_port">Incoming Port</label>
-        <input type="number" id="incoming_port" name="incoming_port" value="${stream.incoming_port}" required>
-      </div>
-      <div class="form-group">
-        <label for="forwarding_host">Forwarding Host</label>
-        <input type="text" id="forwarding_host" name="forwarding_host" value="${stream.forwarding_host}" required>
-      </div>
-      <div class="form-group">
-        <label for="forwarding_port">Forwarding Port</label>
-        <input type="number" id="forwarding_port" name="forwarding_port" value="${stream.forwarding_port}" required>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="tcp_forwarding" name="tcp_forwarding" ${stream.tcp_forwarding ? "checked" : ""}>
-          TCP Forwarding
-        </label>
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="udp_forwarding" name="udp_forwarding" ${stream.udp_forwarding ? "checked" : ""}>
-          UDP Forwarding
-        </label>
-      </div>
-      <div class="form-group">
-        <label for="certificate_id">Certificate ID</label>
-        <input type="text" id="certificate_id" name="certificate_id" value="${stream.certificate_id || ""}">
-      </div>
-      <div class="form-group">
-        <label for="meta">Meta (JSON)</label>
-        <textarea id="meta" name="meta">${JSON.stringify(stream.meta || {})}</textarea>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn-primary">Update Stream</button>
-        <button type="button" class="btn-secondary" onclick="closeModals()">Cancel</button>
-      </div>
-    `;
-    modal.style.display = "block";
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      const data = {
-        incoming_port: parseInt(form.querySelector("#incoming_port").value),
-        forwarding_host: form.querySelector("#forwarding_host").value,
-        forwarding_port: parseInt(form.querySelector("#forwarding_port").value),
-        tcp_forwarding: form.querySelector("#tcp_forwarding").checked,
-        udp_forwarding: form.querySelector("#udp_forwarding").checked,
-        certificate_id: form.querySelector("#certificate_id").value,
-        meta: JSON.parse(form.querySelector("#meta").value || "{}"),
-      };
-      modal.style.display = "none";
-      resolve(data);
-    };
-  });
+function generateStreamFormHTML(stream = null) {
+  const isEdit = stream !== null;
+  const incomingPort = isEdit ? stream.incoming_port : "";
+  const forwardingHost = isEdit ? stream.forwarding_host : "";
+  const forwardingPort = isEdit ? stream.forwarding_port : "";
+  const tcpForwarding = isEdit ? stream.tcp_forwarding : true;
+  const udpForwarding = isEdit ? stream.udp_forwarding : false;
+  const enabled = isEdit ? stream.enabled : true;
+
+  return `
+    <div class="form-group">
+      <label for="incoming_port">Incoming Port</label>
+      <input type="number" id="incoming_port" name="incoming_port" value="${incomingPort}" required min="1" max="65535">
+    </div>
+    <div class="form-group">
+      <label for="forwarding_host">Forward Host</label>
+      <input type="text" id="forwarding_host" name="forwarding_host" value="${forwardingHost}" required>
+    </div>
+    <div class="form-group">
+      <label for="forwarding_port">Forward Port</label>
+      <input type="number" id="forwarding_port" name="forwarding_port" value="${forwardingPort}" required min="1" max="65535">
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="tcp_forwarding" name="tcp_forwarding" ${tcpForwarding ? "checked" : ""}>
+        TCP Forwarding
+      </label>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="udp_forwarding" name="udp_forwarding" ${udpForwarding ? "checked" : ""}>
+        UDP Forwarding
+      </label>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
+        Enabled
+      </label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">${isEdit ? "Update" : "Create"} Stream</button>
+      <button type="button" class="btn-secondary modal-close">Cancel</button>
+    </div>
+  `;
+}
+
+function setupStreamForm(form) {
+  // Add any additional form setup logic here if needed
 }

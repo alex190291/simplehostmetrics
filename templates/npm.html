@@ -179,74 +179,53 @@ block content %}
 </button>
 
 <!-- Modals -->
+<!-- Proxy Host Modal -->
 <div id="addHostModal" class="modal">
     <div class="modal-content">
-        <h2>Add New Host</h2>
+        <h2>Add Proxy Host</h2>
         <form id="addHostForm">
-            <!-- Form fields will be dynamically populated by your JS -->
+            <!-- Form fields will be dynamically populated by ProxyHostModals.js -->
         </form>
     </div>
 </div>
 
+<!-- Redirection Host Modal -->
+<div id="redirectionHostModal" class="modal">
+    <div class="modal-content">
+        <h2>Add Redirection Host</h2>
+        <form id="redirectionHostForm">
+            <!-- Form fields will be dynamically populated by RedirectionHostModals.js -->
+        </form>
+    </div>
+</div>
+
+<!-- Stream Host Modal -->
+<div id="streamHostModal" class="modal">
+    <div class="modal-content">
+        <h2>Add Stream</h2>
+        <form id="streamHostForm">
+            <!-- Form fields will be dynamically populated by StreamModals.js -->
+        </form>
+    </div>
+</div>
+
+<!-- Access List Modal -->
+<div id="accessListModal" class="modal">
+    <div class="modal-content">
+        <h2>Add Access List</h2>
+        <form id="accessListForm">
+            <!-- Form fields will be dynamically populated by AccessListModals.js -->
+        </form>
+    </div>
+</div>
+
+<!-- Certificate Modal -->
 <div id="certificateModal" class="modal">
     <div class="modal-content">
         <h2>Add Certificate</h2>
-        <div class="cert-tabs">
-            <button class="btn btn-secondary cert-tab active" data-tab="upload">
-                Upload Certificate
-            </button>
-            <button class="btn btn-secondary cert-tab" data-tab="letsencrypt">
-                Let's Encrypt
-            </button>
-        </div>
-        <div class="cert-content">
-            <form id="uploadCertForm" class="cert-form active">
-                <div class="form-group">
-                    <label for="certFile">Certificate File</label>
-                    <input type="file" id="certFile" name="certFile" required />
-                </div>
-                <div class="form-group">
-                    <label for="keyFile">Key File</label>
-                    <input type="file" id="keyFile" name="keyFile" required />
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
-                        Upload
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        onclick="closeModals()"
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </form>
-            <form id="letsencryptForm" class="cert-form">
-                <div class="form-group">
-                    <label for="domainNames">Domain Names</label>
-                    <input
-                        type="text"
-                        id="domainNames"
-                        name="domainNames"
-                        placeholder="e.g. example.com, www.example.com"
-                        required
-                    />
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
-                        Request Certificate
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        onclick="closeModals()"
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
+        <form id="certificateForm">
+            <!-- Form fields will be dynamically populated by CertificateModals.js -->
+        </form>
     </div>
 </div>
 {% endblock %} {% block scripts %}

@@ -388,17 +388,22 @@ function bindViewButtons() {
   const addProxyHostBtn = document.getElementById("addProxyHostBtn");
   if (addProxyHostBtn) {
     addProxyHostBtn.addEventListener("click", () => {
-      populateAddHostForm();
-      document.getElementById("addHostModal").style.display = "block";
+      try {
+        populateAddHostForm();
+        document.getElementById("addHostModal").style.display = "block";
+      } catch (error) {
+        console.error("Error showing proxy host modal:", error);
+      }
     });
   }
 
   // Redirection Host Button
   const addRedirectionHostBtn = document.getElementById("addRedirectionHostBtn");
   if (addRedirectionHostBtn) {
-    addRedirectionHostBtn.addEventListener("click", async () => {
+    addRedirectionHostBtn.addEventListener("click", () => {
       try {
-        await showCreateRedirectionHostModal();
+        populateRedirectionHostForm();
+        document.getElementById("redirectionHostModal").style.display = "block";
       } catch (error) {
         console.error("Error showing redirection host modal:", error);
       }
@@ -409,7 +414,12 @@ function bindViewButtons() {
   const addStreamHostBtn = document.getElementById("addStreamHostBtn");
   if (addStreamHostBtn) {
     addStreamHostBtn.addEventListener("click", () => {
-      console.log("Stream host add functionality is not implemented yet.");
+      try {
+        populateStreamHostForm();
+        document.getElementById("streamHostModal").style.display = "block";
+      } catch (error) {
+        console.error("Error showing stream host modal:", error);
+      }
     });
   }
 
@@ -417,22 +427,35 @@ function bindViewButtons() {
   const addAccessListBtn = document.getElementById("addAccessListBtn");
   if (addAccessListBtn) {
     addAccessListBtn.addEventListener("click", () => {
-      console.log("Access list add functionality is not implemented yet.");
+      try {
+        populateAccessListForm();
+        document.getElementById("accessListModal").style.display = "block";
+      } catch (error) {
+        console.error("Error showing access list modal:", error);
+      }
     });
   }
 
   // Certificate Button
   const addCertificateBtn = document.getElementById("addCertificateBtn");
   if (addCertificateBtn) {
-    addCertificateBtn.addEventListener("click", async () => {
+    addCertificateBtn.addEventListener("click", () => {
       try {
-        await showCreateCertificateModal();
+        populateCertificateForm();
+        document.getElementById("certificateModal").style.display = "block";
       } catch (error) {
         console.error("Error showing certificate modal:", error);
       }
     });
   }
 }
+
+// Import all modal functions
+import { populateAddHostForm } from "./modals/ProxyHostModals.js";
+import { populateRedirectionHostForm } from "./modals/RedirectionHostModals.js";
+import { populateStreamHostForm } from "./modals/StreamModals.js";
+import { populateAccessListForm } from "./modals/AccessListModals.js";
+import { populateCertificateForm } from "./modals/CertificateModals.js";
 
 // Bind view-specific buttons when the document is loaded
 document.addEventListener("DOMContentLoaded", bindViewButtons);

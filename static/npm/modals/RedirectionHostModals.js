@@ -2,6 +2,59 @@
 import { switchTab, closeModals } from "/static/npm/common.js";
 
 // -------------------------
+// Form Population Functions
+// -------------------------
+export function populateRedirectionHostForm(host = null) {
+  const form = document.getElementById("redirectionHostForm");
+  if (!form) {
+    console.error("Redirection host form not found");
+    return;
+  }
+
+  form.innerHTML = generateRedirectionHostFormHTML(host);
+  setupRedirectionForm(form, !!host);
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const submitBtn = form.querySelector("button[type='submit']");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Please wait...";
+
+    try {
+      const formData = new FormData(form);
+      const baseData = processFormData(formData);
+
+      // Handle certificate creation if needed
+      const certId = formData.get("certificate_id");
+      if (certId.startsWith("new_")) {
+        baseData.certificate_id = await handleCertificateCreation(
+          baseData.domain_names,
+          certId === "new_dns"
+        );
+      } else {
+        baseData.certificate_id = certId === "" ? null : parseInt(certId);
+      }
+
+      // Create or update the redirection host
+      const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
+      if (host) {
+        await RedirectionHostManager.updateRedirectionHost(host.id, baseData);
+      } else {
+        await RedirectionHostManager.createRedirectionHost(baseData);
+      }
+      
+      document.getElementById("redirectionHostModal").style.display = "none";
+    } catch (error) {
+      console.error("Form submission error:", error);
+      alert("An error occurred: " + error.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = host ? "Update" : "Create";
+    }
+  };
+}
+
+// -------------------------
 // Form Generation Utilities
 // -------------------------
 function generateRedirectionHostFormHTML(host = null) {
