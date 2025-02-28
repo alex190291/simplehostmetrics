@@ -157,7 +157,7 @@ export async function editRedirectionHost(hostId, updatedData) {
   }
 }
 
-async function updateRedirectionHost(hostId, updatedData) {
+export async function updateRedirectionHost(hostId, updatedData) {
   try {
     // Ensure the data matches the expected schema
     const dataToSend = {
@@ -191,7 +191,7 @@ async function updateRedirectionHost(hostId, updatedData) {
   }
 }
 
-async function deleteRedirectionHost(hostId) {
+export async function deleteRedirectionHost(hostId) {
   if (!confirm("Are you sure you want to delete this redirection host?"))
     return;
   try {
@@ -207,7 +207,7 @@ async function deleteRedirectionHost(hostId) {
   }
 }
 
-async function createRedirectionHost(redirData) {
+export async function createRedirectionHost(redirData) {
   try {
     // Only send fields that the API expects
     const dataToSend = {
@@ -236,11 +236,10 @@ async function createRedirectionHost(redirData) {
     await loadRedirectionHosts();
   } catch (error) {
     showError("Failed to create redirection host");
-    console.error("Creation error:", error);
   }
 }
 
-async function enableRedirectionHost(hostId) {
+export async function enableRedirectionHost(hostId) {
   try {
     await makeRequest(
       "/npm-api",
@@ -254,7 +253,7 @@ async function enableRedirectionHost(hostId) {
   }
 }
 
-async function disableRedirectionHost(hostId) {
+export async function disableRedirectionHost(hostId) {
   try {
     await makeRequest(
       "/npm-api",
