@@ -34,8 +34,7 @@ export class NPMManager {
 
     this.editRedirectionHostModal = async (hostId) => {
       try {
-        const modal = await RedirectionHostModals.editRedirectionHostModal(hostId);
-        const updatedData = await modal;
+        const updatedData = await RedirectionHostModals.editRedirectionHostModal(hostId);
         await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
       } catch (error) {
         // Only show error if it wasn't a user cancellation
@@ -54,7 +53,6 @@ export class NPMManager {
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 
     // Expose delegate functions for Redirection Hosts:
-    this.editRedirectionHostModal = RedirectionHostModals.editRedirectionHostModal;
     this.editRedirectionHost = RedirectionHostManager.editRedirectionHost;
     this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
     this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
