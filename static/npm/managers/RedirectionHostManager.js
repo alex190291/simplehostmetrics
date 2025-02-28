@@ -227,6 +227,16 @@ window.RedirectionHostManager = {
   loadRedirectionHosts,
 };
 
+// Add proper ES module exports
+export {
+  editRedirectionHost,
+  deleteRedirectionHost,
+  createRedirectionHost,
+  enableRedirectionHost,
+  disableRedirectionHost,
+  loadRedirectionHosts
+};
+
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   const createBtn = document.getElementById("createRedirectionHostBtn");
