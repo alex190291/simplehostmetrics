@@ -58,6 +58,56 @@ export async function populateCertificateDropdown(selectElement, selectedValue =
 }
 
 /**
+ * Creates a certificate for a set of domain names
+ * @param {Array} domainNames - Array of domain names for the certificate
+ * @param {string|boolean} certOption - 'new_dns', 'new_nodns', or false if not creating new cert
+ * @returns {Promise<number>} - ID of the created certificate
+ */
+export async function handleCertificateCreation(domainNames, certOption) {
+  // If not creating a new certificate, return the existing option
+  if (typeof certOption === 'number' || !certOption.startsWith("new_")) {
+    return certOption;
+  }
+
+  try {
+    const useDnsChallenge = certOption === "new_dns";
+    const certPayload = {
+      provider: "letsencrypt",
+      domain_names: domainNames,
+    };
+
+    // Handle DNS challenge if selected
+    if (useDnsChallenge) {
+      try {
+        const dnsData = await openDnsChallengeModal();
+        certPayload.dns_challenge = {
+          provider: dnsData.provider,
+          credentials: dnsData.credentials,
+          wait_time: dnsData.wait_time,
+        };
+      } catch (err) {
+        console.error("Failed to configure DNS challenge", err);
+        throw err;
+      }
+    }
+
+    // Create certificate
+    const response = await fetch("/npm-api/nginx/certificates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(certPayload),
+    });
+
+    if (!response.ok) throw new Error("Certificate creation failed");
+    const { id } = await response.json();
+    return id;
+  } catch (error) {
+    console.error("Certificate creation error:", error);
+    throw error;
+  }
+}
+
+/**
  * Opens a modal to configure DNS provider for certificate DNS challenge
  * @returns {Promise<Object>} - DNS provider configuration data
  */
