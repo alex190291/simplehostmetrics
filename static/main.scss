@@ -25,7 +25,7 @@
 @import "forms";
 
 // Import buttons
-@import "buttons"; // Make sure this imports the _buttons.scss with our toggle styles
+@import "buttons";
 
 // Import modals
 @import "modals";
@@ -44,9 +44,3 @@
 
 // Import responsive adjustments (should be last)
 @import "responsive";
-
-// Import utilities
-@import "utilities";
-
-// Additional imports for specific views
-@import "npm";
