@@ -1,5 +1,8 @@
 // simplehostmetrics/static/npm/modals/RedirectionHostModals.js
 import { switchTab, closeModals } from "/static/npm/common.js";
+import RedirectionHostManager from "../managers/RedirectionHostManager";
+import Modal from "../lib/Modal";
+import html from "../lib/html";
 
 // -------------------------
 // Form Population Functions
@@ -547,3 +550,184 @@ function processFormData(formData) {
     enabled: formData.has("enabled")
   };
 }
+
+const RedirectionHostModals = {
+  /**
+   * Create a new redirection host
+   * 
+   * @param {Function} callback
+   */
+  create(callback) {
+    const modal = Modal.create({
+      title: "Add Redirection Host",
+      content: html`
+        <p>Create a new redirection host configuration.</p>
+      `,
+      onDismiss: () => {
+        modal.destroy();
+      },
+      buttons: [
+        {
+          text: "Cancel",
+          classes: ["btn-secondary"],
+          handler: () => {
+            modal.destroy();
+          }
+        },
+        {
+          text: "Save",
+          classes: ["btn-primary"],
+          handler: data => {
+            RedirectionHostManager.create(data)
+              .then(response => {
+                modal.destroy();
+                if (typeof callback === "function") {
+                  callback(response.data);
+                }
+              })
+              .catch(error => {
+                modal.displayError(error);
+              });
+          }
+        }
+      ]
+    });
+  },
+  
+  /**
+   * Update an existing redirection host
+   * 
+   * @param {Object} host
+   * @param {Function} callback
+   */
+  update(host, callback) {
+    const modal = Modal.create({
+      title: "Edit Redirection Host",
+      content: html`
+        <p>Update redirection host configuration.</p>
+      `,
+      onDismiss: () => {
+        modal.destroy();
+      },
+      buttons: [
+        {
+          text: "Cancel",
+          classes: ["btn-secondary"],
+          handler: () => {
+            modal.destroy();
+          }
+        },
+        {
+          text: "Save",
+          classes: ["btn-primary"],
+          handler: data => {
+            // Using correct PUT endpoint for update
+            RedirectionHostManager.update(host.id, data)
+              .then(response => {
+                modal.destroy();
+                if (typeof callback === "function") {
+                  callback(response.data);
+                }
+              })
+              .catch(error => {
+                modal.displayError(error);
+              });
+          }
+        }
+      ]
+    });
+    
+    // Fetch the host data to populate the form
+    RedirectionHostManager.get(host.id, { expand: ["owner", "certificate"] })
+      .then(response => {
+        modal.setFormData(response.data);
+      })
+      .catch(error => {
+        modal.displayError(error);
+      });
+  },
+  
+  /**
+   * Delete a redirection host
+   * 
+   * @param {Object} host
+   * @param {Function} callback
+   */
+  delete(host, callback) {
+    const modal = Modal.confirm({
+      title: "Delete Redirection Host",
+      message: html`
+        <p>Are you sure you want to delete this redirection host?</p>
+        <p>Domain(s): <strong>${host.domain_names.join(", ")}</strong></p>
+      `,
+      onDismiss: () => {
+        modal.destroy();
+      },
+      buttons: [
+        {
+          text: "Cancel",
+          classes: ["btn-secondary"],
+          handler: () => {
+            modal.destroy();
+          }
+        },
+        {
+          text: "Delete",
+          classes: ["btn-danger"],
+          handler: () => {
+            RedirectionHostManager.delete(host.id)
+              .then(() => {
+                modal.destroy();
+                if (typeof callback === "function") {
+                  callback();
+                }
+              })
+              .catch(error => {
+                modal.displayError(error);
+              });
+          }
+        }
+      ]
+    });
+  },
+  
+  /**
+   * Enable a redirection host
+   * 
+   * @param {Object} host
+   * @param {Function} callback
+   */
+  enable(host, callback) {
+    RedirectionHostManager.enable(host.id)
+      .then(response => {
+        if (typeof callback === "function") {
+          callback(response.data);
+        }
+      })
+      .catch(error => {
+        console.error(error);
+        alert("Could not enable redirection host: " + error.message);
+      });
+  },
+  
+  /**
+   * Disable a redirection host
+   * 
+   * @param {Object} host
+   * @param {Function} callback
+   */
+  disable(host, callback) {
+    RedirectionHostManager.disable(host.id)
+      .then(response => {
+        if (typeof callback === "function") {
+          callback(response.data);
+        }
+      })
+      .catch(error => {
+        console.error(error);
+        alert("Could not disable redirection host: " + error.message);
+      });
+  }
+};
+
+export default RedirectionHostModals;
