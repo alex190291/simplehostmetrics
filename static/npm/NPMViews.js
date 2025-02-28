@@ -392,7 +392,7 @@ function bindViewButtons() {
   if (addProxyHostBtn) {
     addProxyHostBtn.addEventListener("click", () => {
       try {
-        populateAddHostForm();
+        populateAddProxyHostForm();
         document.getElementById("addHostModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing proxy host modal:", error);
