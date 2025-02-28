@@ -211,35 +211,45 @@ export async function deleteRedirectionHost(hostId) {
 
 export async function createRedirectionHost(redirData) {
   try {
-    // Only send fields that the API expects
+    // Ensure all fields match the API's expected format
     const dataToSend = {
-      domain_names: redirData.domain_names,
-      forward_http_code: redirData.forward_http_code,
-      forward_scheme: redirData.forward_scheme,
+      domain_names: Array.isArray(redirData.domain_names) 
+        ? redirData.domain_names 
+        : [redirData.domain_names], // Ensure it's an array
+      forward_http_code: parseInt(redirData.forward_http_code) || 301, // Ensure numeric
+      forward_scheme: redirData.forward_scheme || "auto",
       forward_domain_name: redirData.forward_domain_name,
-      preserve_path: redirData.preserve_path,
-      certificate_id: redirData.certificate_id,
-      ssl_forced: redirData.ssl_forced,
-      hsts_enabled: redirData.hsts_enabled,
-      hsts_subdomains: redirData.hsts_subdomains,
-      http2_support: redirData.http2_support,
-      block_exploits: redirData.block_exploits,
+      preserve_path: Boolean(redirData.preserve_path),
+      certificate_id: redirData.certificate_id ? parseInt(redirData.certificate_id) : 0, // Ensure numeric
+      ssl_forced: Boolean(redirData.ssl_forced),
+      hsts_enabled: Boolean(redirData.hsts_enabled),
+      hsts_subdomains: Boolean(redirData.hsts_subdomains),
+      http2_support: Boolean(redirData.http2_support),
+      block_exploits: Boolean(redirData.block_exploits),
       advanced_config: redirData.advanced_config || "",
       meta: {}
     };
 
-    await makeRequest(
+    console.log("Creating redirection host with data:", dataToSend);
+
+    const result = await makeRequest(
       "/npm-api",
       "/nginx/redirection-hosts",
       "POST",
       dataToSend,
     );
+    
+    console.log("Redirection host created:", result);
     showSuccess("Redirection host created successfully");
-    await Views.loadRedirectionHosts(); // Use the NPMViews function instead
+    await Views.loadRedirectionHosts();
   } catch (error) {
-    showError("Failed to create redirection host");
-    console.error("Creation error:", error);
+    console.error("Failed to create redirection host:", error);
+    if (error.message) {
+      showError(`Failed to create redirection host: ${error.message}`);
+    } else {
+      showError("Failed to create redirection host: Unknown error");
     }
+  }
 }
 
 export async function enableRedirectionHost(hostId) {
