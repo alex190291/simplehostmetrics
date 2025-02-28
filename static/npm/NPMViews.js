@@ -86,7 +86,7 @@ export function createRedirectionHostCard(host) {
       <p>Preserve Path: ${host.preserve_path ? "Yes" : "No"}</p>
     </div>
     <div class="card-actions">
-      <button class="btn btn-primary" onclick="npmManager.editRedirectionHost(${host.id})">Edit</button>
+      <button class="btn btn-primary" onclick="npmManager.editRedirectionHostModal(${host.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteRedirectionHost(${host.id})">Delete</button>
       <button class="btn btn-secondary" onclick="${disableAction}">
         ${disableLabel}

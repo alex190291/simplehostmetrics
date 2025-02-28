@@ -17,8 +17,36 @@ export class NPMManager {
     this.retryAttempts = 3;
     this.initialize();
 
+    // Update the proxy host modal function to handle errors properly
+    this.editProxyHostModal = async (hostId) => {
+      try {
+        const modal = await ProxyHostModals.editProxyHostModal(hostId);
+        const updatedData = await modal;
+        await ProxyHostManager.editProxyHost(hostId, updatedData);
+      } catch (error) {
+        // Only show error if it wasn't a user cancellation
+        if (error.message !== "Edit cancelled by user") {
+          console.error("Failed to edit proxy host", error);
+          showError("Failed to edit proxy host");
+        }
+      }
+    };
+
+    this.editRedirectionHostModal = async (hostId) => {
+      try {
+        const modal = await RedirectionHostModals.editRedirectionHostModal(hostId);
+        const updatedData = await modal;
+        await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
+      } catch (error) {
+        // Only show error if it wasn't a user cancellation
+        if (error.message !== "Edit cancelled by user") {
+          console.error("Failed to edit redirection host", error);
+          showError("Failed to edit redirection host");
+        }
+      }
+    };
+
     // Expose delegate functions for Proxy Hosts:
-    this.editProxyHostModal = ProxyHostModals.editProxyHostModal;
     this.createProxyHost = ProxyHostManager.createProxyHost;
     this.editProxyHost = ProxyHostManager.editProxyHost;
     this.deleteProxyHost = ProxyHostManager.deleteProxyHost;

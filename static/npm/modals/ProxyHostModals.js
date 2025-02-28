@@ -295,38 +295,65 @@ export function populateAddProxyHostForm() {
 // -------------------------
 // Edit Host Flow
 // -------------------------
-export function editProxyHostModal(host) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById("addHostModal");
-    const form = document.getElementById("addHostForm");
-
-    form.innerHTML = generateProxyHostFormHTML(host);
-    modal.style.display = "flex";
-    setupProxyHostForm(form, true);
-
-    // Populate certificate and access list dropdowns with existing values
-    const certSelect = form.querySelector("#certificate_id");
-    populateCertificateDropdown(certSelect, host.certificate_id || "");
-
-    const accessListSelect = form.querySelector("#access_list_id");
-    populateAccessListDropdown(accessListSelect, host.access_list_id || "");
-
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const updatedData = processProxyHostFormData(formData);
+export async function editProxyHostModal(hostIdOrObject) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Check if we received just an ID or a complete host object
+      let host = hostIdOrObject;
       
-      // Close the modal after form submission - make sure this happens
-      modal.style.display = "none";
+      // If we just got an ID, fetch the complete host data
+      if (typeof hostIdOrObject === 'number' || typeof hostIdOrObject === 'string') {
+        const response = await fetch(`/npm-api/nginx/proxy-hosts/${hostIdOrObject}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch host data: ${response.status}`);
+        }
+        host = await response.json();
+      }
       
-      // Resolve the promise with the updated data
-      resolve(updatedData);
-    };
-    
-    // Also close the modal when Cancel button is clicked
-    form.querySelector(".modal-close").addEventListener("click", () => {
-      modal.style.display = "none";
-    });
+      // Now we have the complete host object, proceed with the modal
+      const modal = document.getElementById("addHostModal");
+      if (!modal) {
+        throw new Error("Host modal element not found");
+      }
+      
+      const form = document.getElementById("addHostForm");
+      if (!form) {
+        throw new Error("Host form element not found");
+      }
+
+      form.innerHTML = generateProxyHostFormHTML(host);
+      modal.style.display = "flex";
+      setupProxyHostForm(form, true);
+
+      // Populate certificate and access list dropdowns with existing values
+      const certSelect = form.querySelector("#certificate_id");
+      populateCertificateDropdown(certSelect, host.certificate_id || "");
+
+      const accessListSelect = form.querySelector("#access_list_id");
+      populateAccessListDropdown(accessListSelect, host.access_list_id || "");
+
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const updatedData = processProxyHostFormData(formData);
+        
+        // Close the modal after form submission
+        modal.style.display = "none";
+        
+        // Resolve the promise with the updated data
+        resolve(updatedData);
+      };
+      
+      // Also close the modal when Cancel button is clicked
+      form.querySelector(".modal-close").addEventListener("click", () => {
+        modal.style.display = "none";
+        reject(new Error("Edit cancelled by user"));
+      });
+    } catch (error) {
+      console.error("Error showing edit host modal:", error);
+      showError(`Failed to edit host: ${error.message}`);
+      reject(error);
+    }
   });
 }
 

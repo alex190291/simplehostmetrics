@@ -314,68 +314,31 @@ export function showCreateRedirectionHostModal() {
   });
 }
 
-export function editRedirectionHostModal(host) {
-  return new Promise((resolve) => {
-    const modal = document.createElement("div");
-    modal.id = "redirectionHostModal";
-    modal.className = "modal";
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h2>Edit Redirection Host</h2>
-        <form id="redirectionHostForm"></form>
-      </div>
-    `;
-
-    const form = modal.querySelector("#redirectionHostForm");
-    form.innerHTML = generateRedirectionHostFormHTML(host);
-    setupRedirectionForm(form, true);
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const submitBtn = form.querySelector("button[type='submit']");
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Please wait...";
-
-      try {
+export async function editRedirectionHostModal(hostId) {
+  try {
+    const host = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`).then(r => r.json());
+    return new Promise((resolve, reject) => {
+      const modal = document.getElementById("redirectionHostModal");
+      const form = document.getElementById("redirectionHostForm");
+      
+      form.innerHTML = generateRedirectionHostFormHTML(host);
+      modal.style.display = "flex";
+      setupRedirectionForm(form, true);
+      
+      // Add form submission handling
+      form.onsubmit = async (e) => {
+        e.preventDefault();
         const formData = new FormData(form);
-        const updatedData = processRedirectionFormData(formData);
-
-        // Handle certificate selection/creation
-        const certId = formData.get("certificate_id");
-        if (certId.startsWith("new_")) {
-          try {
-            updatedData.certificate_id = await handleCertificateCreation(
-              updatedData.domain_names,
-              certId
-            );
-          } catch (err) {
-            showError("Failed to create certificate");
-            console.error("Failed to create certificate", err);
-            throw err;
-          }
-        } else {
-          updatedData.certificate_id = certId === "" ? null : parseInt(certId);
-        }
-
-        modal.remove();
-        resolve(updatedData);
-      } catch (error) {
-        console.error("Form update error:", error);
-        showError("An error occurred: " + error.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Update Redirection";
-      }
+        const data = processRedirectionFormData(formData);
+        modal.style.display = "none";
+        resolve(data);
+      };
     });
-
-    // Also close the modal when Cancel button is clicked
-    form.querySelector(".modal-close").addEventListener("click", () => {
-      modal.remove();
-    });
-
-    document.body.appendChild(modal);
-    modal.style.display = "flex";
-  });
+  } catch (error) {
+    console.error("Failed to fetch redirection host data:", error);
+    showError("Failed to load redirection host data");
+    throw error;
+  }
 }
 
 // Initialize modal close handlers
