@@ -192,46 +192,75 @@ function generateHostFormHTML(host = null) {
           <option value="">None</option>
         </select>
       </div>
-      <div class="form-group">
+      
+      <!-- Toggle switches instead of checkboxes -->
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="cache_assets" name="cache_assets" ${cacheAssets}>
-          Cache Assets
+          <span class="toggle-switch">
+            <input type="checkbox" id="cache_assets" name="cache_assets" ${cacheAssets}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Cache Assets</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="websockets_support" name="websockets_support" ${websocketsSupport}>
-          Websockets Support
+          <span class="toggle-switch">
+            <input type="checkbox" id="websockets_support" name="websockets_support" ${websocketsSupport}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Websockets Support</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
-          Block Common Exploits
+          <span class="toggle-switch">
+            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Block Common Exploits</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
-          Force SSL
+          <span class="toggle-switch">
+            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Force SSL</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
-          HTTP/2 Support
+          <span class="toggle-switch">
+            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HTTP/2 Support</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
-          HSTS Enabled
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Enabled</span>
         </label>
       </div>
-      <div class="form-group">
+      
+      <div class="form-group toggle">
         <label>
-          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-          HSTS Subdomains
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Subdomains</span>
         </label>
       </div>
     </div>
