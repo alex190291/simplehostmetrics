@@ -231,8 +231,6 @@ block content %}
 {% endblock %} {% block scripts %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
-<!-- Add the fallback CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='npm/css/npm-styles.css') }}">
 <script
     type="module"
     src="{{ url_for('static', filename='npm/npm.js') }}"
