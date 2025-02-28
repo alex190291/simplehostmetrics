@@ -14,7 +14,17 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
           resolve(xhr.responseText);
         }
       } else {
-        reject(new Error(`Request failed with status ${xhr.status}`));
+        // Improved error handling to extract API error message
+        let errorMessage = `Request failed with status ${xhr.status}`;
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          if (errorResponse.error || errorResponse.message) {
+            errorMessage = errorResponse.error || errorResponse.message;
+          }
+        } catch (e) {
+          // If we can't parse the error, just use the default message
+        }
+        reject(new Error(errorMessage));
       }
     };
 
@@ -23,6 +33,8 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
     };
 
     if (data) {
+      // Debug log the data being sent
+      console.log("Sending data:", JSON.stringify(data));
       xhr.send(JSON.stringify(data));
     } else {
       xhr.send();
@@ -145,16 +157,45 @@ async function loadRedirectionHosts() {
 
 async function editRedirectionHost(hostId, updatedData) {
   try {
+    // Clean up data before sending to API
+    // Remove any properties that might cause issues
+    const cleanData = { ...updatedData };
+    
+    // Remove any non-API fields (created_on, modified_on, etc.)
+    delete cleanData.created_on;
+    delete cleanData.modified_on;
+    delete cleanData.owner;
+    
+    // Ensure domain_names is an array
+    if (typeof cleanData.domain_names === 'string') {
+      cleanData.domain_names = cleanData.domain_names.split(',').map(d => d.trim());
+    }
+    
+    // Ensure numeric values are actually numbers
+    if (cleanData.forward_http_code) {
+      cleanData.forward_http_code = parseInt(cleanData.forward_http_code);
+    }
+    
+    // Ensure boolean values are actually booleans
+    const boolFields = ['preserve_path', 'ssl_forced', 'hsts_enabled', 
+                         'hsts_subdomains', 'http2_support', 'block_exploits', 'enabled'];
+    boolFields.forEach(field => {
+      if (field in cleanData) {
+        cleanData[field] = Boolean(cleanData[field]);
+      }
+    });
+
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
       "PUT",
-      updatedData,
+      cleanData,
     );
     showSuccess("Redirection host updated successfully");
     await loadRedirectionHosts();
   } catch (error) {
-    showError("Failed to update redirection host");
+    showError(`Failed to update redirection host: ${error.message}`);
+    console.error("Update error:", error);
   }
 }
 

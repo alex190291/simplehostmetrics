@@ -463,26 +463,23 @@ export async function showEditRedirectionHostModal(hostId) {
         const formData = new FormData(form);
 
         try {
-          // Fix: Properly handle advanced_config to prevent undefined
-          const customConfig = formData.get("advanced_config");
-
+          // Clean the data to make sure it matches API expectations
+          const baseData = processFormData(formData);
+          
+          // Only keep properties that are accepted by the API
           const updatedData = {
-            ...host,
-            domain_names: formData
-              .get("domain_names")
-              .split(",")
-              .map((d) => d.trim()),
-            forward_http_code: parseInt(formData.get("forward_http_code")),
-            forward_scheme: formData.get("forward_scheme"),
-            forward_domain_name: formData.get("forward_domain_name"),
-            preserve_path: formData.get("preserve_path") === "true",
-            ssl_forced: formData.has("ssl_forced"),
-            hsts_enabled: formData.has("hsts_enabled"),
-            hsts_subdomains: formData.has("hsts_subdomains"),
-            http2_support: formData.has("http2_support"),
-            block_exploits: formData.has("block_exploits"),
-            advanced_config: customConfig || "", // Fix: Ensure it's never undefined
-            enabled: formData.has("enabled"),
+            domain_names: baseData.domain_names,
+            forward_http_code: baseData.forward_http_code,
+            forward_scheme: baseData.forward_scheme,
+            forward_domain_name: baseData.forward_domain_name,
+            preserve_path: baseData.preserve_path,
+            ssl_forced: baseData.ssl_forced,
+            hsts_enabled: baseData.hsts_enabled,
+            hsts_subdomains: baseData.hsts_subdomains,
+            http2_support: baseData.http2_support,
+            block_exploits: baseData.block_exploits,
+            advanced_config: baseData.advanced_config,
+            enabled: baseData.enabled
           };
 
           // Handle certificate selection/creation
@@ -490,7 +487,7 @@ export async function showEditRedirectionHostModal(hostId) {
           if (certId.startsWith("new_")) {
             updatedData.certificate_id = await handleCertificateCreation(
               updatedData.domain_names,
-              certId,
+              certId
             );
           } else {
             updatedData.certificate_id =
@@ -523,3 +520,21 @@ document.addEventListener("click", (e) => {
     closeModals();
   }
 });
+
+// Fix the missing processFormData function
+function processFormData(formData) {
+  return {
+    domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
+    forward_http_code: parseInt(formData.get("forward_http_code")),
+    forward_scheme: formData.get("forward_scheme"),
+    forward_domain_name: formData.get("forward_domain_name"),
+    preserve_path: formData.get("preserve_path") === "true",
+    ssl_forced: formData.has("ssl_forced"),
+    hsts_enabled: formData.has("hsts_enabled"),
+    hsts_subdomains: formData.has("hsts_subdomains"),
+    http2_support: formData.has("http2_support"),
+    block_exploits: formData.has("block_exploits"),
+    advanced_config: formData.get("advanced_config") || "",
+    enabled: formData.has("enabled")
+  };
+}
