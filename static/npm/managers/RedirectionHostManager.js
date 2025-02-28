@@ -278,7 +278,6 @@ window.RedirectionHostManager = {
   createRedirectionHost,
   enableRedirectionHost,
   disableRedirectionHost,
-  loadRedirectionHosts,
 };
 
 // Initialize when DOM is loaded
