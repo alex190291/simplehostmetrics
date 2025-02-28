@@ -143,7 +143,7 @@ async function loadRedirectionHosts() {
   }
 }
 
-async function editRedirectionHost(hostId, updatedData) {
+export async function editRedirectionHost(hostId, updatedData) {
   try {
     await makeRequest(
       "/npm-api",
