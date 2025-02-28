@@ -14,15 +14,25 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
           resolve(xhr.responseText);
         }
       } else {
-        // Improved error handling to extract API error message
+        // Better error handling to extract and format API error messages
         let errorMessage = `Request failed with status ${xhr.status}`;
         try {
           const errorResponse = JSON.parse(xhr.responseText);
-          if (errorResponse.error || errorResponse.message) {
-            errorMessage = errorResponse.error || errorResponse.message;
+          if (typeof errorResponse === 'object') {
+            if (errorResponse.error) {
+              errorMessage = errorResponse.error;
+            } else if (errorResponse.message) {
+              errorMessage = errorResponse.message;
+            } else {
+              // If there's no specific error message, stringify the entire object
+              errorMessage = JSON.stringify(errorResponse);
+            }
           }
         } catch (e) {
-          // If we can't parse the error, just use the default message
+          // If parsing fails, try to use the raw response text
+          if (xhr.responseText) {
+            errorMessage = `${errorMessage}: ${xhr.responseText}`;
+          }
         }
         reject(new Error(errorMessage));
       }
@@ -157,44 +167,52 @@ async function loadRedirectionHosts() {
 
 async function editRedirectionHost(hostId, updatedData) {
   try {
-    // Clean up data before sending to API
-    // Remove any properties that might cause issues
-    const cleanData = { ...updatedData };
+    // Create a simplified object with only the properties the API expects
+    const apiData = {
+      domain_names: updatedData.domain_names,
+      forward_http_code: parseInt(updatedData.forward_http_code),
+      forward_scheme: updatedData.forward_scheme,
+      forward_domain_name: updatedData.forward_domain_name,
+      preserve_path: Boolean(updatedData.preserve_path)
+    };
     
-    // Remove any non-API fields (created_on, modified_on, etc.)
-    delete cleanData.created_on;
-    delete cleanData.modified_on;
-    delete cleanData.owner;
-    
-    // Ensure domain_names is an array
-    if (typeof cleanData.domain_names === 'string') {
-      cleanData.domain_names = cleanData.domain_names.split(',').map(d => d.trim());
+    // Add optional properties only if they exist
+    if ('certificate_id' in updatedData) {
+      apiData.certificate_id = updatedData.certificate_id === null ? null : 
+                               parseInt(updatedData.certificate_id);
     }
     
-    // Ensure numeric values are actually numbers
-    if (cleanData.forward_http_code) {
-      cleanData.forward_http_code = parseInt(cleanData.forward_http_code);
-    }
+    const booleanFields = [
+      'ssl_forced', 'hsts_enabled', 'hsts_subdomains', 
+      'http2_support', 'block_exploits', 'enabled'
+    ];
     
-    // Ensure boolean values are actually booleans
-    const boolFields = ['preserve_path', 'ssl_forced', 'hsts_enabled', 
-                         'hsts_subdomains', 'http2_support', 'block_exploits', 'enabled'];
-    boolFields.forEach(field => {
-      if (field in cleanData) {
-        cleanData[field] = Boolean(cleanData[field]);
+    booleanFields.forEach(field => {
+      if (field in updatedData) {
+        apiData[field] = Boolean(updatedData[field]);
       }
     });
-
+    
+    if ('advanced_config' in updatedData) {
+      apiData.advanced_config = updatedData.advanced_config || '';
+    }
+    
+    // Send the request with clean data
+    console.log("Sending clean data to API:", apiData);
+    
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
       "PUT",
-      cleanData,
+      apiData
     );
+    
     showSuccess("Redirection host updated successfully");
     await loadRedirectionHosts();
   } catch (error) {
-    showError(`Failed to update redirection host: ${error.message}`);
+    // Better error message display
+    const errorMsg = error.message || "Unknown error";
+    showError(`Failed to update redirection host: ${errorMsg}`);
     console.error("Update error:", error);
   }
 }

@@ -521,13 +521,22 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Fix the missing processFormData function
+// Fix the processFormData function to handle data more carefully
 function processFormData(formData) {
+  // Get domain names as a proper array
+  const domainNames = formData.get("domain_names")
+    .split(",")
+    .map(d => d.trim())
+    .filter(d => d); // Remove empty strings
+  
+  // Format forward_http_code as a number
+  const forwardHttpCode = parseInt(formData.get("forward_http_code"), 10);
+  
   return {
-    domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
-    forward_http_code: parseInt(formData.get("forward_http_code")),
+    domain_names: domainNames,
+    forward_http_code: forwardHttpCode,
     forward_scheme: formData.get("forward_scheme"),
-    forward_domain_name: formData.get("forward_domain_name"),
+    forward_domain_name: formData.get("forward_domain_name").trim(),
     preserve_path: formData.get("preserve_path") === "true",
     ssl_forced: formData.has("ssl_forced"),
     hsts_enabled: formData.has("hsts_enabled"),
