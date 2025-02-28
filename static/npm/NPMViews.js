@@ -45,7 +45,7 @@ export function createProxyHostCard(host) {
     </div>
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editProxyHostModal(${host.id})">Edit</button>
-      <button class="btn btn-secondary" onclick="npmManager.deleteHost(${host.id})">Delete</button>
+      <button class="btn btn-secondary" onclick="npmManager.deleteProxyHost(${host.id})">Delete</button>
       <button class="btn btn-secondary" onclick="${disableAction}">
         ${disableLabel}
       </button>
