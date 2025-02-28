@@ -22,7 +22,7 @@ export class NPMManager {
     this.initialize();
 
     // Expose delegate functions for Proxy Hosts:
-    this.editHost = ProxyHostManager.editHostWithModal;
+    this.editHost = ProxyHostManager.editHost;
     this.deleteHost = ProxyHostManager.deleteProxyHost;
     this.enableProxyHost = ProxyHostManager.enableProxyHost;
     this.disableProxyHost = ProxyHostManager.disableProxyHost;

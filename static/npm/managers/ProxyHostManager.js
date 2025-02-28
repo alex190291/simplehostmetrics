@@ -3,6 +3,10 @@ import { makeRequest } from "../NPMService.js";
 import { showSuccess, showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
+/**
+ * Creates a new proxy host
+ * @param {Object} newData - The proxy host data
+ */
 export async function createProxyHost(newData) {
   try {
     await makeRequest("/npm-api", "/nginx/proxy-hosts", "POST", newData);
@@ -14,13 +18,18 @@ export async function createProxyHost(newData) {
   }
 }
 
+/**
+ * Edits an existing proxy host
+ * @param {string|number} hostId - The ID of the host to edit
+ * @param {Object} updatedData - The updated host data
+ */
 export async function editProxyHost(hostId, updatedData) {
   try {
     await makeRequest(
       "/npm-api",
       `/nginx/proxy-hosts/${hostId}`,
       "PUT",
-      updatedData,
+      updatedData
     );
     showSuccess("Host updated successfully");
     await Views.loadProxyHosts();
@@ -29,6 +38,10 @@ export async function editProxyHost(hostId, updatedData) {
   }
 }
 
+/**
+ * Deletes a proxy host
+ * @param {string|number} hostId - The ID of the host to delete
+ */
 export async function deleteProxyHost(hostId) {
   if (!confirm("Are you sure you want to delete this host?")) return;
   try {
@@ -40,12 +53,16 @@ export async function deleteProxyHost(hostId) {
   }
 }
 
+/**
+ * Enables a proxy host
+ * @param {string|number} hostId - The ID of the host to enable
+ */
 export async function enableProxyHost(hostId) {
   try {
     await makeRequest(
       "/npm-api",
       `/nginx/proxy-hosts/${hostId}/enable`,
-      "POST",
+      "POST"
     );
     showSuccess("Proxy host enabled successfully");
     await Views.loadProxyHosts();
@@ -54,12 +71,16 @@ export async function enableProxyHost(hostId) {
   }
 }
 
+/**
+ * Disables a proxy host
+ * @param {string|number} hostId - The ID of the host to disable
+ */
 export async function disableProxyHost(hostId) {
   try {
     await makeRequest(
       "/npm-api",
       `/nginx/proxy-hosts/${hostId}/disable`,
-      "POST",
+      "POST"
     );
     showSuccess("Proxy host disabled successfully");
     await Views.loadProxyHosts();
@@ -68,7 +89,11 @@ export async function disableProxyHost(hostId) {
   }
 }
 
-/* export async function editHostWithModal(hostId) {
+/**
+ * Edits a proxy host using a modal dialog
+ * @param {string|number} hostId - The ID of the host to edit
+ */
+export async function editHost(hostId) {
   try {
     const host = await makeRequest("/npm-api", `/nginx/proxy-hosts/${hostId}`);
     const { editHostModal } = await import("../modals/ProxyHostModals.js");
@@ -78,4 +103,14 @@ export async function disableProxyHost(hostId) {
     console.error("Failed to edit host", error);
     showError("Failed to edit host");
   }
-} */
+}
+
+// Export all functions to be available globally if needed
+window.ProxyHostManager = {
+  createProxyHost,
+  editProxyHost,
+  deleteProxyHost,
+  enableProxyHost,
+  disableProxyHost,
+  editHostWithModal
+};
