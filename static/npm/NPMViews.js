@@ -393,7 +393,7 @@ function bindViewButtons() {
     addProxyHostBtn.addEventListener("click", () => {
       try {
         populateAddHostForm();
-        document.getElementById("addHostModal").style.display = "block";
+        document.getElementById("addHostModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing proxy host modal:", error);
       }
@@ -406,7 +406,7 @@ function bindViewButtons() {
     addRedirectionHostBtn.addEventListener("click", () => {
       try {
         populateRedirectionHostForm();
-        document.getElementById("redirectionHostModal").style.display = "block";
+        document.getElementById("redirectionHostModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing redirection host modal:", error);
       }
@@ -419,7 +419,7 @@ function bindViewButtons() {
     addStreamHostBtn.addEventListener("click", () => {
       try {
         populateStreamHostForm();
-        document.getElementById("streamHostModal").style.display = "block";
+        document.getElementById("streamHostModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing stream host modal:", error);
       }
@@ -432,7 +432,7 @@ function bindViewButtons() {
     addAccessListBtn.addEventListener("click", () => {
       try {
         populateAccessListForm();
-        document.getElementById("accessListModal").style.display = "block";
+        document.getElementById("accessListModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing access list modal:", error);
       }
@@ -445,7 +445,7 @@ function bindViewButtons() {
     addCertificateBtn.addEventListener("click", () => {
       try {
         populateCertificateForm();
-        document.getElementById("certificateModal").style.display = "block";
+        document.getElementById("certificateModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing certificate modal:", error);
       }
