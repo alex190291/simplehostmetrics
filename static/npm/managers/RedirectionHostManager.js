@@ -209,38 +209,34 @@ async function deleteRedirectionHost(hostId) {
 
 async function createRedirectionHost(redirData) {
   try {
-    // Ensure the data matches the expected schema
+    // Only send fields that the API expects
     const dataToSend = {
-      domain_names: redirData.domain_names || [],
-      forward_http_code: redirData.forward_http_code || 302,
-      forward_scheme: redirData.forward_scheme || "http",
-      forward_domain_name: redirData.forward_domain_name || "",
-      preserve_path: redirData.preserve_path !== undefined ? redirData.preserve_path : true,
-      certificate_id: redirData.certificate_id || 0,
-      ssl_forced: redirData.ssl_forced !== undefined ? redirData.ssl_forced : false,
-      hsts_enabled: redirData.hsts_enabled !== undefined ? redirData.hsts_enabled : false,
-      hsts_subdomains: redirData.hsts_subdomains !== undefined ? redirData.hsts_subdomains : false,
-      http2_support: redirData.http2_support !== undefined ? redirData.http2_support : false,
-      block_exploits: redirData.block_exploits !== undefined ? redirData.block_exploits : false,
+      domain_names: redirData.domain_names,
+      forward_http_code: redirData.forward_http_code,
+      forward_scheme: redirData.forward_scheme,
+      forward_domain_name: redirData.forward_domain_name,
+      preserve_path: redirData.preserve_path,
+      certificate_id: redirData.certificate_id,
+      ssl_forced: redirData.ssl_forced,
+      hsts_enabled: redirData.hsts_enabled,
+      hsts_subdomains: redirData.hsts_subdomains,
+      http2_support: redirData.http2_support,
+      block_exploits: redirData.block_exploits,
       advanced_config: redirData.advanced_config || "",
       meta: {}
     };
 
-    // POST request to the redirection hosts endpoint (no ID in URL)
-    const response = await makeRequest(
+    await makeRequest(
       "/npm-api",
       "/nginx/redirection-hosts",
       "POST",
-      dataToSend
+      dataToSend,
     );
-    
     showSuccess("Redirection host created successfully");
     await loadRedirectionHosts();
-    return response;
   } catch (error) {
     showError("Failed to create redirection host");
     console.error("Creation error:", error);
-    throw error;
   }
 }
 
