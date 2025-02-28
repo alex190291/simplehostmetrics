@@ -1,6 +1,6 @@
 // simplehostmetrics/static/npm/modals/RedirectionHostModals.js
 import { switchTab, closeModals } from "/static/npm/common.js";
-import RedirectionHostManager from "../managers/RedirectionHostManager";
+import * as RedirectionHostManager from "../managers/RedirectionHostManager.js";
 import Modal from "../lib/Modal";
 import html from "../lib/html";
 
@@ -38,15 +38,18 @@ export function populateRedirectionHostForm(host = null) {
         baseData.certificate_id = certId === "" ? null : parseInt(certId);
       }
 
-      // Create or update the redirection host
-      const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
+      // Create or update the redirection host using the correct manager method
       if (host) {
-        await RedirectionHostManager.updateRedirectionHost(host.id, baseData);
+        await RedirectionHostManager.editRedirectionHost(host.id, baseData);
       } else {
         await RedirectionHostManager.createRedirectionHost(baseData);
       }
       
       document.getElementById("redirectionHostModal").style.display = "none";
+      // Refresh the view after creating/editing
+      if (window.npmManager) {
+        window.npmManager.loadCurrentView();
+      }
     } catch (error) {
       console.error("Form submission error:", error);
       alert("An error occurred: " + error.message);
@@ -437,9 +440,7 @@ export function showCreateRedirectionHostModal() {
 
 export async function showEditRedirectionHostModal(hostId) {
   try {
-    const response = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`);
-    if (!response.ok) throw new Error("Failed to fetch host");
-    const host = await response.json();
+    const host = await RedirectionHostManager.getRedirectionHost(hostId);
 
     // Fix: Make sure advanced_config is initialized properly
     if (host.advanced_config === undefined) {
@@ -448,6 +449,7 @@ export async function showEditRedirectionHostModal(hostId) {
 
     const modal = document.createElement("div");
     modal.className = "modal";
+    modal.id = "redirectionHostModal";
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -456,57 +458,33 @@ export async function showEditRedirectionHostModal(hostId) {
       </div>
     `;
 
-    const form = modal.querySelector("#redirectionHostForm");
-    form.innerHTML = generateRedirectionHostFormHTML(host);
-    setupRedirectionForm(form, true);
+    document.body.appendChild(modal);
+    populateRedirectionHostForm(host);
+    modal.style.display = "flex";
 
-    return new Promise((resolve) => {
-      form.addEventListener("submit", async (e) => {
+    return new Promise((resolve, reject) => {
+      const closeHandler = () => {
+        modal.remove();
+        reject(new Error("Modal closed"));
+      };
+      
+      modal.querySelector(".close").addEventListener("click", closeHandler);
+      
+      // Listen for form submission
+      modal.querySelector("form").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const formData = new FormData(form);
-
         try {
-          // Clean the data to make sure it matches API expectations
-          const baseData = processFormData(formData);
+          const formData = new FormData(e.target);
+          const processedData = processFormData(formData);
           
-          // Only keep properties that are accepted by the API
-          const updatedData = {
-            domain_names: baseData.domain_names,
-            forward_http_code: baseData.forward_http_code,
-            forward_scheme: baseData.forward_scheme,
-            forward_domain_name: baseData.forward_domain_name,
-            preserve_path: baseData.preserve_path,
-            ssl_forced: baseData.ssl_forced,
-            hsts_enabled: baseData.hsts_enabled,
-            hsts_subdomains: baseData.hsts_subdomains,
-            http2_support: baseData.http2_support,
-            block_exploits: baseData.block_exploits,
-            advanced_config: baseData.advanced_config,
-            enabled: baseData.enabled
-          };
-
-          // Handle certificate selection/creation
-          const certId = formData.get("certificate_id");
-          if (certId.startsWith("new_")) {
-            updatedData.certificate_id = await handleCertificateCreation(
-              updatedData.domain_names,
-              certId
-            );
-          } else {
-            updatedData.certificate_id =
-              certId === "" ? null : parseInt(certId);
-          }
-
+          await RedirectionHostManager.editRedirectionHost(hostId, processedData);
           modal.remove();
-          resolve(updatedData);
+          resolve(true);
         } catch (error) {
           console.error("Form update error:", error);
           alert("An error occurred: " + error.message);
         }
       });
-
-      document.body.appendChild(modal);
-      modal.style.display = "flex";
     });
   } catch (error) {
     console.error("Edit modal error:", error);
@@ -547,7 +525,9 @@ function processFormData(formData) {
     http2_support: formData.has("http2_support"),
     block_exploits: formData.has("block_exploits"),
     advanced_config: formData.get("advanced_config") || "",
-    enabled: formData.has("enabled")
+    enabled: formData.has("enabled"),
+    certificate_id: formData.get("certificate_id") === "" ? null : 
+                  parseInt(formData.get("certificate_id"), 10)
   };
 }
 
@@ -621,7 +601,7 @@ const RedirectionHostModals = {
           text: "Save",
           classes: ["btn-primary"],
           handler: data => {
-            // Using correct PUT endpoint for update
+            // Using the update method from the manager
             RedirectionHostManager.update(host.id, data)
               .then(response => {
                 modal.destroy();
