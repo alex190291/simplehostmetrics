@@ -146,7 +146,8 @@ function generateHostFormHTML(host = null) {
   const forwardSchemeHttps =
     isEdit && host.forward_scheme === "https" ? "selected" : "";
   const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
-  const websocketsSupport = isEdit && host.websockets_support ? "checked" : "";
+  // Fix: Use allow_websocket_upgrade instead of websockets_support to match API property
+  const websocketsSupport = isEdit && host.allow_websocket_upgrade ? "checked" : "";
   const blockExploits = isEdit && host.block_exploits ? "checked" : "";
   const sslForced = isEdit && host.ssl_forced ? "checked" : "";
   const http2Support = isEdit && host.http2_support ? "checked" : "";
@@ -420,4 +421,4 @@ export function editHostModal(host) {
     };
   });
 }
-//test
+
