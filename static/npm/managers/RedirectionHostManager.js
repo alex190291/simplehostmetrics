@@ -145,11 +145,28 @@ async function loadRedirectionHosts() {
 
 export async function editRedirectionHost(hostId, updatedData) {
   try {
+    // Only send fields that the API expects
+    const dataToSend = {      
+      domain_names: updatedData.domain_names,
+      forward_http_code: updatedData.forward_http_code,
+      forward_scheme: updatedData.forward_scheme,
+      forward_domain_name: updatedData.forward_domain_name,
+      preserve_path: updatedData.preserve_path,
+      certificate_id: updatedData.certificate_id,
+      ssl_forced: updatedData.ssl_forced,
+      hsts_enabled: updatedData.hsts_enabled,
+      hsts_subdomains: updatedData.hsts_subdomains,
+      http2_support: updatedData.http2_support,
+      block_exploits: updatedData.block_exploits,
+      advanced_config: updatedData.advanced_config || "",
+      meta: {}
+    };
+    
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
       "PUT",
-      updatedData,
+      dataToSend,
     );
     showSuccess("Redirection host updated successfully");
     await loadRedirectionHosts();
@@ -174,10 +191,9 @@ async function updateRedirectionHost(hostId, updatedData) {
       http2_support: updatedData.http2_support,
       block_exploits: updatedData.block_exploits,
       advanced_config: updatedData.advanced_config || "",
-      enabled: updatedData.enabled,
-      meta: {}
+      meta: updatedData.meta || {}
     };
-    
+
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
@@ -211,11 +227,28 @@ async function deleteRedirectionHost(hostId) {
 
 async function createRedirectionHost(redirData) {
   try {
+    // Only send fields that the API expects
+    const dataToSend = {
+      domain_names: redirData.domain_names,
+      forward_http_code: redirData.forward_http_code,
+      forward_scheme: redirData.forward_scheme,
+      forward_domain_name: redirData.forward_domain_name,
+      preserve_path: redirData.preserve_path,
+      certificate_id: redirData.certificate_id,
+      ssl_forced: redirData.ssl_forced,
+      hsts_enabled: redirData.hsts_enabled,
+      hsts_subdomains: redirData.hsts_subdomains,
+      http2_support: redirData.http2_support,
+      block_exploits: redirData.block_exploits,
+      advanced_config: redirData.advanced_config || "",
+      meta: {}
+    };
+
     await makeRequest(
       "/npm-api",
       "/nginx/redirection-hosts",
       "POST",
-      redirData,
+      dataToSend,
     );
     showSuccess("Redirection host created successfully");
     await loadRedirectionHosts();
