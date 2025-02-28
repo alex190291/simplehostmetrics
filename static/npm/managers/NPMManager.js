@@ -1,6 +1,8 @@
 // /static/npm/managers/NPMManager.js
+import * as ProxyHostModals from "../modals/ProxyHostModals.js";
 import * as ProxyHostManager from "./ProxyHostManager.js";
 import * as RedirectionHostManager from "./RedirectionHostManager.js";
+import * as RedirectionHostModals from "../modals/RedirectionHostModals.js";
 import * as ReportManager from "./ReportManager.js";
 import * as CertificateManager from "./CertificateManager.js";
 import { makeRequest } from "../NPMService.js";
@@ -24,6 +26,7 @@ export class NPMManager {
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 
     // Expose delegate functions for Redirection Hosts:
+    this.editRedirectionHostModal = RedirectionHostModals.editRedirectionHostModal;
     this.editRedirectionHost = RedirectionHostManager.editRedirectionHost;
     this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
     this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
