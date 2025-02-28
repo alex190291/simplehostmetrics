@@ -376,7 +376,6 @@ export function showCreateRedirectionHostModal() {
     modal.className = "modal";
     modal.innerHTML = `
       <div class="modal-content">
-        <span class="close">&times;</span>
         <h2>Create Redirection Host</h2>
         <form id="redirectionHostForm"></form>
       </div>
@@ -445,7 +444,6 @@ export async function showEditRedirectionHostModal(hostId) {
     modal.className = "modal";
     modal.innerHTML = `
       <div class="modal-content">
-        <span class="close">&times;</span>
         <h2>Edit Redirection Host</h2>
         <form id="redirectionHostForm"></form>
       </div>
