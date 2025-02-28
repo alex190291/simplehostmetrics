@@ -1,4 +1,6 @@
 // /static/npm/managers/RedirectionHostManager.js
+import { showSuccess, showError } from "../NPMUtils.js";
+
 function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -28,26 +30,6 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
       xhr.send();
     }
   });
-}
-
-function showSuccess(message) {
-  const toast = document.createElement("div");
-  toast.className = "toast toast-success";
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
-}
-
-function showError(message) {
-  const toast = document.createElement("div");
-  toast.className = "toast toast-error";
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
 }
 
 async function loadRedirectionHosts() {
