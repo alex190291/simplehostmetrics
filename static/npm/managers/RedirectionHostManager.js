@@ -294,5 +294,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Load hosts initially
-  loadRedirectionHosts();
+  Views.loadRedirectionHosts();
 });
