@@ -1,115 +1,16 @@
 // /static/npm/modals/ProxyHostModals.js
-import { switchTab, closeModals } from "/static/npm/common.js";
-import { showSuccess, showError } from "../NPMUtils.js";
+import { 
+  switchTab, 
+  closeModals 
+} from "/static/npm/common.js";
 
-// -------------------------
-// DNS Challenge Modal Logic
-// -------------------------
-function openDnsChallengeModal() {
-  return new Promise((resolve, reject) => {
-    let modal = document.getElementById("dnsChallengeModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "dnsChallengeModal";
-      modal.className = "modal";
-      modal.innerHTML = `
-        <div class="modal-content">
-          <h2>Select DNS Provider</h2>
-          <div id="dnsProviderOptions"></div>
-          <div class="form-group">
-            <label for="dnsCredentials">API Credentials</label>
-            <textarea id="dnsCredentials" name="dnsCredentials" rows="4" placeholder="Enter credentials exactly as required"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="dnsWaitTime">Waiting Time (seconds)</label>
-            <input type="number" id="dnsWaitTime" name="dnsWaitTime" value="20" min="5">
-          </div>
-          <div class="form-actions">
-            <button id="dnsConfirm" class="btn btn-primary">Confirm</button>
-            <button id="dnsCancel" class="btn btn-secondary">Cancel</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
-    modal.style.display = "flex";
-
-    // Correct URL to load the JSON file from static folder.
-    fetch("/static/npm/json/certbot-dns-plugins.json")
-      .then((res) => res.json())
-      .then((plugins) => {
-        const optionsDiv = modal.querySelector("#dnsProviderOptions");
-        optionsDiv.innerHTML = "";
-        const select = document.createElement("select");
-        select.id = "dnsProviderSelect";
-        for (const key in plugins) {
-          const opt = document.createElement("option");
-          opt.value = key;
-          opt.textContent = plugins[key].name;
-          select.appendChild(opt);
-        }
-        optionsDiv.appendChild(select);
-
-        modal.querySelector("#dnsConfirm").onclick = () => {
-          const provider = document.getElementById("dnsProviderSelect").value;
-          const credentials = document
-            .getElementById("dnsCredentials")
-            .value.trim();
-          const wait_time = parseInt(
-            document.getElementById("dnsWaitTime").value,
-            10,
-          );
-          modal.style.display = "none";
-          resolve({
-            provider: provider,
-            credentials: credentials,
-            wait_time: wait_time,
-          });
-        };
-        modal.querySelector("#dnsCancel").onclick = () => {
-          modal.style.display = "none";
-          reject(new Error("DNS challenge canceled by user."));
-        };
-      })
-      .catch((err) => {
-        modal.style.display = "none";
-        reject(err);
-      });
-  });
-}
-// Helper function to populate the certificate dropdown dynamically
-async function populateCertificateDropdown(selectElement, selectedValue = "") {
-  try {
-    const response = await fetch("/npm-api/nginx/certificates");
-    if (!response.ok) {
-      console.error("Failed to load certificates", response.statusText);
-      return;
-    }
-    const certificates = await response.json();
-    selectElement.innerHTML = "";
-    certificates.forEach((cert) => {
-      const option = document.createElement("option");
-      option.value = cert.id;
-      option.textContent =
-        cert.nice_name ||
-        (cert.domain_names ? cert.domain_names.join(", ") : "") ||
-        cert.provider ||
-        cert.id;
-      if (cert.id == selectedValue) option.selected = true;
-      selectElement.appendChild(option);
-    });
-    const optionNoDns = document.createElement("option");
-    optionNoDns.value = "new_nodns";
-    optionNoDns.textContent = "Request New Certificate (No DNS Challenge)";
-    selectElement.appendChild(optionNoDns);
-    const optionDns = document.createElement("option");
-    optionDns.value = "new_dns";
-    optionDns.textContent = "Request New Certificate (DNS Challenge)";
-    selectElement.appendChild(optionDns);
-  } catch (error) {
-    console.error("Failed to load certificates", error);
-  }
-}
+import { 
+  showSuccess, 
+  showError, 
+  populateCertificateDropdown,
+  openDnsChallengeModal,
+  handleCertificateCreation
+} from "../NPMUtils.js";
 
 // Helper function to populate the access list dropdown dynamically
 async function populateAccessListDropdown(selectElement, selectedValue = "") {
@@ -134,7 +35,7 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
 }
 
 // Generate form HTML for host configuration - used by both add and edit modals
-function generateHostFormHTML(host = null) {
+function generateProxyHostFormHTML(host = null) {
   const isEdit = host !== null;
   const idField = isEdit
     ? `<input type="hidden" name="host_id" value="${host.id}">`
@@ -260,11 +161,8 @@ function generateHostFormHTML(host = null) {
         <label>
           <span class="toggle-switch">
             <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HSTS Subdomains</span>
-        </label>
-      </div>
+        
+}div>
     </div>
     <div class="tab-content" id="customTab" style="display:none;">
       <div class="form-group">
@@ -280,7 +178,7 @@ function generateHostFormHTML(host = null) {
 }
 
 // Process form data from both add and edit forms
-function processHostFormData(formData) {
+function processProxyHostFormData(formData) {
   const certificate_id_raw = formData.get("certificate_id");
   let certificate_id;
   if (certificate_id_raw === "") {
@@ -318,34 +216,8 @@ function processHostFormData(formData) {
   };
 }
 
-// Create certificate helper
-async function createCertificate(domainNames, hasDnsChallenge = false) {
-  try {
-    const certPayload = {
-      provider: "letsencrypt",
-      domain_names: domainNames,
-    };
-
-    if (hasDnsChallenge) {
-      const dnsData = await openDnsChallengeModal();
-      certPayload.dns_challenge = {
-        provider: dnsData.provider,
-        credentials: dnsData.credentials,
-        wait_time: dnsData.wait_time,
-      };
-    }
-
-    const certModule = await import("../managers/CertificateManager.js");
-    return certModule.createCertificate(certPayload);
-  } catch (error) {
-    console.error("Certificate creation failed:", error);
-    showError("Failed to create certificate");
-    throw error;
-  }
-}
-
 // Setup form for both add and edit
-function setupHostForm(form, isEdit = false) {
+function setupProxyHostForm(form, isEdit = false) {
   // Attach tab switching event listeners
   const tabLinks = form.querySelectorAll(".tab-link");
   tabLinks.forEach((btn) => {
@@ -376,10 +248,10 @@ function setupHostForm(form, isEdit = false) {
 // -------------------------
 // Add Host Flow
 // -------------------------
-export function populateAddHostForm() {
+export function populateAddProxyHostForm() {
   const form = document.getElementById("addHostForm");
-  form.innerHTML = generateHostFormHTML();
-  setupHostForm(form, false);
+  form.innerHTML = generateProxyHostFormHTML();
+  setupProxyHostForm(form, false);
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -389,30 +261,18 @@ export function populateAddHostForm() {
 
     try {
       const formData = new FormData(form);
-      const baseData = processHostFormData(formData);
+      const baseData = processProxyHostFormData(formData);
       const certificate_id_raw = formData.get("certificate_id");
 
       // Handle certificate creation if needed
-      if (certificate_id_raw === "new_dns") {
+      if (certificate_id_raw === "new_dns" || certificate_id_raw === "new_nodns") {
         try {
-          const newCertId = await createCertificate(
+          baseData.certificate_id = await handleCertificateCreation(
             baseData.domain_names,
-            true,
+            certificate_id_raw
           );
-          baseData.certificate_id = newCertId;
         } catch (err) {
-          console.error("Failed to create certificate with DNS challenge", err);
-          showError("Certificate creation failed");
-          throw err;
-        }
-      } else if (certificate_id_raw === "new_nodns") {
-        try {
-          const newCertId = await createCertificate(
-            baseData.domain_names,
-            false,
-          );
-          baseData.certificate_id = newCertId;
-        } catch (err) {
+          showError("Failed to create certificate");
           console.error("Failed to create certificate", err);
           throw err;
         }
@@ -435,14 +295,14 @@ export function populateAddHostForm() {
 // -------------------------
 // Edit Host Flow
 // -------------------------
-export function editHostModal(host) {
+export function editProxyHostModal(host) {
   return new Promise((resolve) => {
     const modal = document.getElementById("addHostModal");
     const form = document.getElementById("addHostForm");
 
-    form.innerHTML = generateHostFormHTML(host);
+    form.innerHTML = generateProxyHostFormHTML(host);
     modal.style.display = "flex";
-    setupHostForm(form, true);
+    setupProxyHostForm(form, true);
 
     // Populate certificate and access list dropdowns with existing values
     const certSelect = form.querySelector("#certificate_id");
@@ -454,7 +314,7 @@ export function editHostModal(host) {
     form.onsubmit = (e) => {
       e.preventDefault();
       const formData = new FormData(form);
-      const updatedData = processHostFormData(formData);
+      const updatedData = processProxyHostFormData(formData);
       
       // Close the modal after form submission - make sure this happens
       modal.style.display = "none";

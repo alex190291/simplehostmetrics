@@ -1,17 +1,11 @@
 // /static/npm/managers/NPMManager.js
 import * as ProxyHostManager from "./ProxyHostManager.js";
 import * as RedirectionHostManager from "./RedirectionHostManager.js";
-import * as StreamManager from "./StreamManager.js";
 import * as ReportManager from "./ReportManager.js";
-import * as SettingManager from "./SettingManager.js";
-import * as TokenManager from "./TokenManager.js";
-import * as UserManager from "./UserManager.js";
 import * as CertificateManager from "./CertificateManager.js";
 import { makeRequest } from "../NPMService.js";
 import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
-import { editHostModal } from "../modals/ProxyHostModals.js";
-import * as RedirectionHostModals from "../modals/RedirectionHostModals.js";
 
 export class NPMManager {
   constructor() {
@@ -22,8 +16,9 @@ export class NPMManager {
     this.initialize();
 
     // Expose delegate functions for Proxy Hosts:
-    this.editHost = ProxyHostManager.editHost;
-    this.deleteHost = ProxyHostManager.deleteProxyHost;
+    this.createProxyHost = ProxyHostManager.createProxyHost;
+    this.editProxyHost = ProxyHostManager.editProxyHost;
+    this.deleteProxyHost = ProxyHostManager.deleteProxyHost;
     this.enableProxyHost = ProxyHostManager.enableProxyHost;
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 

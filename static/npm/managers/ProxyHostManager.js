@@ -89,28 +89,11 @@ export async function disableProxyHost(hostId) {
   }
 }
 
-/**
- * Edits a proxy host using a modal dialog
- * @param {string|number} hostId - The ID of the host to edit
- */
-export async function editHost(hostId) {
-  try {
-    const host = await makeRequest("/npm-api", `/nginx/proxy-hosts/${hostId}`);
-    const { editHostModal } = await import("../modals/ProxyHostModals.js");
-    const updatedData = await editHostModal(host);
-    await editProxyHost(hostId, updatedData);
-  } catch (error) {
-    console.error("Failed to edit host", error);
-    showError("Failed to edit host");
-  }
-}
-
 // Export all functions to be available globally if needed
 window.ProxyHostManager = {
   createProxyHost,
   editProxyHost,
   deleteProxyHost,
   enableProxyHost,
-  disableProxyHost,
-  editHostWithModal
+  disableProxyHost,  
 };

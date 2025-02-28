@@ -8,36 +8,18 @@ import * as Views from "../NPMViews.js";
  */
 export async function createRedirectionHost(redirData) {
   try {
-    // Ensure all fields match the API's expected format
-    const dataToSend = {
-      domain_names: Array.isArray(redirData.domain_names) 
-        ? redirData.domain_names 
-        : [redirData.domain_names],
-      forward_http_code: parseInt(redirData.forward_http_code) || 301,
-      forward_scheme: redirData.forward_scheme || "auto",
-      forward_domain_name: redirData.forward_domain_name,
-      preserve_path: Boolean(redirData.preserve_path),
-      certificate_id: redirData.certificate_id ? parseInt(redirData.certificate_id) : 0,
-      ssl_forced: Boolean(redirData.ssl_forced),
-      hsts_enabled: Boolean(redirData.hsts_enabled),
-      hsts_subdomains: Boolean(redirData.hsts_subdomains),
-      http2_support: Boolean(redirData.http2_support),
-      block_exploits: Boolean(redirData.block_exploits),
-      advanced_config: redirData.advanced_config || "",
-      meta: {}
-    };
-
     await makeRequest(
       "/npm-api",
       "/nginx/redirection-hosts",
       "POST",
-      dataToSend
+      redirData
     );
     
     showSuccess("Redirection host created successfully");
     await Views.loadRedirectionHosts();
   } catch (error) {
     showError("Failed to create redirection host");
+    throw error;
   }
 }
 
@@ -48,33 +30,17 @@ export async function createRedirectionHost(redirData) {
  */
 export async function editRedirectionHost(hostId, updatedData) {
   try {
-    // Only send fields that the API expects
-    const dataToSend = {      
-      domain_names: updatedData.domain_names,
-      forward_http_code: updatedData.forward_http_code,
-      forward_scheme: updatedData.forward_scheme,
-      forward_domain_name: updatedData.forward_domain_name,
-      preserve_path: updatedData.preserve_path,
-      certificate_id: updatedData.certificate_id,
-      ssl_forced: updatedData.ssl_forced,
-      hsts_enabled: updatedData.hsts_enabled,
-      hsts_subdomains: updatedData.hsts_subdomains,
-      http2_support: updatedData.http2_support,
-      block_exploits: updatedData.block_exploits,
-      advanced_config: updatedData.advanced_config || "",
-      meta: {}
-    };
-    
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
       "PUT",
-      dataToSend
+      updatedData
     );
     showSuccess("Redirection host updated successfully");
     await Views.loadRedirectionHosts();
   } catch (error) {
     showError("Failed to update redirection host");
+    throw error;
   }
 }
 
@@ -137,13 +103,14 @@ export async function disableRedirectionHost(hostId) {
 }
 
 /**
- * Edits a redirection host using a modal dialog
+ * Shows the edit modal for a redirection host
  * @param {string|number} hostId - The ID of the host to edit
  */
 export async function editRedirectionHostWithModal(hostId) {
   try {
     const RedirectionHostModals = await import("../modals/RedirectionHostModals.js");
-    const updatedData = await RedirectionHostModals.showEditRedirectionHostModal(hostId);
+    const host = await fetchRedirectionHost(hostId);
+    const updatedData = await RedirectionHostModals.editRedirectionHostModal(host);
     await editRedirectionHost(hostId, updatedData);
   } catch (error) {
     console.error("Failed to edit redirection host", error);
@@ -151,29 +118,45 @@ export async function editRedirectionHostWithModal(hostId) {
   }
 }
 
-// Expose functions globally
+/**
+ * Fetches a single redirection host by ID
+ * @param {string|number} hostId - The ID of the host to fetch
+ * @returns {Promise<Object>} - The host data
+ */
+export async function fetchRedirectionHost(hostId) {
+  try {
+    const response = await makeRequest(
+      "/npm-api",
+      `/nginx/redirection-hosts/${hostId}`,
+      "GET"
+    );
+    return response;
+  } catch (error) {
+    showError("Failed to fetch redirection host");
+    throw error;
+  }
+}
+
+// Export all functions to be available globally if needed
 window.RedirectionHostManager = {
+  createRedirectionHost,
   editRedirectionHost,
   deleteRedirectionHost,
-  createRedirectionHost,
   enableRedirectionHost,
   disableRedirectionHost,
-  editRedirectionHostWithModal
+  editRedirectionHostWithModal,
+  fetchRedirectionHost
 };
 
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   const createBtn = document.getElementById("createRedirectionHostBtn");
   if (createBtn) {
-    createBtn.addEventListener("click", () => {
-      window.RedirectionHostModals.showCreateRedirectionHostModal()
-        .then((data) => {
-          createRedirectionHost(data);
-        })
-        .catch((err) => console.error(err));
+    createBtn.addEventListener("click", async () => {
+      const RedirectionHostModals = await import("../modals/RedirectionHostModals.js");
+      RedirectionHostModals.showCreateRedirectionHostModal()
+        .then(data => createRedirectionHost(data))
+        .catch(err => console.error("Failed to create redirection host:", err));
     });
   }
-
-  // Load hosts initially
-  Views.loadRedirectionHosts();
 });
