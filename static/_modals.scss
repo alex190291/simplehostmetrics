@@ -1,5 +1,24 @@
 /* _modals.scss - Modal dialogs and overlays */
 
+/* View Header Styles */
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.add-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  i {
+    font-size: 0.9em;
+  }
+}
+
 /* Modal Styles */
 .modal-overlay,
 .modal {

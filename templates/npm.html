@@ -60,7 +60,6 @@ block content %}
                 align-items: center;
             "
         >
-            <button class="btn btn-primary" id="addNewBtn">Add New</button>
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="Search..." />
             </div>
@@ -68,26 +67,47 @@ block content %}
 
         <!-- Dynamic Content Views -->
         <div id="proxyView" class="content-view active">
-            <!-- The JavaScript in NPMViews.js will inject Proxy Host cards here -->
+            <div class="view-header">
+                <button class="btn btn-primary add-new-btn" id="addProxyHostBtn">
+                    <i class="fas fa-plus"></i> Add Proxy Host
+                </button>
+            </div>
             <div class="card-grid" id="proxyHostsGrid"></div>
         </div>
 
         <div id="redirectionView" class="content-view" style="display: none">
-            <!-- Redirection Host cards injected here -->
+            <div class="view-header">
+                <button class="btn btn-primary add-new-btn" id="addRedirectionHostBtn">
+                    <i class="fas fa-plus"></i> Add Redirection Host
+                </button>
+            </div>
             <div class="card-grid" id="redirectionHostsGrid"></div>
         </div>
 
         <div id="streamView" class="content-view" style="display: none">
-            <!-- Stream Host cards injected here -->
+            <div class="view-header">
+                <button class="btn btn-primary add-new-btn" id="addStreamHostBtn">
+                    <i class="fas fa-plus"></i> Add Stream
+                </button>
+            </div>
             <div class="card-grid" id="streamHostsGrid"></div>
         </div>
 
         <div id="accessView" class="content-view" style="display: none">
-            <!-- Access List cards injected here -->
+            <div class="view-header">
+                <button class="btn btn-primary add-new-btn" id="addAccessListBtn">
+                    <i class="fas fa-plus"></i> Add Access List
+                </button>
+            </div>
             <div class="card-grid" id="accessListsGrid"></div>
         </div>
 
         <div id="certificatesView" class="content-view" style="display: none">
+            <div class="view-header">
+                <button class="btn btn-primary add-new-btn" id="addCertificateBtn">
+                    <i class="fas fa-plus"></i> Add Certificate
+                </button>
+            </div>
             <div class="certificates-header">
                 <div class="cert-stats">
                     <div class="stat-card">

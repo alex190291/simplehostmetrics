@@ -382,53 +382,57 @@ export function createUserCard(user) {
   return card;
 }
 
-/* --- Add New Button Binding --- */
-export function bindAddNewButton() {
-  const addNewBtn = document.getElementById("addNewBtn");
-  if (!addNewBtn) {
-    console.error("Add New button not found");
-    return;
+/* --- View-Specific Button Bindings --- */
+function bindViewButtons() {
+  // Proxy Host Button
+  const addProxyHostBtn = document.getElementById("addProxyHostBtn");
+  if (addProxyHostBtn) {
+    addProxyHostBtn.addEventListener("click", () => {
+      populateAddHostForm();
+      document.getElementById("addHostModal").style.display = "block";
+    });
   }
 
-  addNewBtn.addEventListener("click", async () => {
-    // Determine the active view by its id
-    const activeView = document.querySelector(".content-view.active")?.id;
-    if (!activeView) {
-      console.error("No active view detected.");
-      return;
-    }
-
-    try {
-      switch (activeView) {
-        case "proxyView":
-          // For Proxy Hosts: populate the form and show the modal
-          populateAddHostForm();
-          document.getElementById("addHostModal").style.display = "block";
-          break;
-        case "redirectionView":
-          // For Redirection Hosts: show the redirection host modal
-          await showCreateRedirectionHostModal();
-          break;
-        case "streamView":
-          // For Streams: implement or log a message (functionality can be added later)
-          console.log("Stream host add functionality is not implemented yet.");
-          break;
-        case "accessView":
-          // For Access Lists: implement or log a message (functionality can be added later)
-          console.log("Access list add functionality is not implemented yet.");
-          break;
-        case "certificatesView":
-          // For Certificates: show the certificate creation modal
-          await showCreateCertificateModal();
-          break;
-        default:
-          console.warn("No add action defined for active view:", activeView);
+  // Redirection Host Button
+  const addRedirectionHostBtn = document.getElementById("addRedirectionHostBtn");
+  if (addRedirectionHostBtn) {
+    addRedirectionHostBtn.addEventListener("click", async () => {
+      try {
+        await showCreateRedirectionHostModal();
+      } catch (error) {
+        console.error("Error showing redirection host modal:", error);
       }
-    } catch (error) {
-      console.error("Error processing Add New action:", error);
-    }
-  });
+    });
+  }
+
+  // Stream Host Button
+  const addStreamHostBtn = document.getElementById("addStreamHostBtn");
+  if (addStreamHostBtn) {
+    addStreamHostBtn.addEventListener("click", () => {
+      console.log("Stream host add functionality is not implemented yet.");
+    });
+  }
+
+  // Access List Button
+  const addAccessListBtn = document.getElementById("addAccessListBtn");
+  if (addAccessListBtn) {
+    addAccessListBtn.addEventListener("click", () => {
+      console.log("Access list add functionality is not implemented yet.");
+    });
+  }
+
+  // Certificate Button
+  const addCertificateBtn = document.getElementById("addCertificateBtn");
+  if (addCertificateBtn) {
+    addCertificateBtn.addEventListener("click", async () => {
+      try {
+        await showCreateCertificateModal();
+      } catch (error) {
+        console.error("Error showing certificate modal:", error);
+      }
+    });
+  }
 }
 
-// Automatically bind the Add New button when the document is loaded
-document.addEventListener("DOMContentLoaded", bindAddNewButton);
+// Bind view-specific buttons when the document is loaded
+document.addEventListener("DOMContentLoaded", bindViewButtons);
