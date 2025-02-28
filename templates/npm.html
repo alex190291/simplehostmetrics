@@ -231,6 +231,7 @@ block content %}
 {% endblock %} {% block scripts %}
 <script src="{{ url_for('static', filename='animations.js') }}"></script>
 <script src="{{ url_for('static', filename='theme.js') }}"></script>
+<!-- Remove any separate CSS imports -->
 <script
     type="module"
     src="{{ url_for('static', filename='npm/npm.js') }}"

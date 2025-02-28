@@ -183,17 +183,20 @@
 .form-group {
     &.toggle {
         display: flex;
+        flex-direction: row;
         align-items: center;
         margin-bottom: 1rem;
         
         label {
             display: flex;
+            flex-direction: row;
             align-items: center;
             cursor: pointer;
         }
         
         .toggle-label {
             margin-left: 8px;
+            display: inline-block;
         }
     }
 }

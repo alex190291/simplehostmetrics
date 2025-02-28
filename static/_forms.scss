@@ -21,6 +21,25 @@
         border-radius: 0.25rem;
         color: var(--text);
     }
+    
+    /* Make sure regular checkboxes don't interfere with our toggle switches */
+    input[type="checkbox"] {
+        &:not(.toggle-switch input) {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+    }
+}
+
+/* Override for toggle form groups to display in row direction instead of column */
+.form-group.toggle {
+    flex-direction: row;
+    align-items: center;
+    
+    label {
+        margin-bottom: 0;
+        flex-direction: row;
+    }
 }
 
 .search-bar input {
