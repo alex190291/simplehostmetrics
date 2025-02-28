@@ -156,6 +156,7 @@ function generateHostFormHTML(host = null) {
   const customConfig = isEdit && host.custom_config ? host.custom_config : "";
   const submitBtnText = isEdit ? "Update Host" : "Add Host";
 
+  // Make sure all checkboxes are replaced with toggle switches
   return `
     ${idField}
     <div class="tabs">
