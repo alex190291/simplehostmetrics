@@ -10,6 +10,8 @@
         rgba(0, 0, 0, 0.2),
         rgba(0, 0, 0, 0)
     );
+    --dropdown-bg: #000000;
+    --dropdown-text: #ffffff;
 }
 
 .light-mode {
@@ -22,6 +24,8 @@
         rgba(0, 0, 0, 0.1),
         rgba(0, 0, 0, 0)
     );
+    --dropdown-bg: #ffffff;
+    --dropdown-text: #000000;
 }
 
 // Also add SCSS variables for use in mixins and calculations

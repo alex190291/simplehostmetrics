@@ -12,14 +12,27 @@
 
     input[type="text"],
     input[type="number"],
-    textarea,
-    select {
+    textarea {
         width: 100%;
         padding: 0.5rem;
         background: rgba(255, 255, 255, 0.1);
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 0.25rem;
         color: var(--text);
+    }
+
+    select {
+        width: 100%;
+        padding: 0.5rem;
+        background-color: var(--dropdown-bg);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 0.25rem;
+        color: var(--dropdown-text);
+
+        option {
+            background-color: var(--dropdown-bg);
+            color: var(--dropdown-text);
+        }
     }
     
     /* Make sure regular checkboxes don't interfere with our toggle switches */
