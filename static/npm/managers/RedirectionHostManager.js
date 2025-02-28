@@ -280,7 +280,7 @@ export async function disableRedirectionHost(hostId) {
   }
 }
 
-export async function editRedirectionHostWithModal(hostId) {
+/* export async function editRedirectionHostWithModal(hostId) {
   try {
     const RedirectionHostModals = await import("../modals/RedirectionHostModals.js");
     const updatedData = await RedirectionHostModals.showEditRedirectionHostModal(hostId);
@@ -289,7 +289,7 @@ export async function editRedirectionHostWithModal(hostId) {
     console.error("Failed to edit redirection host", error);
     showError("Failed to edit redirection host");
   }
-}
+} */
 
 // Expose functions globally
 window.RedirectionHostManager = {

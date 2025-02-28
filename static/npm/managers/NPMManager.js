@@ -22,13 +22,13 @@ export class NPMManager {
     this.initialize();
 
     // Expose delegate functions for Proxy Hosts:
-    this.editHost = this.editHost.bind(this);
+    //this.editHost = ProxyHostManager.editHostWithModal;
     this.deleteHost = ProxyHostManager.deleteProxyHost;
     this.enableProxyHost = ProxyHostManager.enableProxyHost;
     this.disableProxyHost = ProxyHostManager.disableProxyHost;
 
     // Expose delegate functions for Redirection Hosts:
-    this.editRedirectionHost = this.editRedirectionHost.bind(this);
+    //this.editRedirectionHost = RedirectionHostManager.editRedirectionHostWithModal;
     this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
     this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
     this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
@@ -183,29 +183,6 @@ export class NPMManager {
       );
       this.currentView = "proxy";
       await viewMap.proxy();
-    }
-  }
-
-  async editHost(hostId) {
-    try {
-      const host = await makeRequest(
-        this.apiBase,
-        `/nginx/proxy-hosts/${hostId}`,
-      );
-      const updatedData = await editHostModal(host);
-      await ProxyHostManager.editProxyHost(hostId, updatedData);
-    } catch (error) {
-      console.error("Failed to edit host", error);
-    }
-  }
-
-  async editRedirectionHost(hostId) {
-    try {
-      const updatedData = await RedirectionHostModals.showEditRedirectionHostModal(hostId);
-      await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
-    } catch (error) {
-      console.error("Failed to edit redirection host", error);
-      showError("Failed to edit redirection host");
     }
   }
 }
