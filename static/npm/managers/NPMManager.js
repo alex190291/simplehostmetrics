@@ -201,8 +201,7 @@ export class NPMManager {
 
   async editRedirectionHost(hostId) {
     try {
-      const updatedData =
-        await RedirectionHostModals.showEditRedirectionHostModal(hostId);
+      const updatedData = await RedirectionHostModals.showEditRedirectionHostModal(hostId);
       await RedirectionHostManager.editRedirectionHost(hostId, updatedData);
     } catch (error) {
       console.error("Failed to edit redirection host", error);
