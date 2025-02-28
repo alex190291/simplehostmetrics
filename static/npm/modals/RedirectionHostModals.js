@@ -1,8 +1,5 @@
 // simplehostmetrics/static/npm/modals/RedirectionHostModals.js
 import { switchTab, closeModals } from "/static/npm/common.js";
-import * as RedirectionHostManager from "../managers/RedirectionHostManager.js";
-import Modal from "../lib/Modal";
-import html from "../lib/html";
 
 // -------------------------
 // Form Population Functions
@@ -38,18 +35,15 @@ export function populateRedirectionHostForm(host = null) {
         baseData.certificate_id = certId === "" ? null : parseInt(certId);
       }
 
-      // Create or update the redirection host using the correct manager method
+      // Create or update the redirection host
+      const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
       if (host) {
-        await RedirectionHostManager.editRedirectionHost(host.id, baseData);
+        await RedirectionHostManager.updateRedirectionHost(host.id, baseData);
       } else {
         await RedirectionHostManager.createRedirectionHost(baseData);
       }
       
       document.getElementById("redirectionHostModal").style.display = "none";
-      // Refresh the view after creating/editing
-      if (window.npmManager) {
-        window.npmManager.loadCurrentView();
-      }
     } catch (error) {
       console.error("Form submission error:", error);
       alert("An error occurred: " + error.message);
@@ -131,64 +125,30 @@ function generateRedirectionHostFormHTML(host = null) {
         <select id="certificate_id" name="certificate_id"></select>
       </div>
 
-      <!-- Replace checkboxes with toggle switches -->
-      <div class="form-group toggle">
+      <div class="form-group checkboxes">
         <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Force SSL</span>
+          <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
+          Force SSL
         </label>
-      </div>
-      
-      <div class="form-group toggle">
         <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HSTS Enabled</span>
+          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
+          HSTS Enabled
         </label>
-      </div>
-      
-      <div class="form-group toggle">
         <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Include Subdomains</span>
+          <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
+          Include Subdomains
         </label>
-      </div>
-      
-      <div class="form-group toggle">
         <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HTTP/2 Support</span>
+          <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
+          HTTP/2 Support
         </label>
-      </div>
-      
-      <div class="form-group toggle">
         <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Block Exploits</span>
+          <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
+          Block Exploits
         </label>
-      </div>
-      
-      <div class="form-group toggle">
         <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Enabled</span>
+          <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
+          Enabled
         </label>
       </div>
     </div>
@@ -440,7 +400,9 @@ export function showCreateRedirectionHostModal() {
 
 export async function showEditRedirectionHostModal(hostId) {
   try {
-    const host = await RedirectionHostManager.getRedirectionHost(hostId);
+    const response = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`);
+    if (!response.ok) throw new Error("Failed to fetch host");
+    const host = await response.json();
 
     // Fix: Make sure advanced_config is initialized properly
     if (host.advanced_config === undefined) {
@@ -449,7 +411,6 @@ export async function showEditRedirectionHostModal(hostId) {
 
     const modal = document.createElement("div");
     modal.className = "modal";
-    modal.id = "redirectionHostModal";
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -458,33 +419,60 @@ export async function showEditRedirectionHostModal(hostId) {
       </div>
     `;
 
-    document.body.appendChild(modal);
-    populateRedirectionHostForm(host);
-    modal.style.display = "flex";
+    const form = modal.querySelector("#redirectionHostForm");
+    form.innerHTML = generateRedirectionHostFormHTML(host);
+    setupRedirectionForm(form, true);
 
-    return new Promise((resolve, reject) => {
-      const closeHandler = () => {
-        modal.remove();
-        reject(new Error("Modal closed"));
-      };
-      
-      modal.querySelector(".close").addEventListener("click", closeHandler);
-      
-      // Listen for form submission
-      modal.querySelector("form").addEventListener("submit", async (e) => {
+    return new Promise((resolve) => {
+      form.addEventListener("submit", async (e) => {
         e.preventDefault();
+        const formData = new FormData(form);
+
         try {
-          const formData = new FormData(e.target);
-          const processedData = processFormData(formData);
-          
-          await RedirectionHostManager.editRedirectionHost(hostId, processedData);
+          // Fix: Properly handle advanced_config to prevent undefined
+          const customConfig = formData.get("advanced_config");
+
+          const updatedData = {
+            ...host,
+            domain_names: formData
+              .get("domain_names")
+              .split(",")
+              .map((d) => d.trim()),
+            forward_http_code: parseInt(formData.get("forward_http_code")),
+            forward_scheme: formData.get("forward_scheme"),
+            forward_domain_name: formData.get("forward_domain_name"),
+            preserve_path: formData.get("preserve_path") === "true",
+            ssl_forced: formData.has("ssl_forced"),
+            hsts_enabled: formData.has("hsts_enabled"),
+            hsts_subdomains: formData.has("hsts_subdomains"),
+            http2_support: formData.has("http2_support"),
+            block_exploits: formData.has("block_exploits"),
+            advanced_config: customConfig || "", // Fix: Ensure it's never undefined
+            enabled: formData.has("enabled"),
+          };
+
+          // Handle certificate selection/creation
+          const certId = formData.get("certificate_id");
+          if (certId.startsWith("new_")) {
+            updatedData.certificate_id = await handleCertificateCreation(
+              updatedData.domain_names,
+              certId,
+            );
+          } else {
+            updatedData.certificate_id =
+              certId === "" ? null : parseInt(certId);
+          }
+
           modal.remove();
-          resolve(true);
+          resolve(updatedData);
         } catch (error) {
           console.error("Form update error:", error);
           alert("An error occurred: " + error.message);
         }
       });
+
+      document.body.appendChild(modal);
+      modal.style.display = "flex";
     });
   } catch (error) {
     console.error("Edit modal error:", error);
@@ -501,213 +489,3 @@ document.addEventListener("click", (e) => {
     closeModals();
   }
 });
-
-// Fix the processFormData function to handle data more carefully
-function processFormData(formData) {
-  // Get domain names as a proper array
-  const domainNames = formData.get("domain_names")
-    .split(",")
-    .map(d => d.trim())
-    .filter(d => d); // Remove empty strings
-  
-  // Format forward_http_code as a number
-  const forwardHttpCode = parseInt(formData.get("forward_http_code"), 10);
-  
-  return {
-    domain_names: domainNames,
-    forward_http_code: forwardHttpCode,
-    forward_scheme: formData.get("forward_scheme"),
-    forward_domain_name: formData.get("forward_domain_name").trim(),
-    preserve_path: formData.get("preserve_path") === "true",
-    ssl_forced: formData.has("ssl_forced"),
-    hsts_enabled: formData.has("hsts_enabled"),
-    hsts_subdomains: formData.has("hsts_subdomains"),
-    http2_support: formData.has("http2_support"),
-    block_exploits: formData.has("block_exploits"),
-    advanced_config: formData.get("advanced_config") || "",
-    enabled: formData.has("enabled"),
-    certificate_id: formData.get("certificate_id") === "" ? null : 
-                  parseInt(formData.get("certificate_id"), 10)
-  };
-}
-
-const RedirectionHostModals = {
-  /**
-   * Create a new redirection host
-   * 
-   * @param {Function} callback
-   */
-  create(callback) {
-    const modal = Modal.create({
-      title: "Add Redirection Host",
-      content: html`
-        <p>Create a new redirection host configuration.</p>
-      `,
-      onDismiss: () => {
-        modal.destroy();
-      },
-      buttons: [
-        {
-          text: "Cancel",
-          classes: ["btn-secondary"],
-          handler: () => {
-            modal.destroy();
-          }
-        },
-        {
-          text: "Save",
-          classes: ["btn-primary"],
-          handler: data => {
-            RedirectionHostManager.create(data)
-              .then(response => {
-                modal.destroy();
-                if (typeof callback === "function") {
-                  callback(response.data);
-                }
-              })
-              .catch(error => {
-                modal.displayError(error);
-              });
-          }
-        }
-      ]
-    });
-  },
-  
-  /**
-   * Update an existing redirection host
-   * 
-   * @param {Object} host
-   * @param {Function} callback
-   */
-  update(host, callback) {
-    const modal = Modal.create({
-      title: "Edit Redirection Host",
-      content: html`
-        <p>Update redirection host configuration.</p>
-      `,
-      onDismiss: () => {
-        modal.destroy();
-      },
-      buttons: [
-        {
-          text: "Cancel",
-          classes: ["btn-secondary"],
-          handler: () => {
-            modal.destroy();
-          }
-        },
-        {
-          text: "Save",
-          classes: ["btn-primary"],
-          handler: data => {
-            // Using the update method from the manager
-            RedirectionHostManager.update(host.id, data)
-              .then(response => {
-                modal.destroy();
-                if (typeof callback === "function") {
-                  callback(response.data);
-                }
-              })
-              .catch(error => {
-                modal.displayError(error);
-              });
-          }
-        }
-      ]
-    });
-    
-    // Fetch the host data to populate the form
-    RedirectionHostManager.get(host.id, { expand: ["owner", "certificate"] })
-      .then(response => {
-        modal.setFormData(response.data);
-      })
-      .catch(error => {
-        modal.displayError(error);
-      });
-  },
-  
-  /**
-   * Delete a redirection host
-   * 
-   * @param {Object} host
-   * @param {Function} callback
-   */
-  delete(host, callback) {
-    const modal = Modal.confirm({
-      title: "Delete Redirection Host",
-      message: html`
-        <p>Are you sure you want to delete this redirection host?</p>
-        <p>Domain(s): <strong>${host.domain_names.join(", ")}</strong></p>
-      `,
-      onDismiss: () => {
-        modal.destroy();
-      },
-      buttons: [
-        {
-          text: "Cancel",
-          classes: ["btn-secondary"],
-          handler: () => {
-            modal.destroy();
-          }
-        },
-        {
-          text: "Delete",
-          classes: ["btn-danger"],
-          handler: () => {
-            RedirectionHostManager.delete(host.id)
-              .then(() => {
-                modal.destroy();
-                if (typeof callback === "function") {
-                  callback();
-                }
-              })
-              .catch(error => {
-                modal.displayError(error);
-              });
-          }
-        }
-      ]
-    });
-  },
-  
-  /**
-   * Enable a redirection host
-   * 
-   * @param {Object} host
-   * @param {Function} callback
-   */
-  enable(host, callback) {
-    RedirectionHostManager.enable(host.id)
-      .then(response => {
-        if (typeof callback === "function") {
-          callback(response.data);
-        }
-      })
-      .catch(error => {
-        console.error(error);
-        alert("Could not enable redirection host: " + error.message);
-      });
-  },
-  
-  /**
-   * Disable a redirection host
-   * 
-   * @param {Object} host
-   * @param {Function} callback
-   */
-  disable(host, callback) {
-    RedirectionHostManager.disable(host.id)
-      .then(response => {
-        if (typeof callback === "function") {
-          callback(response.data);
-        }
-      })
-      .catch(error => {
-        console.error(error);
-        alert("Could not disable redirection host: " + error.message);
-      });
-  }
-};
-
-export default RedirectionHostModals;
