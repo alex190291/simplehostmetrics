@@ -404,8 +404,6 @@ export async function showEditRedirectionHostModal(hostId) {
     const response = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`);
     if (!response.ok) throw new Error("Failed to fetch host");
     const host = await response.json();
-
-    // Fix: Make sure advanced_config is initialized properly
     if (host.advanced_config === undefined) {
       host.advanced_config = "";
     }

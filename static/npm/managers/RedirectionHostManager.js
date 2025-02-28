@@ -32,7 +32,7 @@ function makeRequest(baseUrl, endpoint, method = "GET", data = null) {
   });
 }
 
-async function loadRedirectionHosts() {
+export async function loadRedirectionHosts() {
   try {
     const hosts = await makeRequest("/npm-api", "/nginx/redirection-hosts");
     const container = document.getElementById("redirectionHostsContainer");
@@ -236,7 +236,7 @@ export async function createRedirectionHost(redirData) {
     await loadRedirectionHosts();
   } catch (error) {
     showError("Failed to create redirection host");
-  }
+    }
 }
 
 export async function enableRedirectionHost(hostId) {
