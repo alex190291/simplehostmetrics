@@ -158,6 +158,41 @@ async function editRedirectionHost(hostId, updatedData) {
   }
 }
 
+async function updateRedirectionHost(hostId, updatedData) {
+  try {
+    // Ensure the data matches the expected schema
+    const dataToSend = {
+      domain_names: updatedData.domain_names,
+      forward_http_code: updatedData.forward_http_code,
+      forward_scheme: updatedData.forward_scheme,
+      forward_domain_name: updatedData.forward_domain_name,
+      preserve_path: updatedData.preserve_path,
+      certificate_id: updatedData.certificate_id,
+      ssl_forced: updatedData.ssl_forced,
+      hsts_enabled: updatedData.hsts_enabled,
+      hsts_subdomains: updatedData.hsts_subdomains,
+      http2_support: updatedData.http2_support,
+      block_exploits: updatedData.block_exploits,
+      advanced_config: updatedData.advanced_config || "",
+      enabled: updatedData.enabled,
+      meta: {}
+    };
+    
+    await makeRequest(
+      "/npm-api",
+      `/nginx/redirection-hosts/${hostId}`,
+      "PUT",
+      dataToSend
+    );
+    
+    showSuccess("Redirection host updated successfully");
+    await loadRedirectionHosts();
+  } catch (error) {
+    showError("Failed to update redirection host");
+    console.error("Update error:", error);
+  }
+}
+
 async function deleteRedirectionHost(hostId) {
   if (!confirm("Are you sure you want to delete this redirection host?"))
     return;
@@ -219,6 +254,7 @@ async function disableRedirectionHost(hostId) {
 
 // Expose functions globally
 window.RedirectionHostManager = {
+  updateRedirectionHost,
   editRedirectionHost,
   deleteRedirectionHost,
   createRedirectionHost,

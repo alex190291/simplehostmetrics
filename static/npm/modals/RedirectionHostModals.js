@@ -44,6 +44,7 @@ export function populateRedirectionHostForm(host = null) {
       }
       
       document.getElementById("redirectionHostModal").style.display = "none";
+      closeModals();
     } catch (error) {
       console.error("Form submission error:", error);
       alert("An error occurred: " + error.message);
@@ -489,3 +490,24 @@ document.addEventListener("click", (e) => {
     closeModals();
   }
 });
+
+// -------------------------
+// Form Processing
+// -------------------------
+function processFormData(formData) {
+  return {
+    domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
+    forward_http_code: parseInt(formData.get("forward_http_code")),
+    forward_scheme: formData.get("forward_scheme"),
+    forward_domain_name: formData.get("forward_domain_name"),
+    preserve_path: formData.get("preserve_path") === "true",
+    ssl_forced: formData.has("ssl_forced"),
+    hsts_enabled: formData.has("hsts_enabled"),
+    hsts_subdomains: formData.has("hsts_subdomains"),
+    http2_support: formData.has("http2_support"),
+    block_exploits: formData.has("block_exploits"),
+    advanced_config: formData.get("advanced_config") || "",
+    enabled: formData.has("enabled"),
+    meta: {}
+  };
+}
