@@ -67,3 +67,15 @@ export async function disableProxyHost(hostId) {
     showError("Failed to disable proxy host");
   }
 }
+
+export async function editHostWithModal(hostId) {
+  try {
+    const host = await makeRequest("/npm-api", `/nginx/proxy-hosts/${hostId}`);
+    const { editHostModal } = await import("../modals/ProxyHostModals.js");
+    const updatedData = await editHostModal(host);
+    await editProxyHost(hostId, updatedData);
+  } catch (error) {
+    console.error("Failed to edit host", error);
+    showError("Failed to edit host");
+  }
+}
