@@ -235,11 +235,12 @@ function setupRedirectionForm(form, isEdit = false) {
 
 // Process form data from both create and edit forms
 function processRedirectionFormData(formData) {
-  return {
+  // Convert form data to an object for API
+  const data = {
     domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
-    forward_http_code: parseInt(formData.get("forward_http_code")),
+    forward_domain_name: formData.get("forward_domain"),
     forward_scheme: formData.get("forward_scheme"),
-    forward_domain_name: formData.get("forward_domain_name"),
+    forward_http_code: parseInt(formData.get("forward_http_code")),
     preserve_path: formData.get("preserve_path") === "true",
     ssl_forced: formData.has("ssl_forced"),
     hsts_enabled: formData.has("hsts_enabled"),
@@ -250,6 +251,7 @@ function processRedirectionFormData(formData) {
     enabled: formData.has("enabled"),
     meta: {}
   };
+  return data;
 }
 
 // -------------------------
