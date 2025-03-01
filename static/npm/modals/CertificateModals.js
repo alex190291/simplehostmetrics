@@ -183,25 +183,27 @@ export function showUploadCertificateModal(certId = null) {
       <div class="modal-content">
         <h2>${certId ? 'Replace' : 'Upload'} Certificate</h2>
         <form id="uploadCertificateForm">
-          ${!certId ? `
-          <div class="form-group">
-            <label for="certificate_name">Certificate Name</label>
-            <input type="text" id="certificate_name" name="certificate_name" required placeholder="my.domain.com">
+          <div class="form-content" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+            ${!certId ? `
+            <div class="form-group">
+              <label for="certificate_name">Certificate Name</label>
+              <input type="text" id="certificate_name" name="certificate_name" required placeholder="my.domain.com">
+            </div>
+            <div class="form-group">
+              <label for="domain_names">Domain Names (comma-separated)</label>
+              <input type="text" id="domain_names" name="domain_names" required placeholder="domain.com, www.domain.com">
+            </div>
+            ` : ''}
+            <div class="form-group">
+              <label for="certificate">Certificate File</label>
+              <input type="file" id="certificate" name="certificate" required accept=".crt,.pem,.cert">
+            </div>
+            <div class="form-group">
+              <label for="certificate_key">Certificate Key File</label>
+              <input type="file" id="certificate_key" name="certificate_key" required accept=".key,.pem">
+            </div>
+            <input type="hidden" name="certId" value="${certId || ''}">
           </div>
-          <div class="form-group">
-            <label for="domain_names">Domain Names (comma-separated)</label>
-            <input type="text" id="domain_names" name="domain_names" required placeholder="domain.com, www.domain.com">
-          </div>
-          ` : ''}
-          <div class="form-group">
-            <label for="certificate">Certificate File</label>
-            <input type="file" id="certificate" name="certificate" required accept=".crt,.pem,.cert">
-          </div>
-          <div class="form-group">
-            <label for="certificate_key">Certificate Key File</label>
-            <input type="file" id="certificate_key" name="certificate_key" required accept=".key,.pem">
-          </div>
-          <input type="hidden" name="certId" value="${certId || ''}">
           <div class="form-actions">
             <button type="submit" class="btn-primary">Upload</button>
             <button type="button" class="btn-secondary modal-close">Cancel</button>
@@ -274,67 +276,69 @@ function generateCertificateFormHTML(certificate = null) {
   const meta = isEdit ? JSON.stringify(certificate.meta || {}, null, 2) : "{}";
 
   return `
-    <div class="form-group">
-      <label for="provider">Provider</label>
-      <select id="provider" name="provider" required>
-        <option value="letsencrypt" ${provider === "letsencrypt" ? "selected" : ""}>Let's Encrypt</option>
-        <option value="other" ${provider === "other" ? "selected" : ""}>Other</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="nice_name">Certificate Name</label>
-      <input type="text" id="nice_name" name="nice_name" value="${niceName}" placeholder="my.domain.com">
-    </div>
-    <div class="form-group">
-      <label for="domain_names">Domain Names (comma-separated)</label>
-      <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required placeholder="domain.com, www.domain.com">
-    </div>
-    <div class="form-group">
-      <label for="email">Email Address (for Let's Encrypt)</label>
-      <input type="email" id="email" name="email" value="${email}" placeholder="admin@example.com">
-    </div>
-    
-    <!-- DNS Challenge section -->
-    <div class="form-group toggle">
-      <label>
-        <span class="toggle-switch">
-          <input type="checkbox" id="dns_challenge" name="dns_challenge" ${dnsChallenge ? "checked" : ""}>
-          <span class="slider"></span>
-        </span>
-        <span class="toggle-label">Enable DNS Challenge</span>
-        <span class="help-text">(Use DNS validation instead of HTTP validation)</span>
-      </label>
-    </div>
-    
-    <div id="dns_challenge_settings" style="display: ${dnsChallenge ? "block" : "none"}">
-      <div class="dns-challenge-info alert alert-info">
-        <p><strong>DNS Challenge Information:</strong></p>
-        <p>DNS challenge allows you to validate domain ownership via DNS records when HTTP validation is not possible.</p>
-        <p>You'll need access to configure DNS records for your domain, either manually or via a supported DNS provider API.</p>
-      </div>
-      
+    <div class="form-content" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
       <div class="form-group">
-        <label for="dns_provider">DNS Provider</label>
-        <select id="dns_provider" name="dns_provider">
-          <option value="">Select Provider</option>
+        <label for="provider">Provider</label>
+        <select id="provider" name="provider" required>
+          <option value="letsencrypt" ${provider === "letsencrypt" ? "selected" : ""}>Let's Encrypt</option>
+          <option value="other" ${provider === "other" ? "selected" : ""}>Other</option>
         </select>
       </div>
       <div class="form-group">
-        <label for="dns_credentials">Provider Credentials</label>
-        <textarea id="dns_credentials" name="dns_credentials" rows="6" placeholder="Enter provider-specific credentials">${dnsCredentials}</textarea>
-        <p class="help-text">Format depends on provider. Will be automatically populated based on selection.</p>
+        <label for="nice_name">Certificate Name</label>
+        <input type="text" id="nice_name" name="nice_name" value="${niceName}" placeholder="my.domain.com">
       </div>
       <div class="form-group">
-        <label for="propagation_seconds">Propagation Wait Time (seconds)</label>
-        <input type="number" id="propagation_seconds" name="propagation_seconds" value="${propagationSeconds}" min="30" step="1">
-        <p class="help-text">DNS propagation can take time. Increase this value if validation fails.</p>
+        <label for="domain_names">Domain Names (comma-separated)</label>
+        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required placeholder="domain.com, www.domain.com">
       </div>
-    </div>
-    
-    <div class="form-group">
-      <label for="meta">Advanced Settings (JSON)</label>
-      <textarea id="meta" name="meta" placeholder='{}'>${meta}</textarea>
-      <p class="help-text">Only modify if you know what you're doing.</p>
+      <div class="form-group">
+        <label for="email">Email Address (for Let's Encrypt)</label>
+        <input type="email" id="email" name="email" value="${email}" placeholder="admin@example.com">
+      </div>
+      
+      <!-- DNS Challenge section -->
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="dns_challenge" name="dns_challenge" ${dnsChallenge ? "checked" : ""}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Enable DNS Challenge</span>
+          <span class="help-text">(Use DNS validation instead of HTTP validation)</span>
+        </label>
+      </div>
+      
+      <div id="dns_challenge_settings" style="display: ${dnsChallenge ? "block" : "none"}">
+        <div class="dns-challenge-info alert alert-info">
+          <p><strong>DNS Challenge Information:</strong></p>
+          <p>DNS challenge allows you to validate domain ownership via DNS records when HTTP validation is not possible.</p>
+          <p>You'll need access to configure DNS records for your domain, either manually or via a supported DNS provider API.</p>
+        </div>
+        
+        <div class="form-group">
+          <label for="dns_provider">DNS Provider</label>
+          <select id="dns_provider" name="dns_provider">
+            <option value="">Select Provider</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="dns_credentials">Provider Credentials</label>
+          <textarea id="dns_credentials" name="dns_credentials" rows="6" placeholder="Enter provider-specific credentials">${dnsCredentials}</textarea>
+          <p class="help-text">Format depends on provider. Will be automatically populated based on selection.</p>
+        </div>
+        <div class="form-group">
+          <label for="propagation_seconds">Propagation Wait Time (seconds)</label>
+          <input type="number" id="propagation_seconds" name="propagation_seconds" value="${propagationSeconds}" min="30" step="1">
+          <p class="help-text">DNS propagation can take time. Increase this value if validation fails.</p>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="meta">Advanced Settings (JSON)</label>
+        <textarea id="meta" name="meta" placeholder='{}'>${meta}</textarea>
+        <p class="help-text">Only modify if you know what you're doing.</p>
+      </div>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn-primary">${isEdit ? "Update" : "Create"} Certificate</button>

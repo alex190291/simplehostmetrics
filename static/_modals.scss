@@ -76,7 +76,19 @@
 
 .modal-body {
     padding: 1rem;
+    overflow-y: auto; /* Ensures scrolling when content is too large */
+    max-height: calc(80vh - 130px); /* Adjust based on header/footer height */
+}
+
+/* Certificate modal specific styles */
+#certificateModal .modal-body {
+    max-height: 70vh; /* Additional space constraint for certificate forms */
     overflow-y: auto;
+    padding-right: 0.5rem; /* Add some padding for the scrollbar */
+}
+
+#certificateModal .form-group {
+    margin-bottom: 1rem;
 }
 
 .modal-close-btn {
