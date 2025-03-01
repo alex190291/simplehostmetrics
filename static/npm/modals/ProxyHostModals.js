@@ -1,15 +1,12 @@
 // /static/npm/modals/ProxyHostModals.js
-import { 
-  switchTab, 
-  closeModals 
-} from "/static/npm/common.js";
+import { switchTab, closeModals } from "/static/npm/NPMUtils.js";
 
-import { 
-  showSuccess, 
-  showError, 
+import {
+  showSuccess,
+  showError,
   populateCertificateDropdown,
   openDnsChallengeModal,
-  handleCertificateCreation
+  handleCertificateCreation,
 } from "../NPMUtils.js";
 
 // Helper function to populate the access list dropdown dynamically
@@ -49,7 +46,8 @@ function generateProxyHostFormHTML(host = null) {
     isEdit && host.forward_scheme === "https" ? "selected" : "";
   const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
   // Fix: Use allow_websocket_upgrade instead of websockets_support to match API property
-  const websocketsSupport = isEdit && host.allow_websocket_upgrade ? "checked" : "";
+  const websocketsSupport =
+    isEdit && host.allow_websocket_upgrade ? "checked" : "";
   const blockExploits = isEdit && host.block_exploits ? "checked" : "";
   const sslForced = isEdit && host.ssl_forced ? "checked" : "";
   const http2Support = isEdit && host.http2_support ? "checked" : "";
@@ -95,7 +93,7 @@ function generateProxyHostFormHTML(host = null) {
           <option value="">None</option>
         </select>
       </div>
-      
+
       <!-- Toggle switches instead of checkboxes -->
       <div class="form-group toggle">
         <label>
@@ -106,7 +104,7 @@ function generateProxyHostFormHTML(host = null) {
           <span class="toggle-label">Cache Assets</span>
         </label>
       </div>
-      
+
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
@@ -116,7 +114,7 @@ function generateProxyHostFormHTML(host = null) {
           <span class="toggle-label">Websockets Support</span>
         </label>
       </div>
-      
+
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
@@ -126,7 +124,7 @@ function generateProxyHostFormHTML(host = null) {
           <span class="toggle-label">Block Common Exploits</span>
         </label>
       </div>
-      
+
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
@@ -136,7 +134,7 @@ function generateProxyHostFormHTML(host = null) {
           <span class="toggle-label">Force SSL</span>
         </label>
       </div>
-      
+
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
@@ -146,7 +144,7 @@ function generateProxyHostFormHTML(host = null) {
           <span class="toggle-label">HTTP/2 Support</span>
         </label>
       </div>
-      
+
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
@@ -156,12 +154,12 @@ function generateProxyHostFormHTML(host = null) {
           <span class="toggle-label">HSTS Enabled</span>
         </label>
       </div>
-      
+
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
             <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-        
+
 }div>
     </div>
     <div class="tab-content" id="customTab" style="display:none;">
@@ -265,11 +263,14 @@ export function populateAddProxyHostForm() {
       const certificate_id_raw = formData.get("certificate_id");
 
       // Handle certificate creation if needed
-      if (certificate_id_raw === "new_dns" || certificate_id_raw === "new_nodns") {
+      if (
+        certificate_id_raw === "new_dns" ||
+        certificate_id_raw === "new_nodns"
+      ) {
         try {
           baseData.certificate_id = await handleCertificateCreation(
             baseData.domain_names,
-            certificate_id_raw
+            certificate_id_raw,
           );
         } catch (err) {
           showError("Failed to create certificate");
@@ -300,22 +301,27 @@ export async function editProxyHostModal(hostIdOrObject) {
     try {
       // Check if we received just an ID or a complete host object
       let host = hostIdOrObject;
-      
+
       // If we just got an ID, fetch the complete host data
-      if (typeof hostIdOrObject === 'number' || typeof hostIdOrObject === 'string') {
-        const response = await fetch(`/npm-api/nginx/proxy-hosts/${hostIdOrObject}`);
+      if (
+        typeof hostIdOrObject === "number" ||
+        typeof hostIdOrObject === "string"
+      ) {
+        const response = await fetch(
+          `/npm-api/nginx/proxy-hosts/${hostIdOrObject}`,
+        );
         if (!response.ok) {
           throw new Error(`Failed to fetch host data: ${response.status}`);
         }
         host = await response.json();
       }
-      
+
       // Now we have the complete host object, proceed with the modal
       const modal = document.getElementById("addHostModal");
       if (!modal) {
         throw new Error("Host modal element not found");
       }
-      
+
       const form = document.getElementById("addHostForm");
       if (!form) {
         throw new Error("Host form element not found");
@@ -336,14 +342,14 @@ export async function editProxyHostModal(hostIdOrObject) {
         e.preventDefault();
         const formData = new FormData(form);
         const updatedData = processProxyHostFormData(formData);
-        
+
         // Close the modal after form submission
         modal.style.display = "none";
-        
+
         // Resolve the promise with the updated data
         resolve(updatedData);
       };
-      
+
       // Also close the modal when Cancel button is clicked
       form.querySelector(".modal-close").addEventListener("click", () => {
         modal.style.display = "none";
@@ -356,4 +362,3 @@ export async function editProxyHostModal(hostIdOrObject) {
     }
   });
 }
-
