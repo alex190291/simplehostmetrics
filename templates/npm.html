@@ -20,7 +20,6 @@ block content %}
                 <a href="#redirection" class="sidebar-item"
                     >Redirection Hosts</a
                 >
-                <a href="#stream" class="sidebar-item">Stream Hosts</a>
             </div>
         </div>
 
@@ -82,15 +81,6 @@ block content %}
                 </button>
             </div>
             <div class="card-grid" id="redirectionHostsGrid"></div>
-        </div>
-
-        <div id="streamView" class="content-view" style="display: none">
-            <div class="view-header">
-                <button class="btn btn-primary add-new-btn" id="addStreamHostBtn">
-                    <i class="fas fa-plus"></i> Add Stream
-                </button>
-            </div>
-            <div class="card-grid" id="streamHostsGrid"></div>
         </div>
 
         <div id="accessView" class="content-view" style="display: none">
@@ -195,16 +185,6 @@ block content %}
         <h2>Add Redirection Host</h2>
         <form id="redirectionHostForm">
             <!-- Form fields will be dynamically populated by RedirectionHostModals.js -->
-        </form>
-    </div>
-</div>
-
-<!-- Stream Host Modal -->
-<div id="streamHostModal" class="modal">
-    <div class="modal-content">
-        <h2>Add Stream</h2>
-        <form id="streamHostForm">
-            <!-- Form fields will be dynamically populated by StreamModals.js -->
         </form>
     </div>
 </div>

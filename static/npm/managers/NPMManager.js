@@ -201,7 +201,6 @@ export class NPMManager {
     const viewMap = {
       proxy: Views.loadProxyHosts,
       redirection: Views.loadRedirectionHosts,
-      stream: Views.loadStreamHosts,
       access: Views.loadAccessLists,
       certificates: Views.loadCertificates,
       audit: Views.loadAuditLog,

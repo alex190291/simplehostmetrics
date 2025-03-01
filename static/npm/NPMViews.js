@@ -6,7 +6,6 @@ import { showError } from "./NPMUtils.js";
 // Import all modal functions
 import { populateAddProxyHostForm } from "./modals/ProxyHostModals.js";
 import { populateAddRedirectionHostForm } from "./modals/RedirectionHostModals.js";
-import { populateStreamHostForm } from "./modals/StreamModals.js";
 import { populateAccessListForm } from "./modals/AccessListModals.js";
 import { populateCertificateForm } from "./modals/CertificateModals.js";
 
@@ -88,59 +87,6 @@ export function createRedirectionHostCard(host) {
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editRedirectionHostModal(${host.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteRedirectionHost(${host.id})">Delete</button>
-      <button class="btn btn-secondary" onclick="${disableAction}">
-        ${disableLabel}
-      </button>
-    </div>
-  `;
-  return card;
-}
-
-// Streams
-export async function loadStreamHosts() {
-  try {
-    const streams = await makeRequest(API_BASE, "/nginx/streams");
-    const grid = document.getElementById("streamHostsGrid");
-    grid.innerHTML = "";
-    streams.forEach((stream) => {
-      grid.appendChild(createStreamCard(stream));
-    });
-  } catch (error) {
-    showError("Failed to load streams");
-  }
-}
-
-export function createStreamCard(stream) {
-  const card = document.createElement("div");
-  card.className = "stream-card glass-card";
-  const disableAction = stream.enabled
-    ? `npmManager.disableStream(${stream.id})`
-    : `npmManager.enableStream(${stream.id})`;
-  const disableLabel = stream.enabled ? "Disable" : "Enable";
-  
-  // Use either incoming_port or listen_port (whichever is available)
-  const listenPort = stream.incoming_port || stream.listen_port;
-  // Use either forwarding_host or forward_ip (whichever is available)
-  const forwardIP = stream.forwarding_host || stream.forward_ip;
-  // Use either forwarding_port or forward_port (whichever is available)
-  const forwardPort = stream.forwarding_port || stream.forward_port;
-  // Use either tcp_forwarding or tcp (whichever is available)
-  const tcp = stream.tcp_forwarding || stream.tcp;
-  // Use either udp_forwarding or udp (whichever is available)
-  const udp = stream.udp_forwarding || stream.udp;
-  
-  card.innerHTML = `
-    <div class="card-header">
-      <h3>Stream on port ${listenPort}</h3>
-      <div class="status-indicator ${stream.enabled ? "active" : "inactive"}"></div>
-    </div>
-    <div class="card-content">
-      <p>Forward: ${forwardIP}:${forwardPort}</p>
-      <p>TCP: ${tcp ? "Yes" : "No"}, UDP: ${udp ? "Yes" : "No"}</p>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-primary" onclick="npmManager.editStreamModal(${stream.id})">Edit</button>
-      <button class="btn btn-secondary" onclick="npmManager.deleteStream(${stream.id})">Delete</button>
       <button class="btn btn-secondary" onclick="${disableAction}">
         ${disableLabel}
       </button>
