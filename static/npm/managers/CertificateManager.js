@@ -51,8 +51,10 @@ export async function createCertificate(certData) {
       }
     };
     
-    // If DNS challenge is enabled, ensure it's properly formatted
-    if (certData.meta.dns_challenge) {
+    // If DNS challenge is enabled, handle it specially
+    const isDnsChallenge = certData.meta.dns_challenge;
+    
+    if (isDnsChallenge) {
       apiPayload.meta.dns_challenge = true;
       
       if (certData.meta.dns_provider) {
@@ -63,13 +65,18 @@ export async function createCertificate(certData) {
         apiPayload.meta.dns_provider_credentials = certData.meta.dns_provider_credentials;
       }
       
-      if (certData.meta.propagation_seconds) {
-        apiPayload.meta.propagation_seconds = parseInt(certData.meta.propagation_seconds, 10);
-      }
+      // Get the propagation wait time
+      const propagationSeconds = certData.meta.propagation_seconds 
+        ? parseInt(certData.meta.propagation_seconds, 10) 
+        : 30; // Default to 30 seconds
+      
+      apiPayload.meta.propagation_seconds = propagationSeconds;
+      
+      // Show a notification about the DNS challenge
+      showSuccess(`Creating certificate with DNS challenge. This may take up to ${propagationSeconds} seconds...`);
     }
     
-    console.log("Sending certificate creation request:", apiPayload);
-    
+    // Make the API request
     const response = await makeRequest(
       "/npm-api",
       "/nginx/certificates",
@@ -77,12 +84,116 @@ export async function createCertificate(certData) {
       apiPayload
     );
     
-    showSuccess("Certificate created successfully");
+    const certificateId = response.id;
+    
+    // If it's a DNS challenge, we need to monitor the certificate status
+    if (isDnsChallenge && certificateId) {
+      // Show initial progress message
+      showSuccess("Certificate request submitted. Waiting for DNS validation...");
+      
+      // Wait for the certificate to be fully created
+      await monitorCertificateStatus(certificateId, certData.meta.propagation_seconds || 30);
+    } else {
+      showSuccess("Certificate created successfully");
+    }
+    
+    // Reload the certificates view
     await Views.loadCertificates();
+    
     return response.id;
   } catch (error) {
     console.error("Certificate creation error:", error);
     showError("Failed to create certificate: " + (error.message || "Unknown error"));
+    throw error;
+  }
+}
+
+/**
+ * Monitor certificate status during DNS challenge
+ * @param {number} certificateId - ID of the certificate to monitor
+ * @param {number} maxWaitTime - Maximum time to wait in seconds
+ */
+async function monitorCertificateStatus(certificateId, maxWaitTime = 60) {
+  // Convert to milliseconds and define interval
+  const maxWaitMs = maxWaitTime * 1000;
+  const checkIntervalMs = 5000; // Check every 5 seconds
+  
+  // Create progress indicator
+  const progressIndicator = document.createElement('div');
+  progressIndicator.className = 'dns-challenge-progress';
+  progressIndicator.innerHTML = `
+    <div class="progress-container">
+      <div class="progress-bar"></div>
+      <div class="progress-text">Waiting for DNS propagation... (<span class="time-left">${maxWaitTime}</span>s remaining)</div>
+    </div>
+  `;
+  document.body.appendChild(progressIndicator);
+  
+  // Start monitoring
+  const startTime = Date.now();
+  let checkCount = 0;
+  let lastStatus = null;
+  
+  try {
+    while (Date.now() - startTime < maxWaitMs) {
+      // Update progress bar
+      const elapsedMs = Date.now() - startTime;
+      const progressPercent = Math.min(100, (elapsedMs / maxWaitMs) * 100);
+      const timeLeft = Math.max(0, Math.ceil((maxWaitMs - elapsedMs) / 1000));
+      
+      progressIndicator.querySelector('.progress-bar').style.width = `${progressPercent}%`;
+      progressIndicator.querySelector('.time-left').textContent = timeLeft;
+      
+      // Check certificate status
+      try {
+        const certificate = await makeRequest("/npm-api", `/nginx/certificates/${certificateId}`);
+        
+        if (certificate.meta?.letsencrypt_certificate?.cn) {
+          // Certificate is successfully created
+          progressIndicator.remove();
+          showSuccess("Certificate successfully issued and validated!");
+          return true;
+        }
+        
+        // Check for specific error status
+        if (certificate.meta?.error && certificate.meta.error !== lastStatus) {
+          lastStatus = certificate.meta.error;
+          progressIndicator.querySelector('.progress-text').textContent = 
+            `Status: ${certificate.meta.error}`;
+        }
+      } catch (checkError) {
+        console.warn("Error checking certificate status:", checkError);
+      }
+      
+      // Wait before next check
+      await new Promise(resolve => setTimeout(resolve, checkIntervalMs));
+      checkCount++;
+    }
+    
+    // If we reach here, the timeout was exceeded
+    progressIndicator.remove();
+    
+    // Make one final check to see if the certificate was created despite timeout
+    try {
+      const finalCheck = await makeRequest("/npm-api", `/nginx/certificates/${certificateId}`);
+      if (finalCheck.meta?.letsencrypt_certificate?.cn) {
+        showSuccess("Certificate successfully issued and validated!");
+        return true;
+      }
+    } catch (finalCheckError) {
+      console.warn("Error on final certificate check:", finalCheckError);
+    }
+    
+    // If we still don't have success, show guidance
+    showError(
+      "Certificate validation timeout. This doesn't mean the certificate failed - " +
+      "it may still be processing. Check the certificate status in a few minutes."
+    );
+    
+    return false;
+  } catch (error) {
+    // Clean up on error
+    progressIndicator.remove();
     throw error;
   }
 }

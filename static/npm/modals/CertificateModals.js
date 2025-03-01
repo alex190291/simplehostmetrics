@@ -183,7 +183,7 @@ function generateCertificateFormHTML(certificate = null) {
   const dnsChallenge = isEdit && certificate.meta && certificate.meta.dns_challenge ? true : false;
   const dnsProvider = isEdit && certificate.meta ? certificate.meta.dns_provider || "" : "";
   const dnsCredentials = isEdit && certificate.meta ? certificate.meta.dns_provider_credentials || "" : "";
-  const propagationSeconds = isEdit && certificate.meta ? certificate.meta.propagation_seconds || "30" : "30";
+  const propagationSeconds = isEdit && certificate.meta ? certificate.meta.propagation_seconds || "60" : "60";
   const meta = isEdit ? JSON.stringify(certificate.meta || {}, null, 2) : "{}";
 
   return `
@@ -216,10 +216,17 @@ function generateCertificateFormHTML(certificate = null) {
           <span class="slider"></span>
         </span>
         <span class="toggle-label">Enable DNS Challenge</span>
+        <span class="help-text">(Use DNS validation instead of HTTP validation)</span>
       </label>
     </div>
     
     <div id="dns_challenge_settings" style="display: ${dnsChallenge ? "block" : "none"}">
+      <div class="dns-challenge-info alert alert-info">
+        <p><strong>DNS Challenge Information:</strong></p>
+        <p>DNS challenge allows you to validate domain ownership via DNS records when HTTP validation is not possible.</p>
+        <p>You'll need access to configure DNS records for your domain, either manually or via a supported DNS provider API.</p>
+      </div>
+      
       <div class="form-group">
         <label for="dns_provider">DNS Provider</label>
         <select id="dns_provider" name="dns_provider">
@@ -233,7 +240,8 @@ function generateCertificateFormHTML(certificate = null) {
       </div>
       <div class="form-group">
         <label for="propagation_seconds">Propagation Wait Time (seconds)</label>
-        <input type="number" id="propagation_seconds" name="propagation_seconds" value="${propagationSeconds}" min="0" step="1">
+        <input type="number" id="propagation_seconds" name="propagation_seconds" value="${propagationSeconds}" min="30" step="1">
+        <p class="help-text">DNS propagation can take time. Increase this value if validation fails.</p>
       </div>
     </div>
     
