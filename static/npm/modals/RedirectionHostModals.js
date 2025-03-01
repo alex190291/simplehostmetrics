@@ -8,147 +8,53 @@ import {
   handleCertificateCreation,
   openDnsChallengeModal, 
 } from "../NPMUtils.js";
+import { loadTemplate, processTemplate } from "../utils/TemplateLoader.js";
 
+// Cache for loaded templates
+let redirectionHostFormTemplate = null;
+let redirectionHostModalTemplate = null;
 
-// Generate form HTML for redirection host configuration - used by both add and edit modals
-function generateRedirectionHostFormHTML(host = null) {
+// Load templates if not already loaded
+async function ensureTemplatesLoaded() {
+  if (!redirectionHostFormTemplate) {
+    redirectionHostFormTemplate = await loadTemplate("/static/npm/templates/redirection-host-form.html");
+  }
+  
+  if (!redirectionHostModalTemplate) {
+    redirectionHostModalTemplate = await loadTemplate("/static/npm/templates/redirection-host-modal.html");
+  }
+}
+
+// Generate form HTML for redirection host configuration
+async function generateRedirectionHostFormHTML(host = null) {
+  await ensureTemplatesLoaded();
+  
   const isEdit = host !== null;
-  const idField = isEdit
-    ? `<input type="hidden" name="host_id" value="${host.id}">`
-    : "";
-  const domainNames = isEdit ? host.domain_names.join(", ") : "";
+  const templateData = {
+    idField: isEdit ? `<input type="hidden" name="host_id" value="${host.id}">` : "",
+    domainNames: isEdit ? host.domain_names.join(", ") : "",
+    
+    // HTTP Code selection
+    forward301Selected: isEdit && host.forward_http_code === 301 ? "selected" : "",
+    forward302Selected: isEdit && host.forward_http_code === 302 ? "selected" : "",
+    
+    // Scheme selection
+    forwardSchemeHttp: isEdit && host.forward_scheme === "http" ? "selected" : "",
+    forwardSchemeHttps: isEdit && host.forward_scheme === "https" ? "selected" : "",
+    
+    // Other fields
+    forwardDomainName: isEdit ? host.forward_domain_name : "",
+    preservePath: isEdit && host.preserve_path ? "checked" : "",
+    blockExploits: isEdit && host.block_exploits ? "checked" : "",
+    sslForced: isEdit && host.ssl_forced ? "checked" : "",
+    http2Support: isEdit && host.http2_support ? "checked" : "",
+    hstsEnabled: isEdit && host.hsts_enabled ? "checked" : "",
+    hstsSubdomains: isEdit && host.hsts_subdomains ? "checked" : "",
+    customConfig: isEdit && host.custom_config ? host.custom_config : "",
+    submitBtnText: isEdit ? "Update Host" : "Add Host"
+  };
   
-  // Fix the forward HTTP code selection logic
-  const forward301Selected = isEdit && host.forward_http_code === 301 ? "selected" : "";
-  const forward302Selected = isEdit && host.forward_http_code === 302 ? "selected" : "";
-  
-  const forwardSchemeHttp =
-    isEdit && host.forward_scheme === "http" ? "selected" : "";
-  const forwardSchemeHttps =
-    isEdit && host.forward_scheme === "https" ? "selected" : "";
-  
-  // Fix variable names to match form fields
-  const forwardDomainName = isEdit ? host.forward_domain_name : "";
-  const preservePath = isEdit && host.preserve_path ? "checked" : "";
-  const blockExploits = isEdit && host.block_exploits ? "checked" : "";
-  const sslForced = isEdit && host.ssl_forced ? "checked" : "";
-  const http2Support = isEdit && host.http2_support ? "checked" : "";
-  const hstsEnabled = isEdit && host.hsts_enabled ? "checked" : "";
-  const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
-  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
-  const submitBtnText = isEdit ? "Update Host" : "Add Host";
- 
-  return `
-    ${idField}
-    <div class="tabs">
-      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
-      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
-    </div>
-    <div class="tab-content" id="generalTab">
-      <div class="form-group">
-        <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_http_code">HTTP Redirection Code</label>
-        <select id="forward_http_code" name="forward_http_code">
-          <option value="301" ${forward301Selected}>301 (Permanent)</option>
-          <option value="302" ${forward302Selected}>302 (Temporary)</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="forward_domain_name">Forward Domain Name</label>
-        <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomainName}" required>
-      </div>
-          
-      <div class="form-group">
-        <label for="forward_scheme">Upstream Scheme</label>
-        <select id="forward_scheme" name="forward_scheme" required>
-          <option value="http" ${forwardSchemeHttp}>http</option>
-          <option value="https" ${forwardSchemeHttps}>https</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="certificate_id">Certificate</label>
-        <select id="certificate_id" name="certificate_id" required></select>
-      </div>
-
-      <!-- Toggle switches instead of checkboxes -->
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="preserve_path" name="preserve_path" ${preservePath}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Preserve Path</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Block Common Exploits</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Force SSL</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HTTP/2 Support</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HSTS Enabled</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HSTS Subdomains</span>
-        </label>
-      </div>
-    </div>
-
-    <div class="tab-content" id="customTab" style="display:none;">
-      <div class="form-group">
-        <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config" rows="30">${customConfig}</textarea>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">${submitBtnText}</button>
-      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-    </div>
-  `;
+  return processTemplate(redirectionHostFormTemplate, templateData);
 }
 
 // Process form data from both add and edit forms
@@ -214,23 +120,19 @@ function setupRedirectionHostForm(form, isEdit = false) {
   } else {
     populateCertificateDropdown(certSelect);
   }
- 
 }
 
-// Update the ensureModalExists function to guarantee both modal and form exist
-function ensureModalExists() {
+// Update the ensureModalExists function to use the template
+async function ensureModalExists() {
   let modal = document.getElementById("redirectionHostModal");
   
   if (!modal) {
+    await ensureTemplatesLoaded();
+    
     modal = document.createElement("div");
     modal.id = "redirectionHostModal";
     modal.className = "modal";
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h2>Redirection Host Configuration</h2>
-        <form id="addRedirectionHostForm"></form>
-      </div>
-    `;
+    modal.innerHTML = redirectionHostModalTemplate;
     document.body.appendChild(modal);
     
     // Give the browser a moment to add the element to the DOM
@@ -241,8 +143,8 @@ function ensureModalExists() {
 }
 
 // Update the beginning of populateAddRedirectionHostForm to be more robust
-export function populateAddRedirectionHostForm() {
-  const modal = ensureModalExists();
+export async function populateAddRedirectionHostForm() {
+  const modal = await ensureModalExists();
   
   // Make sure we can find the form - first try within the modal we just created
   let form = modal.querySelector("form#addRedirectionHostForm");
@@ -259,8 +161,8 @@ export function populateAddRedirectionHostForm() {
     modal.querySelector(".modal-content").appendChild(form);
   }
   
-  // Add the crucial line to generate the form HTML content
-  form.innerHTML = generateRedirectionHostFormHTML();
+  // Add the crucial line to generate the form HTML content - now async
+  form.innerHTML = await generateRedirectionHostFormHTML();
   
   setupRedirectionHostForm(form, false);
 
@@ -313,7 +215,7 @@ export async function editRedirectionHostModal(hostIdOrObject) {
   return new Promise(async (resolve, reject) => {
     try {
       // Ensure modal exists
-      const modal = ensureModalExists();
+      const modal = await ensureModalExists();
       
       // Check if we received just an ID or a complete host object
       let host = hostIdOrObject;
@@ -347,8 +249,8 @@ export async function editRedirectionHostModal(hostIdOrObject) {
         modal.querySelector(".modal-content").appendChild(form);
       }
 
-      // Generate and set HTML content for the form
-      form.innerHTML = generateRedirectionHostFormHTML(host);
+      // Generate and set HTML content for the form - now async
+      form.innerHTML = await generateRedirectionHostFormHTML(host);
       
       // Display the modal
       modal.style.display = "flex";

@@ -1,5 +1,6 @@
 // /static/npm/modals/ProxyHostModals.js
 import { switchTab, closeModals } from "/static/npm/NPMUtils.js";
+import { loadTemplate, processTemplate } from "../utils/TemplateLoader.js";
 
 import {
   showSuccess,
@@ -8,6 +9,9 @@ import {
   openDnsChallengeModal,
   handleCertificateCreation,
 } from "../NPMUtils.js";
+
+// Cache for loaded templates
+let proxyHostFormTemplate = null;
 
 // Helper function to populate the access list dropdown dynamically
 async function populateAccessListDropdown(selectElement, selectedValue = "") {
@@ -31,145 +35,37 @@ async function populateAccessListDropdown(selectElement, selectedValue = "") {
   }
 }
 
-// Generate form HTML for host configuration - used by both add and edit modals
-function generateProxyHostFormHTML(host = null) {
+// Load templates if not already loaded
+async function ensureTemplatesLoaded() {
+  if (!proxyHostFormTemplate) {
+    proxyHostFormTemplate = await loadTemplate("/static/npm/templates/proxy-host-form.html");
+  }
+}
+
+// Generate form HTML for host configuration - using templates now
+async function generateProxyHostFormHTML(host = null) {
+  await ensureTemplatesLoaded();
+  
   const isEdit = host !== null;
-  const idField = isEdit
-    ? `<input type="hidden" name="host_id" value="${host.id}">`
-    : "";
-  const domainNames = isEdit ? host.domain_names.join(", ") : "";
-  const forwardHost = isEdit ? host.forward_host : "";
-  const forwardPort = isEdit ? host.forward_port : "";
-  const forwardSchemeHttp =
-    isEdit && host.forward_scheme === "http" ? "selected" : "";
-  const forwardSchemeHttps =
-    isEdit && host.forward_scheme === "https" ? "selected" : "";
-  const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
-  const websocketsSupport =
-    isEdit && host.allow_websocket_upgrade ? "checked" : "";
-  const blockExploits = isEdit && host.block_exploits ? "checked" : "";
-  const sslForced = isEdit && host.ssl_forced ? "checked" : "";
-  const http2Support = isEdit && host.http2_support ? "checked" : "";
-  const hstsEnabled = isEdit && host.hsts_enabled ? "checked" : "";
-  const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
-  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
-  const submitBtnText = isEdit ? "Update Host" : "Add Host";
-
-  return `
-    ${idField}
-    <div class="tabs">
-      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
-      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
-    </div>
-    <div class="tab-content" id="generalTab">
-      <div class="form-group">
-        <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
-      </div>
-      <div class="form-group">
-        <label for="forward_host">Forward Host</label>
-        <input type="text" id="forward_host" name="forward_host" value="${forwardHost}" required>
-      </div>
-      <div class="form-group">
-        <label for="forward_port">Forward Port</label>
-        <input type="number" id="forward_port" name="forward_port" value="${forwardPort}" required>
-      </div>
-      <div class="form-group">
-        <label for="forward_scheme">Upstream Scheme</label>
-        <select id="forward_scheme" name="forward_scheme" required>
-          <option value="http" ${forwardSchemeHttp}>http</option>
-          <option value="https" ${forwardSchemeHttps}>https</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="certificate_id">Certificate</label>
-        <select id="certificate_id" name="certificate_id" required></select>
-      </div>
-      <div class="form-group">
-        <label for="access_list_id">Access List</label>
-        <select id="access_list_id" name="access_list_id">
-          <option value="">None</option>
-        </select>
-      </div>
-
-      <!-- Toggle switches instead of checkboxes -->
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="cache_assets" name="cache_assets" ${cacheAssets}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Cache Assets</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="websockets_support" name="websockets_support" ${websocketsSupport}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Websockets Support</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Block Common Exploits</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Force SSL</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HTTP/2 Support</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HSTS Enabled</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-      </div>
-    </div>
-    <div class="tab-content" id="customTab" style="display:none;">
-      <div class="form-group">
-        <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config" rows="30">${customConfig}</textarea>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">${submitBtnText}</button>
-      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-    </div>
-  `;
+  const templateData = {
+    idField: isEdit ? `<input type="hidden" name="host_id" value="${host.id}">` : "",
+    domainNames: isEdit ? host.domain_names.join(", ") : "",
+    forwardHost: isEdit ? host.forward_host : "",
+    forwardPort: isEdit ? host.forward_port : "",
+    forwardSchemeHttp: isEdit && host.forward_scheme === "http" ? "selected" : "",
+    forwardSchemeHttps: isEdit && host.forward_scheme === "https" ? "selected" : "",
+    cacheAssets: isEdit && host.cache_assets ? "checked" : "",
+    websocketsSupport: isEdit && host.allow_websocket_upgrade ? "checked" : "",
+    blockExploits: isEdit && host.block_exploits ? "checked" : "",
+    sslForced: isEdit && host.ssl_forced ? "checked" : "",
+    http2Support: isEdit && host.http2_support ? "checked" : "",
+    hstsEnabled: isEdit && host.hsts_enabled ? "checked" : "",
+    hstsSubdomains: isEdit && host.hsts_subdomains ? "checked" : "",
+    customConfig: isEdit && host.custom_config ? host.custom_config : "",
+    submitBtnText: isEdit ? "Update Host" : "Add Host"
+  };
+  
+  return processTemplate(proxyHostFormTemplate, templateData);
 }
 
 // Process form data from both add and edit forms
@@ -243,9 +139,9 @@ function setupProxyHostForm(form, isEdit = false) {
 // -------------------------
 // Add Host Flow
 // -------------------------
-export function populateAddProxyHostForm() {
+export async function populateAddProxyHostForm() {
   const form = document.getElementById("addHostForm");
-  form.innerHTML = generateProxyHostFormHTML();
+  form.innerHTML = await generateProxyHostFormHTML(); // Now async
   setupProxyHostForm(form, false);
 
   form.onsubmit = async (e) => {
@@ -324,7 +220,7 @@ export async function editProxyHostModal(hostIdOrObject) {
         throw new Error("Host form element not found");
       }
 
-      form.innerHTML = generateProxyHostFormHTML(host);
+      form.innerHTML = await generateProxyHostFormHTML(host); // Now async
       modal.style.display = "flex";
       setupProxyHostForm(form, true);
 
