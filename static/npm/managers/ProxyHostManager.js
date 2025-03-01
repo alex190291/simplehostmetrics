@@ -1,6 +1,5 @@
 // /static/npm/managers/ProxyHostManager.js
-import { makeRequest } from "../NPMService.js";
-import { showSuccess, showError } from "../NPMUtils.js";
+import { showSuccess, showError, makeRequest } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
 /**

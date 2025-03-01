@@ -1,6 +1,10 @@
 // /static/npm/managers/CertificateManager.js
-import { makeRequest } from "../NPMService.js";
-import { showSuccess, showError } from "../NPMUtils.js";
+import {
+  showSuccess,
+  showError,
+  makeRequest
+} 
+from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
 // Helper to wrap a promise with a timeout.

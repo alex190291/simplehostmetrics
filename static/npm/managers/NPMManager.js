@@ -6,8 +6,7 @@ import * as RedirectionHostModals from "../modals/RedirectionHostModals.js";
 import * as ReportManager from "./ReportManager.js";
 import * as CertificateManager from "./CertificateManager.js";
 import * as AccessListManager from "./AccessListManager.js";
-import { makeRequest } from "../NPMService.js";
-import { showError } from "../NPMUtils.js";
+import { showError, makeRequest } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
 
 export class NPMManager {
@@ -17,6 +16,15 @@ export class NPMManager {
     this.refreshInterval = 30000;
     this.retryAttempts = 3;
     this.initialize();
+
+    // exposing delete and disable/enable functions for proxy and redirection hosts
+    
+    this.deleteProxyHost = ProxyHostManager.deleteProxyHost;
+    this.enableProxyHost = ProxyHostManager.enableProxyHost;
+    this.disableProxyHost = ProxyHostManager.disableProxyHost;
+    this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
+    this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
+    this.disableRedirectionHost = RedirectionHostManager.disableRedirectionHost;
 
     // Update the proxy host modal function to handle errors properly
     this.editProxyHostModal = async (hostId) => {

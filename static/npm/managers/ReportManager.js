@@ -1,6 +1,9 @@
 // /static/npm/managers/ReportManager.js
-import { makeRequest } from "../NPMService.js";
-import { showError } from "../NPMUtils.js";
+import {
+  showError,
+  makeRequest
+}
+from "../NPMUtils.js";
 
 export async function loadReports() {
   try {

@@ -1,6 +1,11 @@
 // /static/npm/managers/TokenManager.js
-import { makeRequest } from "../NPMService.js";
-import { showSuccess, showError } from "../NPMUtils.js";
+
+import {
+  showSuccess,
+  showError,
+  makeRequest
+ }
+ from "../NPMUtils.js";
 
 export async function refreshToken() {
   try {
