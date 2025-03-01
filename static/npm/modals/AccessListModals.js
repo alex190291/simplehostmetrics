@@ -1,5 +1,5 @@
-// /static/npm/modals/AccessListModals.js
 import { closeModals } from "../NPMUtils.js";
+import * as AccessListManager from "../managers/AccessListManager.js";
 
 export function populateAccessListForm(accessList = null) {
   const form = document.getElementById("accessListForm");
@@ -23,11 +23,11 @@ export function populateAccessListForm(accessList = null) {
         name: formData.get("name"),
         satisfy_any: formData.get("satisfy_any") === "true",
         pass_auth: formData.has("pass_auth"),
-        clients: getClientsFromForm(form)
+        clients: getClientsFromForm(form),
+        items: getAuthItemsFromForm(form)
       };
 
       // Create or update the access list
-      const AccessListManager = await import("../managers/AccessListManager.js");
       if (accessList) {
         await AccessListManager.updateAccessList(accessList.id, data);
       } else {
@@ -50,7 +50,8 @@ function generateAccessListFormHTML(accessList = null) {
   const name = isEdit ? accessList.name : "";
   const satisfyAny = isEdit ? accessList.satisfy_any : false;
   const passAuth = isEdit ? accessList.pass_auth : false;
-  const clients = isEdit ? accessList.clients : [];
+  const clients = isEdit && accessList.clients ? accessList.clients : [];
+  const items = isEdit && accessList.items ? accessList.items : [];
 
   return `
     <div class="form-group">
@@ -77,15 +78,48 @@ function generateAccessListFormHTML(accessList = null) {
     </div>
     
     <div class="form-group">
-      <label>Clients</label>
+      <label>Basic Authentication</label>
+      <div id="authItemsList">
+        ${generateAuthItemsHTML(items)}
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="addNewAuthItem()">Add Authentication</button>
+    </div>
+
+    <div class="form-group">
+      <label>Client IP Restrictions</label>
       <div id="clientsList">
         ${generateClientsHTML(clients)}
       </div>
       <button type="button" class="btn btn-secondary" onclick="addNewClient()">Add Client</button>
     </div>
+    
     <div class="form-actions">
       <button type="submit" class="btn-primary">${isEdit ? "Update" : "Create"} Access List</button>
       <button type="button" class="btn-secondary modal-close">Cancel</button>
+    </div>
+  `;
+}
+
+function generateAuthItemsHTML(items = []) {
+  if (items.length === 0) {
+    return generateAuthItemRow();
+  }
+  return items.map((item, index) => generateAuthItemRow(item, index)).join("");
+}
+
+function generateAuthItemRow(item = null, index = 0) {
+  const username = item ? item.username : "";
+  return `
+    <div class="auth-item-row" data-index="${index}">
+      <div class="form-group">
+        <input type="text" name="auth_username_${index}" value="${username}" 
+               placeholder="Username" required>
+      </div>
+      <div class="form-group">
+        <input type="password" name="auth_password_${index}" 
+               placeholder="Password" ${item ? "" : "required"}>
+      </div>
+      <button type="button" class="btn btn-danger" onclick="removeAuthItem(${index})">Remove</button>
     </div>
   `;
 }
@@ -119,10 +153,18 @@ function generateClientRow(client = null, index = 0) {
 }
 
 function setupAccessListForm(form) {
+  // Close modal functionality
+  const closeButtons = form.querySelectorAll(".modal-close");
+  closeButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.getElementById("accessListModal").style.display = "none";
+    });
+  });
+
   // Add client row functionality
   window.addNewClient = () => {
     const clientsList = form.querySelector("#clientsList");
-    const newIndex = clientsList.children.length;
+    const newIndex = clientsList.querySelectorAll(".client-row").length;
     const newRow = document.createElement("div");
     newRow.innerHTML = generateClientRow(null, newIndex);
     clientsList.appendChild(newRow.firstElementChild);
@@ -133,8 +175,52 @@ function setupAccessListForm(form) {
     const row = form.querySelector(`.client-row[data-index="${index}"]`);
     if (row) {
       row.remove();
+      // Reindex the remaining rows
+      const rows = form.querySelectorAll(".client-row");
+      rows.forEach((row, idx) => {
+        row.dataset.index = idx;
+        row.querySelector("input[name^='client_address_']").name = `client_address_${idx}`;
+        row.querySelector("select[name^='client_directive_']").name = `client_directive_${idx}`;
+        row.querySelector("button").onclick = () => window.removeClient(idx);
+      });
     }
   };
+
+  // Add auth item row functionality
+  window.addNewAuthItem = () => {
+    const authItemsList = form.querySelector("#authItemsList");
+    const newIndex = authItemsList.querySelectorAll(".auth-item-row").length;
+    const newRow = document.createElement("div");
+    newRow.innerHTML = generateAuthItemRow(null, newIndex);
+    authItemsList.appendChild(newRow.firstElementChild);
+  };
+
+  // Remove auth item row functionality
+  window.removeAuthItem = (index) => {
+    const row = form.querySelector(`.auth-item-row[data-index="${index}"]`);
+    if (row) {
+      row.remove();
+      // Reindex the remaining rows
+      const rows = form.querySelectorAll(".auth-item-row");
+      rows.forEach((row, idx) => {
+        row.dataset.index = idx;
+        row.querySelector("input[name^='auth_username_']").name = `auth_username_${idx}`;
+        row.querySelector("input[name^='auth_password_']").name = `auth_password_${idx}`;
+        row.querySelector("button").onclick = () => window.removeAuthItem(idx);
+      });
+    }
+  };
+
+  // If no auth items or clients, add an empty row for each
+  const authItemsList = form.querySelector("#authItemsList");
+  if (authItemsList.children.length === 0) {
+    window.addNewAuthItem();
+  }
+  
+  const clientsList = form.querySelector("#clientsList");
+  if (clientsList.children.length === 0) {
+    window.addNewClient();
+  }
 }
 
 function getClientsFromForm(form) {
@@ -152,4 +238,21 @@ function getClientsFromForm(form) {
   });
 
   return clients;
+}
+
+function getAuthItemsFromForm(form) {
+  const items = [];
+  const rows = form.querySelectorAll(".auth-item-row");
+  
+  rows.forEach((row) => {
+    const index = row.dataset.index;
+    const username = form.querySelector(`[name="auth_username_${index}"]`).value;
+    const password = form.querySelector(`[name="auth_password_${index}"]`).value;
+    
+    if (username) {
+      items.push({ username, password });
+    }
+  });
+
+  return items;
 }

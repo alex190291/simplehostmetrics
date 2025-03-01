@@ -112,6 +112,11 @@ export async function loadAccessLists() {
 export function createAccessListCard(list) {
   const card = document.createElement("div");
   card.className = "access-list-card glass-card";
+  
+  // Calculate number of auth items and clients
+  const authItems = list.items ? list.items.length : 0;
+  const clients = list.clients ? list.clients.length : 0;
+  
   card.innerHTML = `
     <div class="card-header">
       <h3>${list.name}</h3>
@@ -119,7 +124,8 @@ export function createAccessListCard(list) {
     <div class="card-content">
       <p>Authorization: ${list.satisfy_any ? "Any" : "All"}</p>
       <p>Pass Auth: ${list.pass_auth ? "Yes" : "No"}</p>
-      <p>Clients: ${list.clients ? list.clients.length : 0}</p>
+      <p>Auth Items: ${authItems}</p>
+      <p>Clients: ${clients}</p>
     </div>
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editAccessList(${list.id})">Edit</button>

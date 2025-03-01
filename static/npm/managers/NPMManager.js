@@ -5,6 +5,7 @@ import * as RedirectionHostManager from "./RedirectionHostManager.js";
 import * as RedirectionHostModals from "../modals/RedirectionHostModals.js";
 import * as ReportManager from "./ReportManager.js";
 import * as CertificateManager from "./CertificateManager.js";
+import * as AccessListManager from "./AccessListManager.js";
 import { makeRequest } from "../NPMService.js";
 import { showError } from "../NPMUtils.js";
 import * as Views from "../NPMViews.js";
@@ -45,19 +46,21 @@ export class NPMManager {
       }
     };
 
-    // Expose delegate functions for Proxy Hosts:
-    this.createProxyHost = ProxyHostManager.createProxyHost;
-    this.editProxyHost = ProxyHostManager.editProxyHost;
-    this.deleteProxyHost = ProxyHostManager.deleteProxyHost;
-    this.enableProxyHost = ProxyHostManager.enableProxyHost;
-    this.disableProxyHost = ProxyHostManager.disableProxyHost;
+    // Update access list modal function
+    this.editAccessListModal = async (listId) => {
+      try {
+        const accessList = await AccessListManager.getAccessList(listId);
+        const modals = await import("../modals/AccessListModals.js");
+        modals.populateAccessListForm(accessList);
+        document.getElementById("accessListModal").style.display = "flex";
+      } catch (error) {
+        console.error("Failed to edit access list", error);
+        showError("Failed to open access list edit form");
+      }
+    };
 
-    // Expose delegate functions for Redirection Hosts:
-    this.editRedirectionHost = RedirectionHostManager.editRedirectionHost;
-    this.deleteRedirectionHost = RedirectionHostManager.deleteRedirectionHost;
-    this.createRedirectionHost = RedirectionHostManager.createRedirectionHost;
-    this.enableRedirectionHost = RedirectionHostManager.enableRedirectionHost;
-    this.disableRedirectionHost = RedirectionHostManager.disableRedirectionHost;
+    // Add delete access list function
+    this.deleteAccessList = AccessListManager.deleteAccessList;
 
     // Expose Certificate functions:
     this.renewCertificate = CertificateManager.renewCertificate;
