@@ -206,7 +206,7 @@ function setupRedirectionHostForm(form, isEdit = false) {
 }
 
 
-f
+
 // ------------------------
 // Add Host Flow
 // -------------------------
