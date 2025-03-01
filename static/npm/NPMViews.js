@@ -175,6 +175,12 @@ export function createCertificateCard(cert) {
   const expiryDate = new Date(cert.expires_on);
   const now = new Date();
   const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+  
+  // Only show renew button for Let's Encrypt certificates (not for uploaded ones)
+  const renewButton = cert.provider === "letsencrypt" 
+    ? `<button class="btn btn-secondary" onclick="npmManager.renewCertificate(${cert.id})">Renew</button>` 
+    : '';
+    
   card.innerHTML = `
     <div class="card-header">
       <h3>${cert.nice_name}</h3>
@@ -188,7 +194,7 @@ export function createCertificateCard(cert) {
       <p>Expires: ${expiryDate.toLocaleDateString()}</p>
     </div>
     <div class="card-actions">
-      <button class="btn btn-secondary" onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
+      ${renewButton}
       <button class="btn btn-secondary" onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
       <button class="btn btn-secondary" onclick="npmManager.downloadCertificate(${cert.id})">Download</button>
     </div>
