@@ -342,6 +342,7 @@ def start_rtad_log_parser():
         time.sleep(10)
 
 with app.app_context():
+    rtad_manager.ensure_geolite2_db()
     # Start background threads
     threading.Thread(target=start_rtad_log_parser, daemon=True).start()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
