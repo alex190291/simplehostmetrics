@@ -5,7 +5,7 @@ import { showError } from "./NPMUtils.js";
 
 // Import all modal functions
 import { populateAddProxyHostForm } from "./modals/ProxyHostModals.js";
-import { populateRedirectionHostForm } from "./modals/RedirectionHostModals.js";
+import { populateAddRedirectionHostForm } from "./modals/RedirectionHostModals.js";
 import { populateStreamHostForm } from "./modals/StreamModals.js";
 import { populateAccessListForm } from "./modals/AccessListModals.js";
 import { populateCertificateForm } from "./modals/CertificateModals.js";
