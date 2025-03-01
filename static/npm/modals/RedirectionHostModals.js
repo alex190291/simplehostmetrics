@@ -10,9 +10,6 @@ import {
 } from "../NPMUtils.js";
 
 
-// Cache the template content
-let redirectionHostFormTemplate = null;
-
 // Generate form HTML for redirection host configuration - used by both add and edit modals
 function generateRedirectHostFormHTML(host = null) {
   const isEdit = host !== null;
@@ -209,12 +206,12 @@ function setupRedirectionHostForm(form, isEdit = false) {
 }
 
 
-
-// -------------------------
+f
+// ------------------------
 // Add Host Flow
 // -------------------------
 export function populateAddRedirectionHostForm() {
-  const form = document.getElementById("addHostForm");
+  const form = document.getElementById("addRedirectionHostForm");
   form.innerHTML = generateRedirectionHostFormHTML();
   setupRedirectionHostForm(form, false);
 
@@ -249,7 +246,7 @@ export function populateAddRedirectionHostForm() {
       // Create the redirection host
       const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
       await RedirectionHostManager.createRedirectionHost(baseData);
-      document.getElementById("addHostModal").style.display = "none";
+      document.getElementById("addRedirectionHostModal").style.display = "none";
     } catch (err) {
       console.error("Failed to create host", err);
       showError("Failed to create host");
@@ -275,7 +272,7 @@ export async function editRedirectionHostModal(hostIdOrObject) {
         typeof hostIdOrObject === "string"
       ) {
         const response = await fetch(
-          `/npm-api/nginx/proxy-hosts/${hostIdOrObject}`,
+          `/npm-api/nginx/redirection-hosts/${hostIdOrObject}`,
         );
         if (!response.ok) {
           throw new Error(`Failed to fetch host data: ${response.status}`);
@@ -289,7 +286,7 @@ export async function editRedirectionHostModal(hostIdOrObject) {
         throw new Error("Host modal element not found");
       }
 
-      const form = document.getElementById("addHostForm");
+      const form = document.getElementById("addRedirectionHostForm");
       if (!form) {
         throw new Error("Host form element not found");
       }
@@ -324,7 +321,7 @@ export async function editRedirectionHostModal(hostIdOrObject) {
       });
     } catch (error) {
       console.error("Error showing edit host modal:", error);
-      showError(`Failed to edit host: ${error.message}`);
+      showError(`Failed to edit redirection host: ${error.message}`);
       reject(error);
     }
   });
