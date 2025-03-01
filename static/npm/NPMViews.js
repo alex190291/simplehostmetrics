@@ -1,6 +1,9 @@
 // /static/npm/NPMViews.js
-import { makeRequest } from "./NPMService.js";
-import { showError } from "./NPMUtils.js";
+import { 
+  showError,
+  makeRequest 
+} 
+from "./NPMUtils.js";
 
 
 // Import all modal functions
