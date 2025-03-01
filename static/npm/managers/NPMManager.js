@@ -117,6 +117,16 @@ export class NPMManager {
         });
       });
     }
+    const addNewRedirBtn = document.getElementById("addNewBtn");
+    if (addNewBtn) {
+      addNewBtn.addEventListener("click", () => {
+        import("../modals/RedirectionHostModals.js").then((modals) => {
+          modals.populateAddRedirectionHostForm();
+          document.getElementById("addRedirectionHostModal").style.display = "flex";
+        });
+      });
+    }
+
     // New upload button for custom certificates.
     const uploadBtn = document.getElementById("uploadCertificateBtn");
     if (uploadBtn) {
