@@ -314,56 +314,6 @@ export async function validateCertificate(formData) {
   }
 }
 
-// Fixed to properly test HTTP reachability
-export async function testHttpReach(domains) {
-  try {
-    // Properly encode the domains parameter as described in the API docs
-    const encodedDomains = JSON.stringify(domains);
-    
-    const response = await fetch(`/npm-api/nginx/certificates/test-http?domains=${encodeURIComponent(encodedDomains)}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || "HTTP reachability test failed");
-    }
-    
-    const results = await response.json();
-    
-    // Format the response to show test results in a readable format
-    let successCount = 0;
-    let message = "HTTP Reachability Results:\n\n";
-    
-    for (const [domain, status] of Object.entries(results)) {
-      if (status === "ok") {
-        message += `✓ ${domain}: Successful\n`;
-        successCount++;
-      } else if (status.startsWith("other:")) {
-        message += `✗ ${domain}: Failed - ${status.substring(6)}\n`;
-      } else if (status === "404") {
-        message += `! ${domain}: Reachable but Not Found (404)\n`;
-        successCount++; // Count as reachable even though it's 404
-      } else {
-        message += `✗ ${domain}: Failed - ${status}\n`;
-      }
-    }
-    
-    message += `\nSummary: ${successCount} of ${domains.length} domain(s) reachable.`;
-    
-    if (successCount === domains.length) {
-      showSuccess(message);
-    } else if (successCount > 0) {
-      showSuccess(message); // Using success notification but with mixed results
-    } else {
-      showError(message); // All failed
-    }
-    
-    return results;
-  } catch (error) {
-    showError("HTTP reachability test failed: " + (error.message || "Unknown error"));
-    throw error;
-  }
-}
-
 export async function downloadCertificate(certId) {
   try {
     const url = `/npm-api/nginx/certificates/${certId}/download`;

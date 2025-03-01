@@ -1,20 +1,8 @@
 // /static/npm/NPMUtils.js
-import { makeRequest } from "./NPMService.js";
-
 export function showNotification(message, type, duration = 3000) {
   const notification = document.createElement("div");
   notification.className = `notification ${type}`;
   notification.textContent = message;
-  
-  // Remove any existing notifications of the same type
-  const existingNotifications = document.querySelectorAll(`.notification.${type}`);
-  existingNotifications.forEach(notif => {
-    // Only remove if it's not a persistent notification (no close button)
-    if (!notif.querySelector('.notification-close')) {
-      notif.remove();
-    }
-  });
-  
   document.body.appendChild(notification);
   setTimeout(() => notification.classList.add("show"), 100);
   
@@ -313,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.npmManager.deleteCertificate = certManager.deleteCertificate;
     window.npmManager.downloadCertificate = certManager.downloadCertificate;
     window.npmManager.uploadCertificate = (certId) => certModals.showUploadCertificateModal(certId);
-    window.npmManager.testHttpReach = certManager.testHttpReach;
   }).catch(err => {
     console.error('Failed to load managers:', err);
   });

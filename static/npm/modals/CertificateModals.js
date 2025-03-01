@@ -288,7 +288,6 @@ function generateCertificateFormHTML(certificate = null) {
     <div class="form-group">
       <label for="domain_names">Domain Names (comma-separated)</label>
       <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required placeholder="domain.com, www.domain.com">
-      <button type="button" id="testHttpReachBtn" class="btn-secondary">Test HTTP Reachability</button>
     </div>
     <div class="form-group">
       <label for="email">Email Address (for Let's Encrypt)</label>
@@ -399,33 +398,6 @@ function setupCertificateForm(form) {
       dnsSettings.style.display = "block";
     } else {
       dnsSettings.style.display = "none";
-    }
-  });
-
-  // Set up HTTP reachability test button
-  const testBtn = form.querySelector("#testHttpReachBtn");
-  testBtn.addEventListener("click", async () => {
-    testBtn.disabled = true;
-    testBtn.textContent = "Testing...";
-    
-    const domainInput = form.querySelector("#domain_names");
-    const domains = domainInput.value.split(",").map(d => d.trim()).filter(d => d);
-    
-    if (domains.length === 0) {
-      showError("Please enter at least one domain name");
-      testBtn.disabled = false;
-      testBtn.textContent = "Test HTTP Reachability";
-      return;
-    }
-    
-    try {
-      const CertificateManager = await import("../managers/CertificateManager.js");
-      await CertificateManager.testHttpReach(domains);
-    } catch (error) {
-      showError("Reachability test failed: " + error.message);
-    } finally {
-      testBtn.disabled = false;
-      testBtn.textContent = "Test HTTP Reachability";
     }
   });
 }
