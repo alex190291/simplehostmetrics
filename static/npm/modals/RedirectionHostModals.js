@@ -241,14 +241,30 @@ function setupRedirectionHostForm(form, isEdit = false) {
  
 }
 
+// Add this function right before populateAddRedirectionHostForm
+function ensureModalExists() {
+  let modal = document.getElementById("addRedirectionHostModal");
+  
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "addRedirectionHostModal";
+    modal.className = "modal";
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h2>Redirection Host Configuration</h2>
+        <form id="addRedirectionHostForm"></form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  return modal;
+}
 
-
-// ------------------------
-// Add Host Flow
-// -------------------------
+// Update the beginning of populateAddRedirectionHostForm
 export function populateAddRedirectionHostForm() {
+  const modal = ensureModalExists();
   const form = document.getElementById("addRedirectionHostForm");
-  form.innerHTML = generateRedirectionHostFormHTML();
   setupRedirectionHostForm(form, false);
 
   form.onsubmit = async (e) => {
@@ -299,6 +315,8 @@ export function populateAddRedirectionHostForm() {
 export async function editRedirectionHostModal(hostIdOrObject) {
   return new Promise(async (resolve, reject) => {
     try {
+      // Ensure modal exists
+      const modal = ensureModalExists();
       // Check if we received just an ID or a complete host object
       let host = hostIdOrObject;
 
@@ -317,7 +335,6 @@ export async function editRedirectionHostModal(hostIdOrObject) {
       }
 
       // Now we have the complete host object, proceed with the modal
-      const modal = document.getElementById("addRedirectionHostModal");
       if (!modal) {
         throw new Error("Host modal element not found");
       }
