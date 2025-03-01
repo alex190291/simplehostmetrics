@@ -49,8 +49,7 @@ function generateRedirectionHostFormHTML(host = null) {
         <label for="domain_names">Domain Names (comma-separated)</label>
         <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
       </div>
-      
-      <!-- Added missing forward_http_code dropdown -->
+
       <div class="form-group">
         <label for="forward_http_code">HTTP Redirection Code</label>
         <select id="forward_http_code" name="forward_http_code">
@@ -219,11 +218,11 @@ function setupRedirectionHostForm(form, isEdit = false) {
 
 // Add this function right before populateAddRedirectionHostForm
 function ensureModalExists() {
-  let modal = document.getElementById("addRedirectionHostModal");
+  let modal = document.getElementById("redirectionHostModal");
   
   if (!modal) {
     modal = document.createElement("div");
-    modal.id = "addRedirectionHostModal";
+    modal.id = "redirectionHostModal";
     modal.className = "modal";
     modal.innerHTML = `
       <div class="modal-content">
@@ -241,6 +240,10 @@ function ensureModalExists() {
 export function populateAddRedirectionHostForm() {
   const modal = ensureModalExists();
   const form = document.getElementById("addRedirectionHostForm");
+  
+  // Add the crucial line to generate the form HTML content
+  form.innerHTML = generateRedirectionHostFormHTML();
+  
   setupRedirectionHostForm(form, false);
 
   form.onsubmit = async (e) => {
@@ -274,7 +277,7 @@ export function populateAddRedirectionHostForm() {
       // Create the redirection host
       const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
       await RedirectionHostManager.createRedirectionHost(baseData);
-      document.getElementById("addRedirectionHostModal").style.display = "none";
+      document.getElementById("redirectionHostModal").style.display = "none";
     } catch (err) {
       console.error("Failed to create host", err);
       showError("Failed to create host");
