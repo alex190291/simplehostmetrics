@@ -98,17 +98,6 @@ function generateRedirectionHostFormHTML(host = null) {
         </label>
       </div>
 
-      <!-- Added cache_assets toggle -->
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="cache_assets" name="cache_assets" ${isEdit && host.caching_enabled ? "checked" : ""}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Cache Assets</span>
-        </label>
-      </div>
-
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
