@@ -34,7 +34,7 @@ block content %}
                 <a href="#certificates" class="sidebar-item">Certificates</a>
             </div>
         </div>
-
+        
         <div class="sidebar-group">
             <div class="sidebar-header">
                 <span class="sidebar-icon">⚙️</span>
@@ -43,7 +43,6 @@ block content %}
             </div>
             <div class="sidebar-items" id="system">
                 <a href="#audit" class="sidebar-item">Audit Log</a>
-                <a href="#settings" class="sidebar-item">Settings</a>
             </div>
         </div>
     </div>
@@ -133,31 +132,6 @@ block content %}
                         <!-- Audit log entries injected here -->
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <div id="settingsView" class="content-view" style="display: none">
-            <div class="settings-grid">
-                <div class="settings-card">
-                    <h3>Default Settings</h3>
-                    <form id="defaultSettingsForm">
-                        <div class="form-group">
-                            <label for="defaultSite">Default Site</label>
-                            <input
-                                type="text"
-                                id="defaultSite"
-                                name="defaultSite"
-                                value="placeholder.com"
-                                required
-                            />
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                Save Settings
-                            </button>
-                        </div>
-                    </form>
-                </div>
             </div>
         </div>
     </div>

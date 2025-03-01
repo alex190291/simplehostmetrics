@@ -229,39 +229,6 @@ export async function loadAuditLog() {
   }
 }
 
-// Settings
-export async function loadSettings() {
-  try {
-    const settings = await makeRequest(API_BASE, "/settings");
-    const container = document.getElementById("settingsContainer");
-    container.innerHTML = "";
-    settings.forEach((setting) => {
-      container.appendChild(createSettingCard(setting));
-    });
-  } catch (error) {
-    showError("Failed to load settings");
-  }
-}
-
-export function createSettingCard(setting) {
-  const card = document.createElement("div");
-  card.className = "setting-card glass-card";
-  card.innerHTML = `
-    <div class="card-header">
-      <h3>${setting.name}</h3>
-    </div>
-    <div class="card-content">
-      <p>ID: ${setting.id}</p>
-      <p>Description: ${setting.description}</p>
-      <p>Value: ${setting.value}</p>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-primary" onclick="npmManager.editSetting('${setting.id}')">Edit</button>
-    </div>
-  `;
-  return card;
-}
-
 // Dead Hosts
 export async function loadDeadHosts() {
   try {
@@ -319,40 +286,6 @@ export async function loadReports() {
   } catch (error) {
     showError("Failed to load reports");
   }
-}
-
-// Users
-export async function loadUsers() {
-  try {
-    const users = await makeRequest(API_BASE, "/users");
-    const grid = document.getElementById("usersGrid");
-    grid.innerHTML = "";
-    users.forEach((user) => {
-      grid.appendChild(createUserCard(user));
-    });
-  } catch (error) {
-    showError("Failed to load users");
-  }
-}
-
-export function createUserCard(user) {
-  const card = document.createElement("div");
-  card.className = "user-card glass-card";
-  card.innerHTML = `
-    <div class="card-header">
-      <h3>${user.name}</h3>
-    </div>
-    <div class="card-content">
-      <p>Nickname: ${user.nickname}</p>
-      <p>Email: ${user.email}</p>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-primary" onclick="npmManager.updateUser(${user.id})">Edit</button>
-      <button class="btn btn-secondary" onclick="npmManager.deleteUser(${user.id})">Delete</button>
-      <button class="btn btn-secondary" onclick="npmManager.loginAsUser(${user.id})">Login As</button>
-    </div>
-  `;
-  return card;
 }
 
 /* --- View-Specific Button Bindings --- */
