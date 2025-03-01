@@ -20,8 +20,7 @@ export class NPMManager {
     // Update the proxy host modal function to handle errors properly
     this.editProxyHostModal = async (hostId) => {
       try {
-        const modal = await ProxyHostModals.editProxyHostModal(hostId);
-        const updatedData = await modal;
+        const updatedData = await ProxyHostModals.editProxyHostModal(hostId);
         await ProxyHostManager.editProxyHost(hostId, updatedData);
       } catch (error) {
         // Only show error if it wasn't a user cancellation
@@ -108,15 +107,27 @@ export class NPMManager {
         this.toggleGroup(groupElem.id);
       });
     });
+    
+    // Enhanced Add New button to handle both proxy and redirection hosts
     const addNewBtn = document.getElementById("addNewBtn");
     if (addNewBtn) {
       addNewBtn.addEventListener("click", () => {
-        import("../modals/ProxyHostModals.js").then((modals) => {
-          modals.populateAddHostForm();
-          document.getElementById("addHostModal").style.display = "flex";
-        });
+        // Determine which type of host to add based on current view
+        if (this.currentView === "redirection") {
+          import("../modals/RedirectionHostModals.js").then((modals) => {
+            modals.populateAddRedirectionHostForm();
+            document.getElementById("addHostModal").style.display = "flex";
+          });
+        } else {
+          // Default to proxy host
+          import("../modals/ProxyHostModals.js").then((modals) => {
+            modals.populateAddProxyHostForm();
+            document.getElementById("addHostModal").style.display = "flex";
+          });
+        }
       });
     }
+    
     // New upload button for custom certificates.
     const uploadBtn = document.getElementById("uploadCertificateBtn");
     if (uploadBtn) {
