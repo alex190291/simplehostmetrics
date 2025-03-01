@@ -216,7 +216,7 @@ function setupRedirectionHostForm(form, isEdit = false) {
  
 }
 
-// Add this function right before populateAddRedirectionHostForm
+// Update the ensureModalExists function to guarantee both modal and form exist
 function ensureModalExists() {
   let modal = document.getElementById("redirectionHostModal");
   
@@ -231,15 +231,32 @@ function ensureModalExists() {
       </div>
     `;
     document.body.appendChild(modal);
+    
+    // Give the browser a moment to add the element to the DOM
+    setTimeout(() => {}, 0);
   }
   
   return modal;
 }
 
-// Update the beginning of populateAddRedirectionHostForm
+// Update the beginning of populateAddRedirectionHostForm to be more robust
 export function populateAddRedirectionHostForm() {
   const modal = ensureModalExists();
-  const form = document.getElementById("addRedirectionHostForm");
+  
+  // Make sure we can find the form - first try within the modal we just created
+  let form = modal.querySelector("form#addRedirectionHostForm");
+  
+  // If not found, try document-wide search
+  if (!form) {
+    form = document.getElementById("addRedirectionHostForm");
+  }
+  
+  // If still not found, create it
+  if (!form) {
+    form = document.createElement("form");
+    form.id = "addRedirectionHostForm";
+    modal.querySelector(".modal-content").appendChild(form);
+  }
   
   // Add the crucial line to generate the form HTML content
   form.innerHTML = generateRedirectionHostFormHTML();
