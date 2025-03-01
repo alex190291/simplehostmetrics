@@ -348,12 +348,9 @@ export async function editRedirectionHostModal(hostIdOrObject) {
       modal.style.display = "flex";
       setupRedirectionHostForm(form, true);
 
-      // Populate certificate and http code list dropdowns with existing values
+      // Populate certificate dropdown with existing values
       const certSelect = form.querySelector("#certificate_id");
       populateCertificateDropdown(certSelect, host.certificate_id || "");
-
-      const accessListSelect = form.querySelector("#forward_http_code");
-      populateAccessListDropdown(accessListSelect, host.forward_http_code || "");
 
       form.onsubmit = (e) => {
         e.preventDefault();
