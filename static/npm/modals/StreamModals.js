@@ -19,7 +19,7 @@ export function populateStreamHostForm(stream = null) {
 
     try {
       const formData = new FormData(form);
-      // Use the EXACT field names as specified in the API documentation
+      // Use EXACTLY the field names from the documentation
       const data = {
         incoming_port: parseInt(formData.get("incoming_port")),
         forwarding_host: formData.get("forwarding_host"),
@@ -27,8 +27,11 @@ export function populateStreamHostForm(stream = null) {
         tcp_forwarding: formData.has("tcp_forwarding"),
         udp_forwarding: formData.has("udp_forwarding"),
         enabled: formData.has("enabled"),
+        certificate_id: 0, // Add this field as required by the documentation
         meta: {}  // Required empty object
       };
+
+      console.log("Sending stream data:", JSON.stringify(data)); // Debug log
 
       // Create or update the stream
       const StreamManager = await import("../managers/StreamManager.js");
