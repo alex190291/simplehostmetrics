@@ -16,7 +16,7 @@ let redirectionHostFormTemplate = null;
 // Generate form HTML for redirection host configuration - used by both add and edit modals
 async function generateRedirectionHostFormHTML(host = null) {
   // Fetch the template if we haven't already
-  if (!RedirectionHostModalsHostFormTemplate) {
+  if (!RedirectionHostFormTemplate) {
     try {
       const response = await fetch("/static/npm/templates/redirection-host-form.html");
       if (!response.ok) {
