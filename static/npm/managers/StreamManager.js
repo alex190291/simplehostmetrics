@@ -5,16 +5,27 @@ import * as Views from "../NPMViews.js";
 
 export async function editStream(streamId, updatedData) {
   try {
+    // Format the data according to what the API expects
+    const formattedData = {
+      forward_ip: updatedData.forwarding_host,
+      forward_port: updatedData.forwarding_port,
+      listen_port: updatedData.incoming_port,
+      tcp: updatedData.tcp_forwarding,
+      udp: updatedData.udp_forwarding,
+      enabled: updatedData.enabled
+    };
+    
     await makeRequest(
       "/npm-api",
       `/nginx/streams/${streamId}`,
       "PUT",
-      updatedData,
+      formattedData,
     );
     showSuccess("Stream updated successfully");
     await Views.loadStreamHosts();
   } catch (error) {
-    showError("Failed to update stream");
+    showError(`Failed to update stream: ${error.message || error}`);
+    console.error("Stream update error:", error);
   }
 }
 
@@ -31,11 +42,22 @@ export async function deleteStream(streamId) {
 
 export async function createStream(streamData) {
   try {
-    await makeRequest("/npm-api", "/nginx/streams", "POST", streamData);
+    // Format the data according to what the API expects
+    const formattedData = {
+      forward_ip: streamData.forwarding_host,
+      forward_port: streamData.forwarding_port,
+      listen_port: streamData.incoming_port,
+      tcp: streamData.tcp_forwarding,
+      udp: streamData.udp_forwarding,
+      enabled: streamData.enabled
+    };
+    
+    await makeRequest("/npm-api", "/nginx/streams", "POST", formattedData);
     showSuccess("Stream created successfully");
     await Views.loadStreamHosts();
   } catch (error) {
-    showError("Failed to create stream");
+    showError(`Failed to create stream: ${error.message || error}`);
+    console.error("Stream creation error:", error);
   }
 }
 
