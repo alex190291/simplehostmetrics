@@ -19,13 +19,13 @@ export function populateStreamHostForm(stream = null) {
 
     try {
       const formData = new FormData(form);
-      // Map form fields to exact API field names from the documentation
+      // Use the EXACT field names as specified in the API documentation
       const data = {
-        forward_ip: formData.get("forwarding_host"),
-        forward_port: parseInt(formData.get("forwarding_port")),
-        listen_port: parseInt(formData.get("incoming_port")),
-        tcp: formData.has("tcp_forwarding"),
-        udp: formData.has("udp_forwarding"),
+        incoming_port: parseInt(formData.get("incoming_port")),
+        forwarding_host: formData.get("forwarding_host"),
+        forwarding_port: parseInt(formData.get("forwarding_port")),
+        tcp_forwarding: formData.has("tcp_forwarding"),
+        udp_forwarding: formData.has("udp_forwarding"),
         enabled: formData.has("enabled"),
         meta: {}  // Required empty object
       };
@@ -51,11 +51,12 @@ export function populateStreamHostForm(stream = null) {
 
 function generateStreamFormHTML(stream = null) {
   const isEdit = stream !== null;
-  const incomingPort = isEdit ? stream.listen_port : "";
-  const forwardingHost = isEdit ? stream.forward_ip : "";
-  const forwardingPort = isEdit ? stream.forward_port : "";
-  const tcpForwarding = isEdit ? stream.tcp : true;
-  const udpForwarding = isEdit ? stream.udp : false;
+  // Map API response fields to form field names properly
+  const incomingPort = isEdit ? stream.listen_port || stream.incoming_port : "";
+  const forwardingHost = isEdit ? stream.forward_ip || stream.forwarding_host : "";
+  const forwardingPort = isEdit ? stream.forward_port || stream.forwarding_port : "";
+  const tcpForwarding = isEdit ? stream.tcp || stream.tcp_forwarding : true;
+  const udpForwarding = isEdit ? stream.udp || stream.udp_forwarding : false;
   const enabled = isEdit ? stream.enabled : true;
 
   return `

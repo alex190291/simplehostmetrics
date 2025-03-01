@@ -117,17 +117,29 @@ export function createStreamCard(stream) {
     ? `npmManager.disableStream(${stream.id})`
     : `npmManager.enableStream(${stream.id})`;
   const disableLabel = stream.enabled ? "Disable" : "Enable";
+  
+  // Use either incoming_port or listen_port (whichever is available)
+  const listenPort = stream.incoming_port || stream.listen_port;
+  // Use either forwarding_host or forward_ip (whichever is available)
+  const forwardIP = stream.forwarding_host || stream.forward_ip;
+  // Use either forwarding_port or forward_port (whichever is available)
+  const forwardPort = stream.forwarding_port || stream.forward_port;
+  // Use either tcp_forwarding or tcp (whichever is available)
+  const tcp = stream.tcp_forwarding || stream.tcp;
+  // Use either udp_forwarding or udp (whichever is available)
+  const udp = stream.udp_forwarding || stream.udp;
+  
   card.innerHTML = `
     <div class="card-header">
-      <h3>Stream on port ${stream.listen_port}</h3>
+      <h3>Stream on port ${listenPort}</h3>
       <div class="status-indicator ${stream.enabled ? "active" : "inactive"}"></div>
     </div>
     <div class="card-content">
-      <p>Forward: ${stream.forward_ip}:${stream.forward_port}</p>
-      <p>TCP: ${stream.tcp ? "Yes" : "No"}, UDP: ${stream.udp ? "Yes" : "No"}</p>
+      <p>Forward: ${forwardIP}:${forwardPort}</p>
+      <p>TCP: ${tcp ? "Yes" : "No"}, UDP: ${udp ? "Yes" : "No"}</p>
     </div>
     <div class="card-actions">
-      <button class="btn btn-primary" onclick="npmManager.editStream(${stream.id})">Edit</button>
+      <button class="btn btn-primary" onclick="npmManager.editStreamModal(${stream.id})">Edit</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteStream(${stream.id})">Delete</button>
       <button class="btn btn-secondary" onclick="${disableAction}">
         ${disableLabel}
