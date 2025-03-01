@@ -29,10 +29,7 @@ function generateRedirectionHostFormHTML(host = null) {
   
   // Fix variable names to match form fields
   const forwardDomainName = isEdit ? host.forward_domain_name : "";
-  const forwardHost = isEdit ? host.forward_host || "" : "";
-  const forwardPort = isEdit ? host.forward_port || "" : "";
   const preservePath = isEdit && host.preserve_path ? "checked" : "";
-  
   const blockExploits = isEdit && host.block_exploits ? "checked" : "";
   const sslForced = isEdit && host.ssl_forced ? "checked" : "";
   const http2Support = isEdit && host.http2_support ? "checked" : "";
