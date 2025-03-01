@@ -313,6 +313,7 @@ export async function editRedirectionHostModal(hostIdOrObject) {
     try {
       // Ensure modal exists
       const modal = ensureModalExists();
+      
       // Check if we received just an ID or a complete host object
       let host = hostIdOrObject;
 
@@ -330,24 +331,35 @@ export async function editRedirectionHostModal(hostIdOrObject) {
         host = await response.json();
       }
 
-      // Now we have the complete host object, proceed with the modal
-      if (!modal) {
-        throw new Error("Host modal element not found");
-      }
-
-      const form = document.getElementById("addRedirectionHostForm");
+      // Get the form - first try within the modal directly
+      let form = modal.querySelector("form#addRedirectionHostForm");
+      
+      // If not found, try document-wide search
       if (!form) {
-        throw new Error("Host form element not found");
+        form = document.getElementById("addRedirectionHostForm");
+      }
+      
+      // If still not found, create it
+      if (!form) {
+        form = document.createElement("form");
+        form.id = "addRedirectionHostForm";
+        modal.querySelector(".modal-content").appendChild(form);
       }
 
+      // Generate and set HTML content for the form
       form.innerHTML = generateRedirectionHostFormHTML(host);
+      
+      // Display the modal
       modal.style.display = "flex";
+      
+      // Setup form functionality
       setupRedirectionHostForm(form, true);
 
       // Populate certificate dropdown with existing values
       const certSelect = form.querySelector("#certificate_id");
       populateCertificateDropdown(certSelect, host.certificate_id || "");
 
+      // Set up form submission handler
       form.onsubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(form);
@@ -361,10 +373,13 @@ export async function editRedirectionHostModal(hostIdOrObject) {
       };
 
       // Also close the modal when Cancel button is clicked
-      form.querySelector(".modal-close").addEventListener("click", () => {
-        modal.style.display = "none";
-        reject(new Error("Edit cancelled by user"));
-      });
+      const closeBtn = form.querySelector(".modal-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+          modal.style.display = "none";
+          reject(new Error("Edit cancelled by user"));
+        });
+      }
     } catch (error) {
       console.error("Error showing edit host modal:", error);
       showError(`Failed to edit redirection host: ${error.message}`);
