@@ -227,3 +227,25 @@ export async function populateAccessListDropdown(selectElement, selectedValue = 
     console.error("Failed to load access lists", error);
   }
 }
+
+// Ensure this code runs on page load to set up global handler
+document.addEventListener('DOMContentLoaded', () => {
+  // Create global npmManager object
+  if (!window.npmManager) {
+    window.npmManager = {};
+  }
+  
+  // When ready, import all managers
+  Promise.all([
+    import('./managers/CertificateManager.js'),
+    import('./modals/CertificateModals.js')
+  ]).then(([certManager, certModals]) => {
+    // Certificate functions
+    window.npmManager.renewCertificate = certManager.renewCertificate;
+    window.npmManager.deleteCertificate = certManager.deleteCertificate;
+    window.npmManager.downloadCertificate = certManager.downloadCertificate;
+    window.npmManager.uploadCertificate = (certId) => certModals.showUploadCertificateModal(certId);
+  }).catch(err => {
+    console.error('Failed to load managers:', err);
+  });
+});

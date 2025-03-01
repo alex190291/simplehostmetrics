@@ -40,24 +40,36 @@ export async function deleteCertificate(certId) {
 
 export async function createCertificate(certData) {
   try {
-    let requestPromise = makeRequest(
+    const response = await makeRequest(
       "/npm-api",
       "/nginx/certificates",
       "POST",
       certData,
     );
-    if (certData.dns_challenge && certData.dns_challenge.wait_time) {
-      requestPromise = withTimeout(
-        requestPromise,
-        certData.dns_challenge.wait_time * 1000,
-      );
-    }
-    const response = await requestPromise;
+    
     showSuccess("Certificate created successfully");
     await Views.loadCertificates();
     return response.id;
   } catch (error) {
-    showError("Failed to create certificate");
+    console.error("Certificate creation error:", error);
+    showError("Failed to create certificate: " + (error.message || "Unknown error"));
+    throw error;
+  }
+}
+
+export async function updateCertificate(certId, certData) {
+  try {
+    await makeRequest(
+      "/npm-api", 
+      `/nginx/certificates/${certId}`, 
+      "PUT", 
+      certData
+    );
+    
+    showSuccess("Certificate updated successfully");
+    await Views.loadCertificates();
+  } catch (error) {
+    showError("Failed to update certificate: " + (error.message || "Unknown error"));
     throw error;
   }
 }
@@ -71,21 +83,29 @@ export async function validateCertificate(formData) {
       formData,
     );
     showSuccess("Certificate validated successfully");
-    await Views.loadCertificates();
   } catch (error) {
-    showError("Failed to validate certificate");
+    showError("Certificate validation failed: " + (error.message || "Unknown error"));
   }
 }
 
 export async function testHttpReach(domains) {
   try {
-    await makeRequest(
+    const response = await makeRequest(
       "/npm-api",
       `/nginx/certificates/test-http?domains=${encodeURIComponent(JSON.stringify(domains))}`,
     );
-    showSuccess("HTTP reachability test completed");
+    
+    // Format the response to show test results
+    let message = "HTTP Reachability Results:\n";
+    for (const [domain, status] of Object.entries(response)) {
+      message += `${domain}: ${status}\n`;
+    }
+    
+    showSuccess(message);
+    return response;
   } catch (error) {
     showError("HTTP reachability test failed");
+    throw error;
   }
 }
 
@@ -100,15 +120,36 @@ export async function downloadCertificate(certId) {
 
 export async function uploadCertificate(certId, formData) {
   try {
-    await makeRequest(
-      "/npm-api",
-      `/nginx/certificates/${certId}/upload`,
-      "POST",
-      formData,
-    );
+    // Create a new FormData object for the actual API call
+    const apiFormData = new FormData();
+    
+    // Get the files from the form
+    const certFile = formData.get("certificate");
+    const keyFile = formData.get("certificate_key");
+    
+    if (!certFile || !keyFile) {
+      throw new Error("Both certificate and key file are required");
+    }
+    
+    // Add files to the API formData
+    apiFormData.append("certificate", certFile);
+    apiFormData.append("certificate_key", keyFile);
+    
+    // Use fetch directly since we're dealing with multipart/form-data
+    const response = await fetch(`/npm-api/nginx/certificates/${certId}/upload`, {
+      method: "POST",
+      body: apiFormData
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Upload failed");
+    }
+    
     showSuccess("Certificate uploaded successfully");
     await Views.loadCertificates();
   } catch (error) {
-    showError("Failed to upload certificate");
+    showError("Failed to upload certificate: " + (error.message || "Unknown error"));
+    throw error;
   }
 }

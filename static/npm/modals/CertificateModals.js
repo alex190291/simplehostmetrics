@@ -1,5 +1,5 @@
 // /static/npm/modals/CertificateModals.js
-import { closeModals } from "../NPMUtils.js";
+import { closeModals, showError } from "../NPMUtils.js";
 
 export function populateCertificateForm(certificate = null) {
   const form = document.getElementById("certificateForm");
@@ -11,6 +11,14 @@ export function populateCertificateForm(certificate = null) {
   form.innerHTML = generateCertificateFormHTML(certificate);
   setupCertificateForm(form, !!certificate);
 
+  // Properly wire up the close button
+  const closeButton = form.querySelector(".modal-close");
+  if (closeButton) {
+    closeButton.addEventListener("click", () => {
+      closeModals();
+    });
+  }
+
   form.onsubmit = async (e) => {
     e.preventDefault();
     const submitBtn = form.querySelector("button[type='submit']");
@@ -19,17 +27,43 @@ export function populateCertificateForm(certificate = null) {
 
     try {
       const formData = new FormData(form);
+      
+      // Prepare the certificate data for API
       const data = {
         provider: formData.get("provider"),
         nice_name: formData.get("nice_name"),
         domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
-        dns_challenge: formData.has("dns_challenge"),
-        dns_provider: formData.get("dns_provider"),
-        api_key: formData.get("dns_provider") ? formData.get("api_key") : undefined,
-        meta: JSON.parse(formData.get("meta") || "{}")
+        meta: {}
       };
+      
+      // Handle DNS challenge if enabled
+      if (formData.get("dns_challenge")) {
+        data.meta.dns_challenge = true;
+        data.meta.dns_provider = formData.get("dns_provider");
+        if (formData.get("api_key")) {
+          data.meta.dns_provider_credentials = formData.get("api_key");
+        }
+      }
+      
+      // For Let's Encrypt, add required fields
+      if (data.provider === "letsencrypt") {
+        data.meta.letsencrypt_agree = true;
+        data.meta.letsencrypt_email = "admin@example.com"; // Could be made configurable
+      }
+      
+      // If it's a custom JSON in meta field, parse and merge it
+      try {
+        const metaJSON = formData.get("meta");
+        if (metaJSON && metaJSON !== "{}") {
+          const customMeta = JSON.parse(metaJSON);
+          data.meta = {...data.meta, ...customMeta};
+        }
+      } catch (jsonError) {
+        showError("Invalid JSON in meta field");
+        throw jsonError;
+      }
 
-      // Create or update the certificate
+      // Import dynamically to avoid circular dependencies
       const CertificateManager = await import("../managers/CertificateManager.js");
       if (certificate) {
         await CertificateManager.updateCertificate(certificate.id, data);
@@ -37,13 +71,75 @@ export function populateCertificateForm(certificate = null) {
         await CertificateManager.createCertificate(data);
       }
 
-      document.getElementById("certificateModal").style.display = "none";
+      closeModals();
     } catch (error) {
       console.error("Form submission error:", error);
-      alert("An error occurred: " + error.message);
+      showError("An error occurred: " + error.message);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = certificate ? "Update" : "Create";
+    }
+  };
+}
+
+// Add Certificate Upload Modal
+export function showUploadCertificateModal(certId) {
+  const modalHTML = `
+    <div id="uploadCertificateModal" class="modal">
+      <div class="modal-content">
+        <h2>Upload Certificate</h2>
+        <form id="uploadCertificateForm">
+          <div class="form-group">
+            <label for="certificate">Certificate File</label>
+            <input type="file" id="certificate" name="certificate" required accept=".crt,.pem,.cert">
+          </div>
+          <div class="form-group">
+            <label for="certificate_key">Certificate Key File</label>
+            <input type="file" id="certificate_key" name="certificate_key" required accept=".key,.pem">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Upload</button>
+            <button type="button" class="btn-secondary modal-close">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  // Create and add modal if it doesn't exist
+  let modal = document.getElementById("uploadCertificateModal");
+  if (!modal) {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = modalHTML;
+    modal = tempDiv.firstElementChild;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = "flex";
+
+  // Setup form submit and close button
+  const form = document.getElementById("uploadCertificateForm");
+  const closeBtn = modal.querySelector(".modal-close");
+  
+  closeBtn.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+  
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const submitBtn = form.querySelector("button[type='submit']");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Uploading...";
+    
+    try {
+      const formData = new FormData(form);
+      const CertificateManager = await import("../managers/CertificateManager.js");
+      await CertificateManager.uploadCertificate(certId, formData);
+      modal.style.display = "none";
+    } catch (error) {
+      showError("Upload failed: " + error.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Upload";
     }
   };
 }
@@ -53,10 +149,10 @@ function generateCertificateFormHTML(certificate = null) {
   const provider = isEdit ? certificate.provider : "letsencrypt";
   const niceName = isEdit ? certificate.nice_name : "";
   const domainNames = isEdit ? certificate.domain_names.join(", ") : "";
-  const dnsChallenge = isEdit ? certificate.dns_challenge : false;
-  const dnsProvider = isEdit ? certificate.dns_provider : "";
-  const apiKey = isEdit ? certificate.api_key : "";
-  const meta = isEdit ? JSON.stringify(certificate.meta, null, 2) : "{}";
+  const dnsChallenge = isEdit && certificate.meta && certificate.meta.dns_challenge ? true : false;
+  const dnsProvider = isEdit && certificate.meta ? certificate.meta.dns_provider || "" : "";
+  const apiKey = isEdit && certificate.meta ? certificate.meta.dns_provider_credentials || "" : "";
+  const meta = isEdit ? JSON.stringify(certificate.meta || {}, null, 2) : "{}";
 
   return `
     <div class="form-group">
@@ -68,11 +164,11 @@ function generateCertificateFormHTML(certificate = null) {
     </div>
     <div class="form-group">
       <label for="nice_name">Nice Name</label>
-      <input type="text" id="nice_name" name="nice_name" value="${niceName}">
+      <input type="text" id="nice_name" name="nice_name" value="${niceName}" placeholder="my.domain.com">
     </div>
     <div class="form-group">
       <label for="domain_names">Domain Names (comma-separated)</label>
-      <input type="text" id="domain_names" name="domain_names" value="${domainNames}">
+      <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required placeholder="domain.com, www.domain.com">
     </div>
     
     <!-- Replace checkbox with toggle switch -->
@@ -136,4 +232,27 @@ function setupCertificateForm(form) {
       apiKeyGroup.style.display = "none";
     }
   });
+
+  // Add test button for domain HTTP reachability
+  const domainInput = form.querySelector("#domain_names");
+  const testButton = document.createElement("button");
+  testButton.type = "button";
+  testButton.className = "btn-secondary test-button";
+  testButton.textContent = "Test HTTP Reachability";
+  testButton.style.marginLeft = "10px";
+  testButton.addEventListener("click", async () => {
+    const domains = domainInput.value.split(",").map(d => d.trim()).filter(d => d);
+    if (domains.length > 0) {
+      try {
+        const CertificateManager = await import("../managers/CertificateManager.js");
+        CertificateManager.testHttpReach(domains);
+      } catch (error) {
+        showError("Test failed: " + error.message);
+      }
+    } else {
+      showError("Please enter at least one domain name");
+    }
+  });
+  
+  domainInput.parentNode.appendChild(testButton);
 }
