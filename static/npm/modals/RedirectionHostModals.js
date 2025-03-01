@@ -281,7 +281,7 @@ export async function editRedirectionHostModal(hostIdOrObject) {
       }
 
       // Now we have the complete host object, proceed with the modal
-      const modal = document.getElementById("addHostModal");
+      const modal = document.getElementById("addRedirectionHostModal");
       if (!modal) {
         throw new Error("Host modal element not found");
       }
@@ -295,12 +295,12 @@ export async function editRedirectionHostModal(hostIdOrObject) {
       modal.style.display = "flex";
       setupRedirectionHostForm(form, true);
 
-      // Populate certificate and access list dropdowns with existing values
+      // Populate certificate and http code list dropdowns with existing values
       const certSelect = form.querySelector("#certificate_id");
       populateCertificateDropdown(certSelect, host.certificate_id || "");
 
-      const accessListSelect = form.querySelector("#access_list_id");
-      populateAccessListDropdown(accessListSelect, host.access_list_id || "");
+      const accessListSelect = form.querySelector("#forward_http_code");
+      populateAccessListDropdown(accessListSelect, host.forward_http_code || "");
 
       form.onsubmit = (e) => {
         e.preventDefault();
