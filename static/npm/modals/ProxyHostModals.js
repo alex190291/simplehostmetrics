@@ -332,8 +332,6 @@ export async function editProxyHostModal(hostIdOrObject) {
       const certSelect = form.querySelector("#certificate_id");
       populateCertificateDropdown(certSelect, host.certificate_id || "");
 
-      const accessListSelect = form.querySelector("#access_list_id");
-      populateAccessListDropdown(accessListSelect, host.access_list_id || "");
 
       form.onsubmit = (e) => {
         e.preventDefault();
