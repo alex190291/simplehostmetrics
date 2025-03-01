@@ -14,71 +14,135 @@ import {
 let redirectionHostFormTemplate = null;
 
 // Generate form HTML for redirection host configuration - used by both add and edit modals
-async function generateRedirectionHostFormHTML(host = null) {
-  // Fetch the template if we haven't already
-  if (!RedirectionHostFormTemplate) {
-    try {
-      const response = await fetch("/static/npm/templates/redirection-host-form.html");
-      if (!response.ok) {
-        throw new Error(`Failed to load template: ${response.status}`);
-      }
-      redirectionHostFormTemplate = await response.text();
-    } catch (error) {
-      console.error("Failed to load redirection host form template:", error);
-      // Fall back to empty template
-      redirectionHostFormTemplate = "<div>Error loading template</div>";
-    }
-  }
-  
-  // Create a temporary container to manipulate the HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = redirectionHostFormTemplate;
-  
+function generateProxyHostFormHTML(host = null) {
   const isEdit = host !== null;
-  
-  // Update all the form fields with data
-  if (isEdit) {
-    // Set host ID for edit mode
-    const idField = tempDiv.querySelector('#hostIdField');
-    idField.value = host.id;
-    
-    // Set forward http code
-    const forwardHttpCode = tempDiv.querySelector('#forward_http_code');
-    Array.from(forwardHttpCode.options).forEach(option => {
-      option.selected = option.value === host.forward_http_code;
-    });
+  const idField = isEdit
+    ? `<input type="hidden" name="host_id" value="${host.id}">`
+    : "";
+  const domainNames = isEdit ? host.domain_names.join(", ") : "";
+  const forwardHost = isEdit ? host.forward_host : "";
+  const forwardPort = isEdit ? host.forward_port : "";
+  const forwardSchemeHttp =
+    isEdit && host.forward_scheme === "http" ? "selected" : "";
+  const forwardSchemeHttps =
+    isEdit && host.forward_scheme === "https" ? "selected" : "";
+  const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
+  // Fix: Use allow_websocket_upgrade instead of websockets_support to match API property
+  const websocketsSupport =
+    isEdit && host.allow_websocket_upgrade ? "checked" : "";
+  const blockExploits = isEdit && host.block_exploits ? "checked" : "";
+  const sslForced = isEdit && host.ssl_forced ? "checked" : "";
+  const http2Support = isEdit && host.http2_support ? "checked" : "";
+  const hstsEnabled = isEdit && host.hsts_enabled ? "checked" : "";
+  const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
+  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
+  const submitBtnText = isEdit ? "Update Host" : "Add Host";
 
-    // Set forward scheme
-    const forwardSchemeSelect = tempDiv.querySelector('#forward_scheme');
-    Array.from(forwardSchemeSelect.options).forEach(option => {
-      option.selected = option.value === host.forward_scheme;
-    });
+  // Make sure all checkboxes are replaced with toggle switches
+  return `
+    ${idField}
+    <div class="tabs">
+      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
+      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
+    </div>
+    <div class="tab-content" id="generalTab">
+      <div class="form-group">
+        <label for="domain_names">Domain Names (comma-separated)</label>
+        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
+      </div>
+      <div class="form-group">
+        <label for="forward_host">Forward Host</label>
+        <input type="text" id="forward_host" name="forward_host" value="${forwardHost}" required>
+      </div>
+      <div class="form-group">
+        <label for="forward_port">Forward Port</label>
+        <input type="number" id="forward_port" name="forward_port" value="${forwardPort}" required>
+      </div>
+      <div class="form-group">
+        <label for="forward_scheme">Upstream Scheme</label>
+        <select id="forward_scheme" name="forward_scheme" required>
+          <option value="http" ${forwardSchemeHttp}>http</option>
+          <option value="https" ${forwardSchemeHttps}>https</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="certificate_id">Certificate</label>
+        <select id="certificate_id" name="certificate_id" required></select>
+      </div>
 
-    // Set domain names
-    const domainNamesInput = tempDiv.querySelector('#domain_names');
-    domainNamesInput.value = host.domain_names.join(", ");
-    
-    // Set forward http domain
-    tempDiv.querySelector('#forward_domain_name').value = host.forward_domain_name;
-        
-    // Set all checkboxes
-    if (host.ssl_forced) tempDiv.querySelector('#ssl_forced').checked = true;
-    if (host.hsts_enabled) tempDiv.querySelector('#hsts_enabled').checked = true;
-    if (host.hsts_subdomains) tempDiv.querySelector('#hsts_subdomains').checked = true;
-    if (host.http2_support) tempDiv.querySelector('#http2_support').checked = true;
-    if (host.block_exploits) tempDiv.querySelector('#block_exploits').checked = true;
+      <!-- Toggle switches instead of checkboxes -->
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="cache_assets" name="preserve_path" ${preservePath}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Cache Assets</span>
+        </label>
+      </div>
 
-    
-    // Set custom config
-    if (host.advanced_config) {
-      tempDiv.querySelector('#advanced_config').value = host.advanced_config;
-    }
-    
-    // Set submit button text
-    tempDiv.querySelector('#submitBtn').textContent = "Update Redirection";
-  }
-  
-  return tempDiv.innerHTML;
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Block Common Exploits</span>
+        </label>
+      </div>
+
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Force SSL</span>
+        </label>
+      </div>
+
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HTTP/2 Support</span>
+        </label>
+      </div>
+
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Enabled</span>
+        </label>
+      </div>
+
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">HSTS Enabled</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="tab-content" id="customTab" style="display:none;">
+      <div class="form-group">
+        <label for="custom_config">Custom Nginx Config</label>
+        <textarea id="custom_config" name="custom_config" rows="30">${customConfig}</textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">${submitBtnText}</button>
+      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+    </div>
+  `;
 }
 
 // Process form data from both add and edit forms
