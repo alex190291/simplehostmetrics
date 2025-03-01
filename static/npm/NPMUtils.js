@@ -184,6 +184,44 @@ export function openDnsChallengeModal() {
   });
 }
 
+/**
+ * Parses DNS provider credentials from template based on provider key
+ * @param {string} provider - DNS provider key
+ * @param {Object} credentials - User-provided credentials
+ * @returns {string} - Formatted credentials string
+ */
+export async function formatDnsCredentials(provider, credentials) {
+  try {
+    // Load the provider template
+    const response = await fetch("/static/npm/json/certbot-dns-plugins.json");
+    const providers = await response.json();
+    
+    if (!providers[provider]) {
+      return credentials; // Return as-is if provider not found
+    }
+
+    // Get the template for this provider
+    const template = providers[provider].credentials;
+    
+    // Return the credentials as they are if they already match the format
+    if (credentials.includes('=')) {
+      return credentials;
+    }
+    
+    // Try to extract the template variable
+    const matches = template.match(/=(.*?)(\n|$)/g);
+    if (!matches || matches.length === 0) {
+      return credentials;
+    }
+    
+    // Create a simple credential string by replacing the template value
+    return template.replace(/=(.*?)(\n|$)/g, `=${credentials}$2`);
+  } catch (error) {
+    console.error("Error formatting DNS credentials:", error);
+    return credentials;
+  }
+}
+
 // Switching tabs in modals
 export function switchTab(tabName, btn) {
   document.querySelectorAll(".tab-content").forEach(function (el) {
@@ -245,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.npmManager.deleteCertificate = certManager.deleteCertificate;
     window.npmManager.downloadCertificate = certManager.downloadCertificate;
     window.npmManager.uploadCertificate = (certId) => certModals.showUploadCertificateModal(certId);
+    window.npmManager.testHttpReach = certManager.testHttpReach;
   }).catch(err => {
     console.error('Failed to load managers:', err);
   });

@@ -40,11 +40,41 @@ export async function deleteCertificate(certId) {
 
 export async function createCertificate(certData) {
   try {
+    // Ensure proper structure for the API based on documentation
+    const apiPayload = {
+      provider: certData.provider,
+      nice_name: certData.nice_name,
+      domain_names: certData.domain_names,
+      meta: {
+        ...certData.meta,
+        letsencrypt_agree: true
+      }
+    };
+    
+    // If DNS challenge is enabled, ensure it's properly formatted
+    if (certData.meta.dns_challenge) {
+      apiPayload.meta.dns_challenge = true;
+      
+      if (certData.meta.dns_provider) {
+        apiPayload.meta.dns_provider = certData.meta.dns_provider;
+      }
+      
+      if (certData.meta.dns_provider_credentials) {
+        apiPayload.meta.dns_provider_credentials = certData.meta.dns_provider_credentials;
+      }
+      
+      if (certData.meta.propagation_seconds) {
+        apiPayload.meta.propagation_seconds = parseInt(certData.meta.propagation_seconds, 10);
+      }
+    }
+    
+    console.log("Sending certificate creation request:", apiPayload);
+    
     const response = await makeRequest(
       "/npm-api",
       "/nginx/certificates",
       "POST",
-      certData,
+      apiPayload
     );
     
     showSuccess("Certificate created successfully");
@@ -88,23 +118,52 @@ export async function validateCertificate(formData) {
   }
 }
 
+// Fixed to properly test HTTP reachability
 export async function testHttpReach(domains) {
   try {
-    const response = await makeRequest(
-      "/npm-api",
-      `/nginx/certificates/test-http?domains=${encodeURIComponent(JSON.stringify(domains))}`,
-    );
+    // Properly encode the domains parameter as described in the API docs
+    const encodedDomains = JSON.stringify(domains);
     
-    // Format the response to show test results
-    let message = "HTTP Reachability Results:\n";
-    for (const [domain, status] of Object.entries(response)) {
-      message += `${domain}: ${status}\n`;
+    const response = await fetch(`/npm-api/nginx/certificates/test-http?domains=${encodeURIComponent(encodedDomains)}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "HTTP reachability test failed");
     }
     
-    showSuccess(message);
-    return response;
+    const results = await response.json();
+    
+    // Format the response to show test results in a readable format
+    let successCount = 0;
+    let message = "HTTP Reachability Results:\n\n";
+    
+    for (const [domain, status] of Object.entries(results)) {
+      if (status === "ok") {
+        message += `✓ ${domain}: Successful\n`;
+        successCount++;
+      } else if (status.startsWith("other:")) {
+        message += `✗ ${domain}: Failed - ${status.substring(6)}\n`;
+      } else if (status === "404") {
+        message += `! ${domain}: Reachable but Not Found (404)\n`;
+        successCount++; // Count as reachable even though it's 404
+      } else {
+        message += `✗ ${domain}: Failed - ${status}\n`;
+      }
+    }
+    
+    message += `\nSummary: ${successCount} of ${domains.length} domain(s) reachable.`;
+    
+    if (successCount === domains.length) {
+      showSuccess(message);
+    } else if (successCount > 0) {
+      showSuccess(message); // Using success notification but with mixed results
+    } else {
+      showError(message); // All failed
+    }
+    
+    return results;
   } catch (error) {
-    showError("HTTP reachability test failed");
+    showError("HTTP reachability test failed: " + (error.message || "Unknown error"));
     throw error;
   }
 }

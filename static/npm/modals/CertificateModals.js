@@ -33,22 +33,29 @@ export function populateCertificateForm(certificate = null) {
         provider: formData.get("provider"),
         nice_name: formData.get("nice_name"),
         domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
-        meta: {}
+        meta: {
+          letsencrypt_agree: true,
+          letsencrypt_email: formData.get("email") || "admin@example.com"
+        }
       };
       
       // Handle DNS challenge if enabled
-      if (formData.get("dns_challenge")) {
+      if (formData.get("dns_challenge") === "on") {
         data.meta.dns_challenge = true;
-        data.meta.dns_provider = formData.get("dns_provider");
-        if (formData.get("api_key")) {
-          data.meta.dns_provider_credentials = formData.get("api_key");
+        const dnsProvider = formData.get("dns_provider");
+        data.meta.dns_provider = dnsProvider;
+        
+        // Add credentials in the format required by the API
+        const credentials = formData.get("dns_credentials");
+        if (credentials) {
+          data.meta.dns_provider_credentials = credentials;
+          
+          // Set propagation seconds if specified
+          const propagationSeconds = formData.get("propagation_seconds");
+          if (propagationSeconds) {
+            data.meta.propagation_seconds = parseInt(propagationSeconds, 10);
+          }
         }
-      }
-      
-      // For Let's Encrypt, add required fields
-      if (data.provider === "letsencrypt") {
-        data.meta.letsencrypt_agree = true;
-        data.meta.letsencrypt_email = "admin@example.com"; // Could be made configurable
       }
       
       // If it's a custom JSON in meta field, parse and merge it
@@ -172,9 +179,11 @@ function generateCertificateFormHTML(certificate = null) {
   const provider = isEdit ? certificate.provider : "letsencrypt";
   const niceName = isEdit ? certificate.nice_name : "";
   const domainNames = isEdit ? certificate.domain_names.join(", ") : "";
+  const email = isEdit && certificate.meta ? certificate.meta.letsencrypt_email || "" : "";
   const dnsChallenge = isEdit && certificate.meta && certificate.meta.dns_challenge ? true : false;
   const dnsProvider = isEdit && certificate.meta ? certificate.meta.dns_provider || "" : "";
-  const apiKey = isEdit && certificate.meta ? certificate.meta.dns_provider_credentials || "" : "";
+  const dnsCredentials = isEdit && certificate.meta ? certificate.meta.dns_provider_credentials || "" : "";
+  const propagationSeconds = isEdit && certificate.meta ? certificate.meta.propagation_seconds || "30" : "30";
   const meta = isEdit ? JSON.stringify(certificate.meta || {}, null, 2) : "{}";
 
   return `
@@ -186,15 +195,20 @@ function generateCertificateFormHTML(certificate = null) {
       </select>
     </div>
     <div class="form-group">
-      <label for="nice_name">Nice Name</label>
+      <label for="nice_name">Certificate Name</label>
       <input type="text" id="nice_name" name="nice_name" value="${niceName}" placeholder="my.domain.com">
     </div>
     <div class="form-group">
       <label for="domain_names">Domain Names (comma-separated)</label>
       <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required placeholder="domain.com, www.domain.com">
+      <button type="button" id="testHttpReachBtn" class="btn-secondary">Test HTTP Reachability</button>
+    </div>
+    <div class="form-group">
+      <label for="email">Email Address (for Let's Encrypt)</label>
+      <input type="email" id="email" name="email" value="${email}" placeholder="admin@example.com">
     </div>
     
-    <!-- Replace checkbox with toggle switch -->
+    <!-- DNS Challenge section -->
     <div class="form-group toggle">
       <label>
         <span class="toggle-switch">
@@ -205,22 +219,28 @@ function generateCertificateFormHTML(certificate = null) {
       </label>
     </div>
     
-    <div class="form-group" id="dns_provider_group" style="display: ${dnsChallenge ? "block" : "none"}">
-      <label for="dns_provider">DNS Challenge Provider</label>
-      <select id="dns_provider" name="dns_provider">
-        <option value="">Select Provider</option>
-        <option value="acmedns" ${dnsProvider === "acmedns" ? "selected" : ""}>ACME-DNS</option>
-        <option value="cloudflare" ${dnsProvider === "cloudflare" ? "selected" : ""}>Cloudflare</option>
-        <option value="digitalocean" ${dnsProvider === "digitalocean" ? "selected" : ""}>DigitalOcean</option>
-      </select>
+    <div id="dns_challenge_settings" style="display: ${dnsChallenge ? "block" : "none"}">
+      <div class="form-group">
+        <label for="dns_provider">DNS Provider</label>
+        <select id="dns_provider" name="dns_provider">
+          <option value="">Select Provider</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="dns_credentials">Provider Credentials</label>
+        <textarea id="dns_credentials" name="dns_credentials" rows="6" placeholder="Enter provider-specific credentials">${dnsCredentials}</textarea>
+        <p class="help-text">Format depends on provider. Will be automatically populated based on selection.</p>
+      </div>
+      <div class="form-group">
+        <label for="propagation_seconds">Propagation Wait Time (seconds)</label>
+        <input type="number" id="propagation_seconds" name="propagation_seconds" value="${propagationSeconds}" min="0" step="1">
+      </div>
     </div>
-    <div class="form-group" id="api_key_group" style="display: ${dnsProvider ? "block" : "none"}">
-      <label for="api_key">API Key</label>
-      <input type="text" id="api_key" name="api_key" value="${apiKey}">
-    </div>
+    
     <div class="form-group">
-      <label for="meta">Meta (JSON)</label>
+      <label for="meta">Advanced Settings (JSON)</label>
       <textarea id="meta" name="meta" placeholder='{}'>${meta}</textarea>
+      <p class="help-text">Only modify if you know what you're doing.</p>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn-primary">${isEdit ? "Update" : "Create"} Certificate</button>
@@ -230,52 +250,101 @@ function generateCertificateFormHTML(certificate = null) {
 }
 
 function setupCertificateForm(form) {
-  // Show/Hide DNS provider and API key fields based on toggle
-  const dnsChallengeCheckbox = form.querySelector("#dns_challenge");
-  dnsChallengeCheckbox.addEventListener("change", () => {
-    const dnsProviderGroup = form.querySelector("#dns_provider_group");
-    const apiKeyGroup = form.querySelector("#api_key_group");
-    if (dnsChallengeCheckbox.checked) {
-      dnsProviderGroup.style.display = "block";
-    } else {
-      dnsProviderGroup.style.display = "none";
-      apiKeyGroup.style.display = "none";
-      form.querySelector("#dns_provider").value = "";
-      form.querySelector("#api_key").value = "";
-    }
-  });
-
-  // Show API key field based on provider selection
-  const dnsProviderSelect = form.querySelector("#dns_provider");
-  dnsProviderSelect.addEventListener("change", () => {
-    const apiKeyGroup = form.querySelector("#api_key_group");
-    if (dnsProviderSelect.value) {
-      apiKeyGroup.style.display = "block";
-    } else {
-      apiKeyGroup.style.display = "none";
-    }
-  });
-
-  // Add test button for domain HTTP reachability
-  const domainInput = form.querySelector("#domain_names");
-  const testButton = document.createElement("button");
-  testButton.type = "button";
-  testButton.className = "btn-secondary test-button";
-  testButton.textContent = "Test HTTP Reachability";
-  testButton.style.marginLeft = "10px";
-  testButton.addEventListener("click", async () => {
-    const domains = domainInput.value.split(",").map(d => d.trim()).filter(d => d);
-    if (domains.length > 0) {
-      try {
-        const CertificateManager = await import("../managers/CertificateManager.js");
-        CertificateManager.testHttpReach(domains);
-      } catch (error) {
-        showError("Test failed: " + error.message);
+  // Get DNS providers for dropdown
+  loadDnsProviders().then(providers => {
+    const select = form.querySelector("#dns_provider");
+    if (select) {
+      // Clear existing options except the first one
+      while (select.options.length > 1) {
+        select.remove(1);
       }
-    } else {
-      showError("Please enter at least one domain name");
+      
+      // Add options for each provider
+      Object.keys(providers).forEach(key => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = providers[key].name;
+        select.appendChild(option);
+      });
+      
+      // Set selected if value exists
+      const currentValue = select.getAttribute('data-selected');
+      if (currentValue) {
+        for (let i = 0; i < select.options.length; i++) {
+          if (select.options[i].value === currentValue) {
+            select.selectedIndex = i;
+            break;
+          }
+        }
+      }
+      
+      // Add change handler to populate credentials template
+      select.addEventListener('change', () => {
+        const selectedProvider = select.value;
+        if (selectedProvider && providers[selectedProvider]) {
+          const credentialsTemplate = providers[selectedProvider].credentials;
+          form.querySelector("#dns_credentials").value = credentialsTemplate;
+        }
+      });
+      
+      // Trigger change to populate template if a provider is already selected
+      if (select.value) {
+        select.dispatchEvent(new Event('change'));
+      }
     }
+  }).catch(err => {
+    console.error('Failed to load DNS providers:', err);
   });
   
-  domainInput.parentNode.appendChild(testButton);
+  // Show/Hide DNS challenge settings based on toggle
+  const dnsChallengeCheckbox = form.querySelector("#dns_challenge");
+  dnsChallengeCheckbox.addEventListener("change", () => {
+    const dnsSettings = form.querySelector("#dns_challenge_settings");
+    if (dnsChallengeCheckbox.checked) {
+      dnsSettings.style.display = "block";
+    } else {
+      dnsSettings.style.display = "none";
+    }
+  });
+
+  // Set up HTTP reachability test button
+  const testBtn = form.querySelector("#testHttpReachBtn");
+  testBtn.addEventListener("click", async () => {
+    testBtn.disabled = true;
+    testBtn.textContent = "Testing...";
+    
+    const domainInput = form.querySelector("#domain_names");
+    const domains = domainInput.value.split(",").map(d => d.trim()).filter(d => d);
+    
+    if (domains.length === 0) {
+      showError("Please enter at least one domain name");
+      testBtn.disabled = false;
+      testBtn.textContent = "Test HTTP Reachability";
+      return;
+    }
+    
+    try {
+      const CertificateManager = await import("../managers/CertificateManager.js");
+      await CertificateManager.testHttpReach(domains);
+    } catch (error) {
+      showError("Reachability test failed: " + error.message);
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = "Test HTTP Reachability";
+    }
+  });
+}
+
+// Load DNS providers from the JSON file
+async function loadDnsProviders() {
+  try {
+    const response = await fetch("/static/npm/json/certbot-dns-plugins.json");
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error loading DNS providers:', error);
+    return {};
+  }
 }
