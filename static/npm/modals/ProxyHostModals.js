@@ -45,7 +45,6 @@ function generateProxyHostFormHTML(host = null) {
   const forwardSchemeHttps =
     isEdit && host.forward_scheme === "https" ? "selected" : "";
   const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
-  // Fix: Use allow_websocket_upgrade instead of websockets_support to match API property
   const websocketsSupport =
     isEdit && host.allow_websocket_upgrade ? "checked" : "";
   const blockExploits = isEdit && host.block_exploits ? "checked" : "";
@@ -56,7 +55,6 @@ function generateProxyHostFormHTML(host = null) {
   const customConfig = isEdit && host.custom_config ? host.custom_config : "";
   const submitBtnText = isEdit ? "Update Host" : "Add Host";
 
-  // Make sure all checkboxes are replaced with toggle switches
   return `
     ${idField}
     <div class="tabs">
@@ -159,8 +157,7 @@ function generateProxyHostFormHTML(host = null) {
         <label>
           <span class="toggle-switch">
             <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-
-}div>
+      </div>
     </div>
     <div class="tab-content" id="customTab" style="display:none;">
       <div class="form-group">

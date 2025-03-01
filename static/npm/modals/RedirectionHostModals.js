@@ -14,22 +14,21 @@ import {
 let redirectionHostFormTemplate = null;
 
 // Generate form HTML for redirection host configuration - used by both add and edit modals
-function generateProxyHostFormHTML(host = null) {
+function generateRedirectHostFormHTML(host = null) {
   const isEdit = host !== null;
   const idField = isEdit
     ? `<input type="hidden" name="host_id" value="${host.id}">`
     : "";
   const domainNames = isEdit ? host.domain_names.join(", ") : "";
-  const forwardHost = isEdit ? host.forward_host : "";
-  const forwardPort = isEdit ? host.forward_port : "";
+  const forwardHttpCode = 
+    isEdit && host.forward_http_code === 301 ? "selected" : "";
+    isEdit && host.forward_http_code === 302 ? "selected" : "";
   const forwardSchemeHttp =
     isEdit && host.forward_scheme === "http" ? "selected" : "";
   const forwardSchemeHttps =
     isEdit && host.forward_scheme === "https" ? "selected" : "";
-  const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
-  // Fix: Use allow_websocket_upgrade instead of websockets_support to match API property
-  const websocketsSupport =
-    isEdit && host.allow_websocket_upgrade ? "checked" : "";
+  const forwardDomainName = isEdit ? host.forward_domain_name : "";
+  const preserve_path = isEdit ? host.preservePath : "";
   const blockExploits = isEdit && host.block_exploits ? "checked" : "";
   const sslForced = isEdit && host.ssl_forced ? "checked" : "";
   const http2Support = isEdit && host.http2_support ? "checked" : "";
@@ -37,8 +36,7 @@ function generateProxyHostFormHTML(host = null) {
   const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
   const customConfig = isEdit && host.custom_config ? host.custom_config : "";
   const submitBtnText = isEdit ? "Update Host" : "Add Host";
-
-  // Make sure all checkboxes are replaced with toggle switches
+ 
   return `
     ${idField}
     <div class="tabs">
