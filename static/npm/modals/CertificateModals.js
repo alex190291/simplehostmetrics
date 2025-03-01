@@ -82,13 +82,23 @@ export function populateCertificateForm(certificate = null) {
   };
 }
 
-// Add Certificate Upload Modal
-export function showUploadCertificateModal(certId) {
+// Modified to not require a specific certId for uploading new certificates
+export function showUploadCertificateModal(certId = null) {
   const modalHTML = `
     <div id="uploadCertificateModal" class="modal">
       <div class="modal-content">
-        <h2>Upload Certificate</h2>
+        <h2>${certId ? 'Replace' : 'Upload'} Certificate</h2>
         <form id="uploadCertificateForm">
+          ${!certId ? `
+          <div class="form-group">
+            <label for="certificate_name">Certificate Name</label>
+            <input type="text" id="certificate_name" name="certificate_name" required placeholder="my.domain.com">
+          </div>
+          <div class="form-group">
+            <label for="domain_names">Domain Names (comma-separated)</label>
+            <input type="text" id="domain_names" name="domain_names" required placeholder="domain.com, www.domain.com">
+          </div>
+          ` : ''}
           <div class="form-group">
             <label for="certificate">Certificate File</label>
             <input type="file" id="certificate" name="certificate" required accept=".crt,.pem,.cert">
@@ -97,6 +107,7 @@ export function showUploadCertificateModal(certId) {
             <label for="certificate_key">Certificate Key File</label>
             <input type="file" id="certificate_key" name="certificate_key" required accept=".key,.pem">
           </div>
+          <input type="hidden" name="certId" value="${certId || ''}">
           <div class="form-actions">
             <button type="submit" class="btn-primary">Upload</button>
             <button type="button" class="btn-secondary modal-close">Cancel</button>
@@ -108,12 +119,14 @@ export function showUploadCertificateModal(certId) {
 
   // Create and add modal if it doesn't exist
   let modal = document.getElementById("uploadCertificateModal");
-  if (!modal) {
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = modalHTML;
-    modal = tempDiv.firstElementChild;
-    document.body.appendChild(modal);
+  if (modal) {
+    document.body.removeChild(modal);
   }
+  
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = modalHTML;
+  modal = tempDiv.firstElementChild;
+  document.body.appendChild(modal);
   modal.style.display = "flex";
 
   // Setup form submit and close button
@@ -121,7 +134,7 @@ export function showUploadCertificateModal(certId) {
   const closeBtn = modal.querySelector(".modal-close");
   
   closeBtn.addEventListener("click", () => {
-    modal.style.display = "none";
+    closeModals();
   });
   
   form.onsubmit = async (e) => {
@@ -133,8 +146,18 @@ export function showUploadCertificateModal(certId) {
     try {
       const formData = new FormData(form);
       const CertificateManager = await import("../managers/CertificateManager.js");
-      await CertificateManager.uploadCertificate(certId, formData);
-      modal.style.display = "none";
+      
+      const specificCertId = formData.get("certId");
+      
+      if (specificCertId) {
+        // Upload to existing certificate
+        await CertificateManager.uploadCertificate(specificCertId, formData);
+      } else {
+        // Create new certificate with uploaded files
+        await CertificateManager.uploadNewCertificate(formData);
+      }
+      
+      closeModals();
     } catch (error) {
       showError("Upload failed: " + error.message);
     } finally {

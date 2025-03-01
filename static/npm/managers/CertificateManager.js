@@ -153,3 +153,50 @@ export async function uploadCertificate(certId, formData) {
     throw error;
   }
 }
+
+// New method to handle uploading a completely new certificate
+export async function uploadNewCertificate(formData) {
+  try {
+    // First create the certificate metadata
+    const niceName = formData.get("certificate_name");
+    const domainNames = formData.get("domain_names")
+      .split(",")
+      .map(domain => domain.trim())
+      .filter(domain => domain);
+    
+    if (!niceName || domainNames.length === 0) {
+      throw new Error("Certificate name and at least one domain are required");
+    }
+    
+    // Create the certificate first
+    const certData = {
+      provider: "other", 
+      nice_name: niceName,
+      domain_names: domainNames,
+      meta: {}
+    };
+    
+    // Create the certificate
+    const createResponse = await makeRequest(
+      "/npm-api",
+      "/nginx/certificates",
+      "POST",
+      certData
+    );
+    
+    const newCertId = createResponse.id;
+    
+    if (!newCertId) {
+      throw new Error("Failed to create certificate record");
+    }
+    
+    // Now upload the certificate files to the newly created certificate
+    await uploadCertificate(newCertId, formData);
+    
+    showSuccess("Certificate created and uploaded successfully");
+    await Views.loadCertificates();
+  } catch (error) {
+    showError("Failed to upload new certificate: " + (error.message || "Unknown error"));
+    throw error;
+  }
+}

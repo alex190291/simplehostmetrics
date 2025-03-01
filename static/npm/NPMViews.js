@@ -191,7 +191,6 @@ export function createCertificateCard(cert) {
       <button class="btn btn-secondary" onclick="npmManager.renewCertificate(${cert.id})">Renew</button>
       <button class="btn btn-secondary" onclick="npmManager.deleteCertificate(${cert.id})">Delete</button>
       <button class="btn btn-secondary" onclick="npmManager.downloadCertificate(${cert.id})">Download</button>
-      <button class="btn btn-secondary" onclick="npmManager.uploadCertificate(${cert.id})">Upload</button>
     </div>
   `;
   return card;
@@ -404,9 +403,39 @@ function bindViewButtons() {
     });
   }
 
-  // Certificate Button
+  // Certificate Buttons
   const addCertificateBtn = document.getElementById("addCertificateBtn");
   if (addCertificateBtn) {
+    // Add a container for certificate action buttons if it doesn't exist already
+    let certActionContainer = document.querySelector('.certificate-actions');
+    if (!certActionContainer) {
+      certActionContainer = document.createElement('div');
+      certActionContainer.className = 'certificate-actions action-buttons';
+      addCertificateBtn.parentNode.appendChild(certActionContainer);
+      
+      // Move the Add Certificate button to the container
+      certActionContainer.appendChild(addCertificateBtn);
+      
+      // Create Upload Certificate button
+      const uploadCertBtn = document.createElement('button');
+      uploadCertBtn.id = "uploadCertificateBtn";
+      uploadCertBtn.className = "btn btn-primary";
+      uploadCertBtn.innerHTML = "<i class='fas fa-upload'></i> Upload Certificate";
+      certActionContainer.appendChild(uploadCertBtn);
+      
+      // Add event listener to Upload Certificate button
+      uploadCertBtn.addEventListener("click", () => {
+        try {
+          import('./modals/CertificateModals.js').then(module => {
+            module.showUploadCertificateModal();
+          });
+        } catch (error) {
+          console.error("Error showing certificate upload modal:", error);
+        }
+      });
+    }
+
+    // Add Certificate button event listener
     addCertificateBtn.addEventListener("click", () => {
       try {
         populateCertificateForm();
