@@ -107,7 +107,5 @@ window.RedirectionHostManager = {
   deleteRedirectionHost,
   enableRedirectionHost,
   disableRedirectionHost,
-  editRedirectionHostWithModal,
-  fetchRedirectionHost
 };
 
