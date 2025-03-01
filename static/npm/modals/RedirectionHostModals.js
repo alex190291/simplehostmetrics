@@ -63,17 +63,7 @@ function generateRedirectionHostFormHTML(host = null) {
         <label for="forward_domain_name">Forward Domain Name</label>
         <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomainName}" required>
       </div>
-      
-      <div class="form-group">
-        <label for="forward_host">Forward Host</label>
-        <input type="text" id="forward_host" name="forward_host" value="${forwardHost}" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="forward_port">Forward Port</label>
-        <input type="number" id="forward_port" name="forward_port" value="${forwardPort}" required>
-      </div>
-      
+          
       <div class="form-group">
         <label for="forward_scheme">Upstream Scheme</label>
         <select id="forward_scheme" name="forward_scheme" required>
