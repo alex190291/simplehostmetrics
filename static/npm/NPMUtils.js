@@ -67,9 +67,6 @@ export async function populateCertificateDropdown(selectElement, selectedValue =
     optionNoDns.textContent = "Request New Certificate (No DNS Challenge)";
     selectElement.appendChild(optionNoDns);
     const optionDns = document.createElement("option");
-    optionDns.value = "new_dns";
-    optionDns.textContent = "Request New Certificate (DNS Challenge)";
-    selectElement.appendChild(optionDns);
   } catch (error) {
     console.error("Failed to load certificates", error);
   }
