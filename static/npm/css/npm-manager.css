@@ -1,0 +1,45 @@
+/* DNS Challenge Progress Indicator */
+.dns-challenge-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: white;
+  z-index: 10000;
+  text-align: center;
+}
+
+.progress-container {
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+  height: 30px;
+  background-color: #333;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background-color: #4caf50;
+  width: 0;
+  transition: width 0.5s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}

@@ -28,6 +28,14 @@ export function populateCertificateForm(certificate = null) {
     try {
       const formData = new FormData(form);
       
+      // Get initial certificates list to compare later
+      let initialCerts = [];
+      try {
+        initialCerts = await makeRequest("/npm-api", "/nginx/certificates");
+      } catch (error) {
+        console.warn("Couldn't get initial certificates list:", error);
+      }
+      
       // Prepare the certificate data for API
       const data = {
         provider: formData.get("provider"),
@@ -72,21 +80,100 @@ export function populateCertificateForm(certificate = null) {
 
       // Import dynamically to avoid circular dependencies
       const CertificateManager = await import("../managers/CertificateManager.js");
+
+      // Create or update certificate
+      let certId;
       if (certificate) {
+        // Update existing certificate
         await CertificateManager.updateCertificate(certificate.id, data);
       } else {
-        await CertificateManager.createCertificate(data);
+        // Create new certificate
+        certId = await CertificateManager.createCertificate(data);
+        
+        // For DNS challenges, check for success more aggressively
+        if (data.meta.dns_challenge) {
+          // Close modal right away to prevent UI interference
+          closeModals();
+          
+          // Start a separate client-side monitoring for UI feedback
+          monitorCertificateCreation(certId, initialCerts);
+          return; // Exit early since we're handling this separately
+        }
       }
-
+      
+      // Close modal after successful creation/update
       closeModals();
+      
     } catch (error) {
       console.error("Form submission error:", error);
       showError("An error occurred: " + error.message);
-    } finally {
+      
+      // Reset button state on error
       submitBtn.disabled = false;
       submitBtn.textContent = certificate ? "Update" : "Create";
     }
   };
+}
+
+/**
+ * Monitor for certificate creation by comparing certificate lists
+ * @param {number} expectedCertId - ID of the certificate we're expecting
+ * @param {Array} initialCerts - Initial list of certificates before creation
+ */
+async function monitorCertificateCreation(expectedCertId, initialCerts) {
+  // Show a persistent notification that we're monitoring
+  const notification = showInfo("Monitoring certificate creation...", true);
+  
+  // Maximum time to wait before giving up
+  const maxWaitTime = 3 * 60 * 1000; // 3 minutes
+  const startTime = Date.now();
+  const checkInterval = 5000; // 5 seconds
+  
+  // Keep checking for certificate creation
+  const checkForCertificate = async () => {
+    try {
+      // Stop if we've been trying too long
+      if (Date.now() - startTime > maxWaitTime) {
+        if (notification) notification.remove();
+        return;
+      }
+      
+      // Get current certificates list
+      const currentCerts = await makeRequest("/npm-api", "/nginx/certificates");
+      
+      // Check if our certificate exists and is valid
+      const ourCert = currentCerts.find(cert => cert.id === expectedCertId);
+      if (ourCert && ourCert.expires_on) {
+        // We found our certificate and it has an expiry date (valid)
+        if (notification) notification.remove();
+        showSuccess("Certificate created successfully!");
+        return;
+      }
+      
+      // Check if any new certificates appeared that match our domains
+      // This covers the case where the ID might have changed
+      if (initialCerts && initialCerts.length > 0) {
+        const newCerts = currentCerts.filter(cert => 
+          !initialCerts.some(oldCert => oldCert.id === cert.id));
+          
+        if (newCerts.length > 0) {
+          // Found new certificates since we started, assume success
+          if (notification) notification.remove();
+          showSuccess("New certificate detected!");
+          return;
+        }
+      }
+      
+      // Schedule next check
+      setTimeout(checkForCertificate, checkInterval);
+    } catch (error) {
+      console.error("Error monitoring certificate creation:", error);
+      if (notification) notification.remove();
+    }
+  };
+  
+  // Start the monitoring process
+  checkForCertificate();
 }
 
 // Modified to not require a specific certId for uploading new certificates

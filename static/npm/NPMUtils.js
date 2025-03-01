@@ -1,22 +1,52 @@
 // /static/npm/NPMUtils.js
-export function showNotification(message, type) {
+import { makeRequest } from "./NPMService.js";
+
+export function showNotification(message, type, duration = 3000) {
   const notification = document.createElement("div");
   notification.className = `notification ${type}`;
   notification.textContent = message;
+  
+  // Remove any existing notifications of the same type
+  const existingNotifications = document.querySelectorAll(`.notification.${type}`);
+  existingNotifications.forEach(notif => {
+    // Only remove if it's not a persistent notification (no close button)
+    if (!notif.querySelector('.notification-close')) {
+      notif.remove();
+    }
+  });
+  
   document.body.appendChild(notification);
   setTimeout(() => notification.classList.add("show"), 100);
-  setTimeout(() => {
-    notification.classList.remove("show");
-    setTimeout(() => notification.remove(), 300);
-  }, 3000);
+  
+  if (duration > 0) {
+    setTimeout(() => {
+      notification.classList.remove("show");
+      setTimeout(() => notification.remove(), 300);
+    }, duration);
+  } else {
+    // For persistent notifications, add a close button
+    const closeBtn = document.createElement("span");
+    closeBtn.className = "notification-close";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.addEventListener("click", () => {
+      notification.classList.remove("show");
+      setTimeout(() => notification.remove(), 300);
+    });
+    notification.appendChild(closeBtn);
+    return notification; // Return the notification element for potential later removal
+  }
 }
 
 export function showError(message) {
   showNotification(message, "error");
 }
 
-export function showSuccess(message) {
-  showNotification(message, "success");
+export function showSuccess(message, persistent = false) {
+  return showNotification(message, "success", persistent ? 0 : 3000);
+}
+
+export function showInfo(message, persistent = false) {
+  return showNotification(message, "info", persistent ? 0 : 3000);
 }
 
 /**
