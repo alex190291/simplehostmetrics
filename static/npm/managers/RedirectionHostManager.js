@@ -4,19 +4,18 @@ import * as Views from "../NPMViews.js";
 
 /**
  * Creates a new redirection host
- * @param {Object} redirData - The redirection host data
+ * @param {Object} redirectionData - The redirection host data
  */
-export async function createRedirectionHost(redirData) {
+export async function createRedirectionHost(redirectionData) {
   try {
     await makeRequest(
-      "/npm-api",
-      "/nginx/redirection-hosts",
-      "POST",
-      redirData
+      "/npm-api", 
+      "/nginx/redirection-hosts", 
+      "POST", redirectionData
     );
-    
-    showSuccess("Redirection host created successfully");
-    await Views.loadRedirectionHosts();
+
+    showSuccess("Redirection Host created successfully");
+    await Views.loadRedirectionHosts();    
   } catch (error) {
     showError("Failed to create redirection host");
     throw error;
@@ -26,15 +25,15 @@ export async function createRedirectionHost(redirData) {
 /**
  * Edits an existing redirection host
  * @param {string|number} hostId - The ID of the host to edit
- * @param {Object} updatedRedirData - The updated host data
+ * @param {Object} updatedRedirectionData - The updated host data
  */
-export async function editRedirectionHost(hostId, updatedRedirData) {
+export async function editRedirectionHost(hostId, updatedRedirectionData) {
   try {
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
       "PUT",
-      updatedRedirData
+      updatedRedirectionData
     );
     showSuccess("Redirection host updated successfully");
     await Views.loadRedirectionHosts();
@@ -50,11 +49,11 @@ export async function editRedirectionHost(hostId, updatedRedirData) {
 export async function deleteRedirectionHost(hostId) {
   if (!confirm("Are you sure you want to delete this redirection host?")) 
     return;
-  
+
   try {
     await makeRequest(
-      "/npm-api",
-      `/nginx/redirection-hosts/${hostId}`,
+      "/npm-api", 
+      `/nginx/redirection-hosts/${hostId}`, 
       "DELETE"
     );
     showSuccess("Redirection host deleted successfully");
@@ -63,7 +62,6 @@ export async function deleteRedirectionHost(hostId) {
     showError("Failed to delete redirection host");
   }
 }
-
 
 /**
  * Enables a redirection host
@@ -100,12 +98,13 @@ export async function disableRedirectionHost(hostId) {
     showError("Failed to disable redirection host");
   }
 }
+
 // Export all functions to be available globally if needed
 window.RedirectionHostManager = {
   createRedirectionHost,
   editRedirectionHost,
   deleteRedirectionHost,
   enableRedirectionHost,
-  disableRedirectionHost,
+  disableRedirectionHost,  
 };
 
