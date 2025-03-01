@@ -169,23 +169,24 @@ function processRedirectionHostFormData(formData) {
   const access_list_id =
     access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
 
+  // Conform to the expected API format
   return {
     domain_names: formData
       .get("domain_names")
       .split(",")
       .map((d) => d.trim()),
-    forward_http_code: formData.get("forward_http_code"),
+    forward_http_code: parseInt(formData.get("forward_http_code")),
     forward_scheme: formData.get("forward_scheme"),
     forward_domain_name: formData.get("forward_domain_name"),
     preserve_path: formData.get("preserve_path") === "on",
     certificate_id: certificate_id,
-    caching_enabled: formData.get("cache_assets") === "on",
     ssl_forced: formData.get("ssl_forced") === "on",
     hsts_enabled: formData.get("hsts_enabled") === "on",
     hsts_subdomains: formData.get("hsts_subdomains") === "on",
     http2_support: formData.get("http2_support") === "on",
     block_exploits: formData.get("block_exploits") === "on",
-    advanced_config: formData.get("custom_config"),
+    advanced_config: formData.get("custom_config") || "",
+    meta: {} // Required by API
   };
 }
 
