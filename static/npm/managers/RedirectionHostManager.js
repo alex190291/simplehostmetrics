@@ -29,9 +29,6 @@ export async function createRedirectionHost(redirectionData) {
  */
 export async function editRedirectionHost(hostId, updatedRedirectionData) {
   try {
-    // Log the data being sent to help debug
-    console.log("Updating redirection host with data:", JSON.stringify(updatedRedirectionData));
-    
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
@@ -41,12 +38,7 @@ export async function editRedirectionHost(hostId, updatedRedirectionData) {
     showSuccess("Redirection host updated successfully");
     await Views.loadRedirectionHosts();
   } catch (error) {
-    // Enhanced error logging
-    console.error("Failed to update redirection host:", error);
-    if (error.response) {
-      console.error("Response data:", error.response.data);
-    }
-    showError("Failed to update redirection host: " + (error.message || "Unknown error"));
+    showError("Failed to update redirection host");
   }
 }
 
