@@ -1,19 +1,40 @@
 // /static/npm/modals/ProxyHostModals.js
+import { switchTab, closeModals } from "/static/npm/NPMUtils.js";
+
 import {
-  switchTab, 
-  closeModals,
   showSuccess,
   showError,
   populateCertificateDropdown,
-  populateAccessListDropdown,
-  handleCertificateCreation,
   openDnsChallengeModal,
+  handleCertificateCreation,
 } from "../NPMUtils.js";
+
+// Helper function to populate the access list dropdown dynamically
+async function populateAccessListDropdown(selectElement, selectedValue = "") {
+  try {
+    const response = await fetch("/npm-api/nginx/access-lists");
+    if (!response.ok) {
+      console.error("Failed to load access lists", response.statusText);
+      return;
+    }
+    const accessLists = await response.json();
+    selectElement.innerHTML = '<option value="">None</option>';
+    accessLists.forEach((list) => {
+      const option = document.createElement("option");
+      option.value = list.id;
+      option.textContent = list.name;
+      if (list.id == selectedValue) option.selected = true;
+      selectElement.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Failed to load access lists", error);
+  }
+}
 
 // Cache the template content
 let proxyHostFormTemplate = null;
 
-// Generate form HTML for proxy host configuration - used by both add and edit modals
+// Generate form HTML for host configuration - used by both add and edit modals
 async function generateProxyHostFormHTML(host = null) {
   // Fetch the template if we haven't already
   if (!proxyHostFormTemplate) {
