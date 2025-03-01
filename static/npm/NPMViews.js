@@ -405,7 +405,7 @@ function bindViewButtons() {
   if (addRedirectionHostBtn) {
     addRedirectionHostBtn.addEventListener("click", () => {
       try {
-        populateRedirectionHostForm();
+        populateAddRedirectionHostForm();
         document.getElementById("redirectionHostModal").style.display = "flex";
       } catch (error) {
         console.error("Error showing redirection host modal:", error);
