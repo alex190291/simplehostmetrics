@@ -342,7 +342,7 @@ def start_rtad_log_parser():
         time.sleep(10)
 
 with app.app_context():
-    rtad_manager.ensure_geolite2_db()
+    rtad_manager.ensure_geolite2_db(rtad_manager.GEOIP_DB_PATH)
     # Start background threads
     threading.Thread(target=start_rtad_log_parser, daemon=True).start()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
@@ -351,7 +351,7 @@ with app.app_context():
     threading.Thread(target=rtad_manager.update_country_info_job, daemon=True).start()
 
 if __name__ == '__main__':
-    rtad_manager.ensure_geolite2_db()
+    rtad_manager.ensure_geolite2_db(rtad_manager.GEOIP_DB_PATH)
     # Start background threads
     threading.Thread(target=start_rtad_log_parser, daemon=True).start()
     threading.Thread(target=stats.update_stats_cache, daemon=True).start()
