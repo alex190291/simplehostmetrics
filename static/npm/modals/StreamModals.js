@@ -1,5 +1,5 @@
 // /static/npm/modals/StreamModals.js
-import { closeModals } from "../common.js";
+import { closeModals } from "../NPMUtils.js";
 
 export function populateStreamHostForm(stream = null) {
   const form = document.getElementById("streamHostForm");

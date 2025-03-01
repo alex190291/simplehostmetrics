@@ -1,5 +1,5 @@
 // /static/npm/modals/SettingModals.js
-import { closeModals } from "./common.js";
+import { closeModals } from "./NPMUtils.js";
 
 export function editSettingModal(setting) {
   return new Promise((resolve) => {

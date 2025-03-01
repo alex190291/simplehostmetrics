@@ -1,5 +1,5 @@
 // /static/npm/modals/AccessListModals.js
-import { closeModals } from "../common.js";
+import { closeModals } from "../NPMUtils.js";
 
 export function populateAccessListForm(accessList = null) {
   const form = document.getElementById("accessListForm");

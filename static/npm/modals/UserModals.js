@@ -1,5 +1,5 @@
 // /static/npm/modals/UserModals.js
-import { closeModals } from "./common.js";
+import { closeModals } from "./NPMUtils.js";
 
 export function showCreateUserModal() {
   return new Promise((resolve) => {

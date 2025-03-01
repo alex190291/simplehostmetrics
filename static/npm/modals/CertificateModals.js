@@ -1,5 +1,5 @@
 // /static/npm/modals/CertificateModals.js
-import { closeModals } from "../common.js";
+import { closeModals } from "../NPMUtils.js";
 
 export function populateCertificateForm(certificate = null) {
   const form = document.getElementById("certificateForm");

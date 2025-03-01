@@ -1,6 +1,6 @@
 // /static/npm/modals/DeadHostModals.js
 import { makeRequest } from "../NPMService.js";
-import { closeModals } from "./common.js";
+import { closeModals } from "./NPMUtils.js";
 
 export function showCreateDeadHostModal() {
   return new Promise((resolve) => {
