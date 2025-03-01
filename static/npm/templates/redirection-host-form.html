@@ -1,0 +1,109 @@
+{{idField}}
+<div class="tabs">
+  <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
+  <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
+</div>
+<div class="tab-content" id="generalTab">
+  <div class="form-group">
+    <label for="domain_names">Domain Names (comma-separated)</label>
+    <input type="text" id="domain_names" name="domain_names" value="{{domainNames}}" required>
+  </div>
+
+  <div class="form-group">
+    <label for="forward_http_code">HTTP Redirection Code</label>
+    <select id="forward_http_code" name="forward_http_code">
+      <option value="301" {{forward301Selected}}>301 (Permanent)</option>
+      <option value="302" {{forward302Selected}}>302 (Temporary)</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <label for="forward_domain_name">Forward Domain Name</label>
+    <input type="text" id="forward_domain_name" name="forward_domain_name" value="{{forwardDomainName}}" required>
+  </div>
+      
+  <div class="form-group">
+    <label for="forward_scheme">Upstream Scheme</label>
+    <select id="forward_scheme" name="forward_scheme" required>
+      <option value="http" {{forwardSchemeHttp}}>http</option>
+      <option value="https" {{forwardSchemeHttps}}>https</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <label for="certificate_id">Certificate</label>
+    <select id="certificate_id" name="certificate_id" required></select>
+  </div>
+
+  <!-- Toggle switches instead of checkboxes -->
+  <div class="form-group toggle">
+    <label>
+      <span class="toggle-switch">
+        <input type="checkbox" id="preserve_path" name="preserve_path" {{preservePath}}>
+        <span class="slider"></span>
+      </span>
+      <span class="toggle-label">Preserve Path</span>
+    </label>
+  </div>
+
+  <div class="form-group toggle">
+    <label>
+      <span class="toggle-switch">
+        <input type="checkbox" id="block_exploits" name="block_exploits" {{blockExploits}}>
+        <span class="slider"></span>
+      </span>
+      <span class="toggle-label">Block Common Exploits</span>
+    </label>
+  </div>
+
+  <div class="form-group toggle">
+    <label>
+      <span class="toggle-switch">
+        <input type="checkbox" id="ssl_forced" name="ssl_forced" {{sslForced}}>
+        <span class="slider"></span>
+      </span>
+      <span class="toggle-label">Force SSL</span>
+    </label>
+  </div>
+
+  <div class="form-group toggle">
+    <label>
+      <span class="toggle-switch">
+        <input type="checkbox" id="http2_support" name="http2_support" {{http2Support}}>
+        <span class="slider"></span>
+      </span>
+      <span class="toggle-label">HTTP/2 Support</span>
+    </label>
+  </div>
+
+  <div class="form-group toggle">
+    <label>
+      <span class="toggle-switch">
+        <input type="checkbox" id="hsts_enabled" name="hsts_enabled" {{hstsEnabled}}>
+        <span class="slider"></span>
+      </span>
+      <span class="toggle-label">HSTS Enabled</span>
+    </label>
+  </div>
+
+  <div class="form-group toggle">
+    <label>
+      <span class="toggle-switch">
+        <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" {{hstsSubdomains}}>
+        <span class="slider"></span>
+      </span>
+      <span class="toggle-label">HSTS Subdomains</span>
+    </label>
+  </div>
+</div>
+
+<div class="tab-content" id="customTab" style="display:none;">
+  <div class="form-group">
+    <label for="custom_config">Custom Nginx Config</label>
+    <textarea id="custom_config" name="custom_config" rows="30">{{customConfig}}</textarea>
+  </div>
+</div>
+<div class="form-actions">
+  <button type="submit" class="btn btn-primary">{{submitBtnText}}</button>
+  <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+</div>
