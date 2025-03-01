@@ -1,6 +1,7 @@
 // simplehostmetrics/static/npm/modals/RedirectionHostModals.js
-import { switchTab, closeModals } from "/static/npm/common.js";
 import { 
+  switchTab, 
+  closeModals,
   showSuccess, 
   showError, 
   populateCertificateDropdown, 
