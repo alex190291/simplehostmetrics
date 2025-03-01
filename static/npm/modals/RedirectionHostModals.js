@@ -11,21 +11,28 @@ import {
 
 
 // Generate form HTML for redirection host configuration - used by both add and edit modals
-function generateRedirectHostFormHTML(host = null) {
+function generateRedirectionHostFormHTML(host = null) {
   const isEdit = host !== null;
   const idField = isEdit
     ? `<input type="hidden" name="host_id" value="${host.id}">`
     : "";
   const domainNames = isEdit ? host.domain_names.join(", ") : "";
-  const forwardHttpCode = 
-    isEdit && host.forward_http_code === 301 ? "selected" : "";
-    isEdit && host.forward_http_code === 302 ? "selected" : "";
+  
+  // Fix the forward HTTP code selection logic
+  const forward301Selected = isEdit && host.forward_http_code === 301 ? "selected" : "";
+  const forward302Selected = isEdit && host.forward_http_code === 302 ? "selected" : "";
+  
   const forwardSchemeHttp =
     isEdit && host.forward_scheme === "http" ? "selected" : "";
   const forwardSchemeHttps =
     isEdit && host.forward_scheme === "https" ? "selected" : "";
+  
+  // Fix variable names to match form fields
   const forwardDomainName = isEdit ? host.forward_domain_name : "";
-  const preserve_path = isEdit ? host.preservePath : "";
+  const forwardHost = isEdit ? host.forward_host || "" : "";
+  const forwardPort = isEdit ? host.forward_port || "" : "";
+  const preservePath = isEdit && host.preserve_path ? "checked" : "";
+  
   const blockExploits = isEdit && host.block_exploits ? "checked" : "";
   const sslForced = isEdit && host.ssl_forced ? "checked" : "";
   const http2Support = isEdit && host.http2_support ? "checked" : "";
@@ -45,14 +52,31 @@ function generateRedirectHostFormHTML(host = null) {
         <label for="domain_names">Domain Names (comma-separated)</label>
         <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
       </div>
+      
+      <!-- Added missing forward_http_code dropdown -->
+      <div class="form-group">
+        <label for="forward_http_code">HTTP Redirection Code</label>
+        <select id="forward_http_code" name="forward_http_code">
+          <option value="301" ${forward301Selected}>301 (Permanent)</option>
+          <option value="302" ${forward302Selected}>302 (Temporary)</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="forward_domain_name">Forward Domain Name</label>
+        <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomainName}" required>
+      </div>
+      
       <div class="form-group">
         <label for="forward_host">Forward Host</label>
         <input type="text" id="forward_host" name="forward_host" value="${forwardHost}" required>
       </div>
+      
       <div class="form-group">
         <label for="forward_port">Forward Port</label>
         <input type="number" id="forward_port" name="forward_port" value="${forwardPort}" required>
       </div>
+      
       <div class="form-group">
         <label for="forward_scheme">Upstream Scheme</label>
         <select id="forward_scheme" name="forward_scheme" required>
@@ -60,6 +84,7 @@ function generateRedirectHostFormHTML(host = null) {
           <option value="https" ${forwardSchemeHttps}>https</option>
         </select>
       </div>
+      
       <div class="form-group">
         <label for="certificate_id">Certificate</label>
         <select id="certificate_id" name="certificate_id" required></select>
@@ -69,7 +94,18 @@ function generateRedirectHostFormHTML(host = null) {
       <div class="form-group toggle">
         <label>
           <span class="toggle-switch">
-            <input type="checkbox" id="cache_assets" name="preserve_path" ${preservePath}>
+            <input type="checkbox" id="preserve_path" name="preserve_path" ${preservePath}>
+            <span class="slider"></span>
+          </span>
+          <span class="toggle-label">Preserve Path</span>
+        </label>
+      </div>
+
+      <!-- Added cache_assets toggle -->
+      <div class="form-group toggle">
+        <label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="cache_assets" name="cache_assets" ${isEdit && host.caching_enabled ? "checked" : ""}>
             <span class="slider"></span>
           </span>
           <span class="toggle-label">Cache Assets</span>
@@ -122,7 +158,7 @@ function generateRedirectHostFormHTML(host = null) {
             <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
             <span class="slider"></span>
           </span>
-          <span class="toggle-label">HSTS Enabled</span>
+          <span class="toggle-label">HSTS Subdomains</span>
         </label>
       </div>
     </div>
