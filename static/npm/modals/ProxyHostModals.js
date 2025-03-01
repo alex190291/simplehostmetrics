@@ -53,7 +53,7 @@ async function generateProxyHostFormHTML(host = null) {
     forwardPort: isEdit ? host.forward_port : "",
     forwardSchemeHttp: isEdit && host.forward_scheme === "http" ? "selected" : "",
     forwardSchemeHttps: isEdit && host.forward_scheme === "https" ? "selected" : "",
-    cacheAssets: isEdit && host.cache_assets ? "checked" : "",
+    cacheAssets: isEdit && host.caching_enabled ? "checked" : "",
     websocketsSupport: isEdit && host.allow_websocket_upgrade ? "checked" : "",
     blockExploits: isEdit && host.block_exploits ? "checked" : "",
     sslForced: isEdit && host.ssl_forced ? "checked" : "",
