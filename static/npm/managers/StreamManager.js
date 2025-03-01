@@ -5,22 +5,12 @@ import * as Views from "../NPMViews.js";
 
 export async function editStream(streamId, updatedData) {
   try {
-    // Format the data according to what the API expects
-    const formattedData = {
-      incoming_port: updatedData.incoming_port,
-      forwarding_host: updatedData.forwarding_host,
-      forwarding_port: updatedData.forwarding_port,
-      tcp_forwarding: updatedData.tcp_forwarding,
-      udp_forwarding: updatedData.udp_forwarding,
-      enabled: updatedData.enabled,
-      meta: {}  // Required empty object
-    };
-    
+    // The data is already formatted correctly from the modal, just pass it through
     await makeRequest(
       "/npm-api",
       `/nginx/streams/${streamId}`,
       "PUT",
-      formattedData,
+      updatedData
     );
     showSuccess("Stream updated successfully");
     await Views.loadStreamHosts();
@@ -43,18 +33,8 @@ export async function deleteStream(streamId) {
 
 export async function createStream(streamData) {
   try {
-    // Format the data according to what the API expects
-    const formattedData = {
-      incoming_port: streamData.incoming_port,
-      forwarding_host: streamData.forwarding_host,
-      forwarding_port: streamData.forwarding_port,
-      tcp_forwarding: streamData.tcp_forwarding,
-      udp_forwarding: streamData.udp_forwarding,
-      enabled: streamData.enabled,
-      meta: {}  // Required empty object
-    };
-    
-    await makeRequest("/npm-api", "/nginx/streams", "POST", formattedData);
+    // The data is already formatted correctly from the modal, just pass it through
+    await makeRequest("/npm-api", "/nginx/streams", "POST", streamData);
     showSuccess("Stream created successfully");
     await Views.loadStreamHosts();
   } catch (error) {

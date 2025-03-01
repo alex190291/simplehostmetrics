@@ -119,12 +119,12 @@ export function createStreamCard(stream) {
   const disableLabel = stream.enabled ? "Disable" : "Enable";
   card.innerHTML = `
     <div class="card-header">
-      <h3>Stream on port ${stream.incoming_port}</h3>
+      <h3>Stream on port ${stream.listen_port}</h3>
       <div class="status-indicator ${stream.enabled ? "active" : "inactive"}"></div>
     </div>
     <div class="card-content">
-      <p>Forward: ${stream.forwarding_host}:${stream.forwarding_port}</p>
-      <p>TCP: ${stream.tcp_forwarding ? "Yes" : "No"}, UDP: ${stream.udp_forwarding ? "Yes" : "No"}</p>
+      <p>Forward: ${stream.forward_ip}:${stream.forward_port}</p>
+      <p>TCP: ${stream.tcp ? "Yes" : "No"}, UDP: ${stream.udp ? "Yes" : "No"}</p>
     </div>
     <div class="card-actions">
       <button class="btn btn-primary" onclick="npmManager.editStream(${stream.id})">Edit</button>
