@@ -6,7 +6,6 @@ import {
   showError, 
   populateCertificateDropdown, 
   handleCertificateCreation,
-  openDnsChallengeModal, 
 } from "../NPMUtils.js";
 import { loadTemplate, processTemplate } from "../utils/TemplateLoader.js";
 
@@ -63,10 +62,7 @@ function processRedirectionHostFormData(formData) {
   let certificate_id;
   if (certificate_id_raw === "") {
     certificate_id = null;
-  } else if (
-    certificate_id_raw === "new_dns" ||
-    certificate_id_raw === "new_nodns"
-  ) {
+  } else if (certificate_id_raw === "new_nodns") { // Remove "new_dns" || 
     certificate_id = "new";
   } else {
     certificate_id = parseInt(certificate_id_raw);
@@ -178,10 +174,7 @@ export async function populateAddRedirectionHostForm() {
       const certificate_id_raw = formData.get("certificate_id");
 
       // Handle certificate creation if needed
-      if (
-        certificate_id_raw === "new_dns" ||
-        certificate_id_raw === "new_nodns"
-      ) {
+      if (certificate_id_raw === "new_nodns") { // Remove the "new_dns" || 
         try {
           baseData.certificate_id = await handleCertificateCreation(
             baseData.domain_names,

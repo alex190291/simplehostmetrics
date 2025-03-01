@@ -6,7 +6,6 @@ import {
   showSuccess,
   showError,
   populateCertificateDropdown,
-  openDnsChallengeModal,
   handleCertificateCreation,
 } from "../NPMUtils.js";
 
@@ -45,7 +44,7 @@ async function ensureTemplatesLoaded() {
 // Generate form HTML for host configuration - using templates now
 async function generateProxyHostFormHTML(host = null) {
   await ensureTemplatesLoaded();
-  
+
   const isEdit = host !== null;
   const templateData = {
     idField: isEdit ? `<input type="hidden" name="host_id" value="${host.id}">` : "",
@@ -64,7 +63,7 @@ async function generateProxyHostFormHTML(host = null) {
     customConfig: isEdit && host.custom_config ? host.custom_config : "",
     submitBtnText: isEdit ? "Update Host" : "Add Host"
   };
-  
+
   return processTemplate(proxyHostFormTemplate, templateData);
 }
 
@@ -74,10 +73,7 @@ function processProxyHostFormData(formData) {
   let certificate_id;
   if (certificate_id_raw === "") {
     certificate_id = null;
-  } else if (
-    certificate_id_raw === "new_dns" ||
-    certificate_id_raw === "new_nodns"
-  ) {
+  } else if (certificate_id_raw === "new_nodns") {
     certificate_id = "new";
   } else {
     certificate_id = parseInt(certificate_id_raw);
@@ -156,10 +152,7 @@ export async function populateAddProxyHostForm() {
       const certificate_id_raw = formData.get("certificate_id");
 
       // Handle certificate creation if needed
-      if (
-        certificate_id_raw === "new_dns" ||
-        certificate_id_raw === "new_nodns"
-      ) {
+      if (certificate_id_raw === "new_nodns") { // Remove the "new_dns" || 
         try {
           baseData.certificate_id = await handleCertificateCreation(
             baseData.domain_names,
