@@ -2,215 +2,126 @@
 import { 
   switchTab, 
   closeModals,
-  showSuccess, 
+  showSuccess,   
   showError, 
   populateCertificateDropdown, 
-  handleCertificateCreation 
+  handleCertificateCreation,
+  openDnsChallengeModal, 
 } from "../NPMUtils.js";
 
-// -------------------------
-// Form Population Functions
-// -------------------------
-export function populateRedirectionHostForm(host = null) {
-  const form = document.getElementById("redirectionHostForm");
-  if (!form) {
-    console.error("Redirection host form not found");
-    return;
-  }
 
-  form.innerHTML = generateRedirectionHostFormHTML(host);
-  setupRedirectionForm(form, !!host);
+// Cache the template content
+let redirectionHostFormTemplate = null;
 
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    const submitBtn = form.querySelector("button[type='submit']");
-    submitBtn.disabled = true;
-    submitBtn.textContent = "Please wait...";
-
+// Generate form HTML for redirection host configuration - used by both add and edit modals
+async function generateRedirectionHostFormHTML(host = null) {
+  // Fetch the template if we haven't already
+  if (!RedirectionHostModalsHostFormTemplate) {
     try {
-      const formData = new FormData(form);
-      const baseData = processRedirectionFormData(formData);
-
-      // Handle certificate creation if needed
-      const certId = formData.get("certificate_id");
-      if (certId.startsWith("new_")) {
-        baseData.certificate_id = await handleCertificateCreation(
-          baseData.domain_names,
-          certId === "new_dns"
-        );
-      } else {
-        baseData.certificate_id = certId === "" ? null : parseInt(certId);
+      const response = await fetch("/static/npm/templates/redirection-host-form.html");
+      if (!response.ok) {
+        throw new Error(`Failed to load template: ${response.status}`);
       }
-
-      // Create or update the redirection host
-      const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
-      if (host) {
-        // Change from updateRedirectionHost to editRedirectionHost
-        await RedirectionHostManager.editRedirectionHost(host.id, baseData);
-      } else {
-        await RedirectionHostManager.createRedirectionHost(baseData);
-      }
-      
-      document.getElementById("redirectionHostModal").style.display = "none";
-      closeModals();
+      redirectionHostFormTemplate = await response.text();
     } catch (error) {
-      console.error("Form submission error:", error);
-      alert("An error occurred: " + error.message);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = host ? "Update" : "Create";
+      console.error("Failed to load redirection host form template:", error);
+      // Fall back to empty template
+      redirectionHostFormTemplate = "<div>Error loading template</div>";
     }
+  }
+  
+  // Create a temporary container to manipulate the HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = redirectionHostFormTemplate;
+  
+  const isEdit = host !== null;
+  
+  // Update all the form fields with data
+  if (isEdit) {
+    // Set host ID for edit mode
+    const idField = tempDiv.querySelector('#hostIdField');
+    idField.value = host.id;
+    
+    // Set forward http code
+    const forwardHttpCode = tempDiv.querySelector('#forward_http_code');
+    Array.from(forwardHttpCode.options).forEach(option => {
+      option.selected = option.value === host.forward_http_code;
+    });
+
+    // Set forward scheme
+    const forwardSchemeSelect = tempDiv.querySelector('#forward_scheme');
+    Array.from(forwardSchemeSelect.options).forEach(option => {
+      option.selected = option.value === host.forward_scheme;
+    });
+
+    // Set domain names
+    const domainNamesInput = tempDiv.querySelector('#domain_names');
+    domainNamesInput.value = host.domain_names.join(", ");
+    
+    // Set forward http domain
+    tempDiv.querySelector('#forward_domain_name').value = host.forward_domain_name;
+        
+    // Set all checkboxes
+    if (host.ssl_forced) tempDiv.querySelector('#ssl_forced').checked = true;
+    if (host.hsts_enabled) tempDiv.querySelector('#hsts_enabled').checked = true;
+    if (host.hsts_subdomains) tempDiv.querySelector('#hsts_subdomains').checked = true;
+    if (host.http2_support) tempDiv.querySelector('#http2_support').checked = true;
+    if (host.block_exploits) tempDiv.querySelector('#block_exploits').checked = true;
+
+    
+    // Set custom config
+    if (host.advanced_config) {
+      tempDiv.querySelector('#advanced_config').value = host.advanced_config;
+    }
+    
+    // Set submit button text
+    tempDiv.querySelector('#submitBtn').textContent = "Update Redirection";
+  }
+  
+  return tempDiv.innerHTML;
+}
+
+// Process form data from both add and edit forms
+function processRedirectionHostFormData(formData) {
+  const certificate_id_raw = formData.get("certificate_id");
+  let certificate_id;
+  if (certificate_id_raw === "") {
+    certificate_id = null;
+  } else if (
+    certificate_id_raw === "new_dns" ||
+    certificate_id_raw === "new_nodns"
+  ) {
+    certificate_id = "new";
+  } else {
+    certificate_id = parseInt(certificate_id_raw);
+  }
+  const access_list_id_raw = formData.get("access_list_id");
+  const access_list_id =
+    access_list_id_raw === "" ? null : parseInt(access_list_id_raw);
+
+  return {
+    domain_names: formData
+      .get("domain_names")
+      .split(",")
+      .map((d) => d.trim()),
+    forward_http_code: formData.get("forward_http_code"),
+    forward_scheme: formData.get("forward_scheme"),
+    forward_domain_name: formData.get("forward_domain_name"),
+    preserve_path: formData.get("preserve_path") === "on",
+    certificate_id: certificate_id,
+    caching_enabled: formData.get("cache_assets") === "on",
+    ssl_forced: formData.get("ssl_forced") === "on",
+    hsts_enabled: formData.get("hsts_enabled") === "on",
+    hsts_subdomains: formData.get("hsts_subdomains") === "on",
+    http2_support: formData.get("http2_support") === "on",
+    block_exploits: formData.get("block_exploits") === "on",
+    advanced_config: formData.get("custom_config"),
   };
 }
 
-// -------------------------
-// Form Generation Utilities
-// -------------------------
-function generateRedirectionHostFormHTML(host = null) {
-  const isEdit = host !== null;
-  const idField = isEdit
-    ? `<input type="hidden" name="id" value="${host.id}">`
-    : "";
-
-  // Default values for form fields
-  const domainNames = isEdit ? host.domain_names.join(", ") : "";
-  const forwardHttpCode = isEdit ? host.forward_http_code : "301";
-  const forwardScheme = isEdit ? host.forward_scheme : "auto";
-  const forwardDomain = isEdit ? host.forward_domain_name : "";
-  const preservePath = isEdit ? host.preserve_path : true;
-  const sslForced = isEdit ? host.ssl_forced : false;
-  const hstsEnabled = isEdit ? host.hsts_enabled : false;
-  const hstsSubdomains = isEdit ? host.hsts_subdomains : false;
-  const http2Support = isEdit ? host.http2_support : false;
-  const blockExploits = isEdit ? host.block_exploits : false;
-  const customConfig = isEdit && host.advanced_config ? host.advanced_config : "";
-  const enabled = isEdit ? host.enabled : true;
-
-  return `
-    ${idField}
-    <div class="tabs">
-      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
-      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
-    </div>
-    <div class="tab-content" id="generalTab">
-      <div class="form-group">
-        <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_http_code">Redirect HTTP Code</label>
-        <select id="forward_http_code" name="forward_http_code" required>
-          <option value="301" ${forwardHttpCode === "301" ? "selected" : ""}>301 - Permanent Redirect</option>
-          <option value="302" ${forwardHttpCode === "302" ? "selected" : ""}>302 - Temporary Redirect</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_scheme">Protocol</label>
-        <select id="forward_scheme" name="forward_scheme" required>
-          <option value="auto" ${forwardScheme === "auto" ? "selected" : ""}>Auto</option>
-          <option value="http" ${forwardScheme === "http" ? "selected" : ""}>HTTP</option>
-          <option value="https" ${forwardScheme === "https" ? "selected" : ""}>HTTPS</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="forward_domain_name">Destination Domain</label>
-        <input type="text" id="forward_domain_name" name="forward_domain_name" value="${forwardDomain}" required>
-      </div>
-
-      <div class="form-group">
-        <label for="preserve_path">Preserve Path</label>
-        <select id="preserve_path" name="preserve_path" required>
-          <option value="true" ${preservePath ? "selected" : ""}>Yes</option>
-          <option value="false" ${!preservePath ? "selected" : ""}>No</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="certificate_id">SSL Certificate</label>
-        <select id="certificate_id" name="certificate_id"></select>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced ? "checked" : ""}>
-            <span class="slider"></span>
-          </div>
-          <span class="toggle-label">Force SSL</span>
-        </label>
-      </div>
-      
-      <div class="form-group toggle">
-        <label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled ? "checked" : ""}>
-            <span class="slider"></span>
-          </div>
-          <span class="toggle-label">HSTS Enabled</span>
-        </label>
-      </div>
-      
-      <div class="form-group toggle">
-        <label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains ? "checked" : ""}>
-            <span class="slider"></span>
-          </div>
-          <span class="toggle-label">Include Subdomains</span>
-        </label>
-      </div>
-      
-      <div class="form-group toggle">
-        <label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support ? "checked" : ""}>
-            <span class="slider"></span>
-          </div>
-          <span class="toggle-label">HTTP/2 Support</span>
-        </label>
-      </div>
-      
-      <div class="form-group toggle">
-        <label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits ? "checked" : ""}>
-            <span class="slider"></span>
-          </div>
-          <span class="toggle-label">Block Exploits</span>
-        </label>
-      </div>
-      
-      <div class="form-group toggle">
-        <label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="enabled" name="enabled" ${enabled ? "checked" : ""}>
-            <span class="slider"></span>
-          </div>
-          <span class="toggle-label">Enabled</span>
-        </label>
-      </div>
-    </div>
-    <div class="tab-content" id="customTab" style="display:none;">
-      <div class="form-group">
-        <label for="advanced_config">Custom Nginx Config</label>
-        <textarea id="advanced_config" name="advanced_config" rows="10">${customConfig}</textarea>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">${isEdit ? "Update" : "Create"} Redirection</button>
-      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-    </div>
-  `;
-}
-
-// -------------------------
-// Form Handling
-// -------------------------
-function setupRedirectionForm(form, isEdit = false) {
-  // Tab functionality
+// Setup form for both add and edit
+function setupRedirectionHostForm(form, isEdit = false) {
+  // Attach tab switching event listeners
   const tabLinks = form.querySelectorAll(".tab-link");
   tabLinks.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -223,191 +134,136 @@ function setupRedirectionForm(form, isEdit = false) {
     btn.addEventListener("click", closeModals);
   });
 
-  // Certificate dropdown
+  // Populate dropdown menus
   const certSelect = form.querySelector("#certificate_id");
-  
+
   if (isEdit) {
-    const hostId = form.querySelector("input[name='id']")?.value;
+    const hostId = form.querySelector("input[name='host_id']").value;
     populateCertificateDropdown(certSelect, hostId);
   } else {
     populateCertificateDropdown(certSelect);
   }
+ 
 }
 
-// Process form data from both create and edit forms
-function processRedirectionFormData(formData) {
-  // Convert form data to an object for API
-  const domainName = formData.get("forward_domain_name");
-  if (!domainName || domainName.trim() === "") {
-    throw new Error("Destination domain is required");
-  }
-  
-  const data = {
-    domain_names: formData.get("domain_names").split(",").map(d => d.trim()),
-    forward_domain_name: domainName.trim(), // Ensure it's not null or empty
-    forward_scheme: formData.get("forward_scheme"),
-    forward_http_code: parseInt(formData.get("forward_http_code")),
-    preserve_path: formData.get("preserve_path") === "true",
-    ssl_forced: formData.has("ssl_forced"),
-    hsts_enabled: formData.has("hsts_enabled"),
-    hsts_subdomains: formData.has("hsts_subdomains"),
-    http2_support: formData.has("http2_support"),
-    block_exploits: formData.has("block_exploits"),
-    advanced_config: formData.get("advanced_config") || "",
-    enabled: formData.has("enabled"),
-    certificate_id: formData.get("certificate_id") ? 
-      parseInt(formData.get("certificate_id")) : 0,
-    meta: {}
-  };
-  
-  console.log("Processed redirection data:", data);
-  return data;
-}
+
 
 // -------------------------
-// Modal Operations
+// Add Host Flow
 // -------------------------
-export function showCreateRedirectionHostModal() {
-  return new Promise((resolve) => {
-    const modal = document.createElement("div");
-    modal.id = "redirectionHostModal";
-    modal.className = "modal";
-    modal.innerHTML = `
-      <div class="modal-content">
-        <h2>Create Redirection Host</h2>
-        <form id="redirectionHostForm"></form>
-      </div>
-    `;
+export function populateAddRedirectionHostForm() {
+  const form = document.getElementById("addHostForm");
+  form.innerHTML = generateRedirectionHostFormHTML();
+  setupRedirectionHostForm(form, false);
 
-    const form = modal.querySelector("#redirectionHostForm");
-    form.innerHTML = generateRedirectionHostFormHTML();
-    setupRedirectionForm(form);
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const submitBtn = form.querySelector("button[type='submit']");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Please wait...";
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const submitBtn = form.querySelector("button[type='submit']");
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Please wait...";
+    try {
+      const formData = new FormData(form);
+      const baseData = processRedirectionHostFormData(formData);
+      const certificate_id_raw = formData.get("certificate_id");
 
-      try {
-        const formData = new FormData(form);
-        const baseData = processRedirectionFormData(formData);
-        
-        // Handle certificate creation if needed
-        const certId = formData.get("certificate_id");
-        if (certId.startsWith("new_")) {
-          try {
-            baseData.certificate_id = await handleCertificateCreation(
-              baseData.domain_names,
-              certId
-            );
-          } catch (err) {
-            showError("Failed to create certificate");
-            console.error("Failed to create certificate", err);
-            throw err;
-          }
-        } else {
-          baseData.certificate_id = certId === "" ? null : parseInt(certId);
+      // Handle certificate creation if needed
+      if (
+        certificate_id_raw === "new_dns" ||
+        certificate_id_raw === "new_nodns"
+      ) {
+        try {
+          baseData.certificate_id = await handleCertificateCreation(
+            baseData.domain_names,
+            certificate_id_raw,
+          );
+        } catch (err) {
+          showError("Failed to create certificate");
+          console.error("Failed to create certificate", err);
+          throw err;
         }
-
-        modal.remove();
-        resolve(baseData);
-      } catch (error) {
-        console.error("Form submission error:", error);
-        showError("An error occurred: " + error.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Create Redirection";
       }
-    });
 
-    document.body.appendChild(modal);
-    modal.style.display = "flex";
-  });
+      // Create the redirection host
+      const RedirectionHostManager = await import("../managers/RedirectionHostManager.js");
+      await RedirectionHostManager.createRedirectionHost(baseData);
+      document.getElementById("addHostModal").style.display = "none";
+    } catch (err) {
+      console.error("Failed to create host", err);
+      showError("Failed to create host");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Add Host";
+    }
+  };
 }
 
-export async function editRedirectionHostModal(hostId) {
-  try {
-    // Fetch the host data by ID
-    const host = await fetch(`/npm-api/nginx/redirection-hosts/${hostId}`).then(r => {
-      if (!r.ok) throw new Error(`Failed to fetch host data: ${r.status}`);
-      return r.json();
-    });
-    
-    return new Promise((resolve, reject) => {
-      // Create the modal if it doesn't exist
-      let modal = document.getElementById("redirectionHostModal");
-      if (!modal) {
-        modal = document.createElement("div");
-        modal.id = "redirectionHostModal";
-        modal.className = "modal";
-        modal.innerHTML = `
-          <div class="modal-content">
-            <h2>Edit Redirection Host</h2>
-            <form id="redirectionHostForm"></form>
-          </div>
-        `;
-        document.body.appendChild(modal);
+// -------------------------
+// Edit Host Flow
+// -------------------------
+export async function editRedirectionHostModal(hostIdOrObject) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Check if we received just an ID or a complete host object
+      let host = hostIdOrObject;
+
+      // If we just got an ID, fetch the complete host data
+      if (
+        typeof hostIdOrObject === "number" ||
+        typeof hostIdOrObject === "string"
+      ) {
+        const response = await fetch(
+          `/npm-api/nginx/proxy-hosts/${hostIdOrObject}`,
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to fetch host data: ${response.status}`);
+        }
+        host = await response.json();
       }
-      
-      const form = modal.querySelector("#redirectionHostForm");
-      
-      // Generate the form HTML with the host data
+
+      // Now we have the complete host object, proceed with the modal
+      const modal = document.getElementById("addHostModal");
+      if (!modal) {
+        throw new Error("Host modal element not found");
+      }
+
+      const form = document.getElementById("addHostForm");
+      if (!form) {
+        throw new Error("Host form element not found");
+      }
+
       form.innerHTML = generateRedirectionHostFormHTML(host);
       modal.style.display = "flex";
-      setupRedirectionForm(form, true);
-      
-      // Add form submission handling
-      form.onsubmit = async (e) => {
+      setupRedirectionHostForm(form, true);
+
+      // Populate certificate and access list dropdowns with existing values
+      const certSelect = form.querySelector("#certificate_id");
+      populateCertificateDropdown(certSelect, host.certificate_id || "");
+
+      const accessListSelect = form.querySelector("#access_list_id");
+      populateAccessListDropdown(accessListSelect, host.access_list_id || "");
+
+      form.onsubmit = (e) => {
         e.preventDefault();
-        const submitBtn = form.querySelector("button[type='submit']");
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Please wait...";
-        
-        try {
-          const formData = new FormData(form);
-          const data = processRedirectionFormData(formData);
-          
-          // Make sure forward_domain_name is not null
-          if (!data.forward_domain_name) {
-            throw new Error("Destination domain cannot be empty");
-          }
-          
-          modal.style.display = "none";
-          resolve(data);
-        } catch (error) {
-          showError(error.message);
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Update";
-          reject(error);
-        }
+        const formData = new FormData(form);
+        const updatedData = processRedirectionHostFormData(formData);
+
+        // Close the modal after form submission
+        modal.style.display = "none";
+
+        // Resolve the promise with the updated data
+        resolve(updatedData);
       };
-      
-      // Handle cancel button
+
+      // Also close the modal when Cancel button is clicked
       form.querySelector(".modal-close").addEventListener("click", () => {
         modal.style.display = "none";
         reject(new Error("Edit cancelled by user"));
       });
-    });
-  } catch (error) {
-    console.error("Failed to fetch redirection host data:", error);
-    showError("Failed to load redirection host data");
-    throw error;
-  }
+    } catch (error) {
+      console.error("Error showing edit host modal:", error);
+      showError(`Failed to edit host: ${error.message}`);
+      reject(error);
+    }
+  });
 }
-
-// Initialize modal close handlers
-document.addEventListener("click", (e) => {
-  if (
-    e.target.classList.contains("close") ||
-    e.target.classList.contains("modal-close")
-  ) {
-    closeModals();
-  }
-});
-
-// Export the module globally for easy access
-window.RedirectionHostModals = {
-  showCreateRedirectionHostModal,
-  editRedirectionHostModal
-};

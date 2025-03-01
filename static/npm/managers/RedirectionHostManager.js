@@ -26,21 +26,20 @@ export async function createRedirectionHost(redirData) {
 /**
  * Edits an existing redirection host
  * @param {string|number} hostId - The ID of the host to edit
- * @param {Object} updatedData - The updated host data
+ * @param {Object} updatedRedirData - The updated host data
  */
-export async function editRedirectionHost(hostId, updatedData) {
+export async function editRedirectionHost(hostId, updatedRedirData) {
   try {
     await makeRequest(
       "/npm-api",
       `/nginx/redirection-hosts/${hostId}`,
       "PUT",
-      updatedData
+      updatedRedirData
     );
     showSuccess("Redirection host updated successfully");
     await Views.loadRedirectionHosts();
   } catch (error) {
     showError("Failed to update redirection host");
-    throw error;
   }
 }
 
@@ -49,9 +48,8 @@ export async function editRedirectionHost(hostId, updatedData) {
  * @param {string|number} hostId - The ID of the host to delete
  */
 export async function deleteRedirectionHost(hostId) {
-  if (!confirm("Are you sure you want to delete this redirection host?")) {
+  if (!confirm("Are you sure you want to delete this redirection host?")) 
     return;
-  }
   
   try {
     await makeRequest(
@@ -65,6 +63,7 @@ export async function deleteRedirectionHost(hostId) {
     showError("Failed to delete redirection host");
   }
 }
+
 
 /**
  * Enables a redirection host
@@ -101,42 +100,6 @@ export async function disableRedirectionHost(hostId) {
     showError("Failed to disable redirection host");
   }
 }
-
-/**
- * Shows the edit modal for a redirection host
- * @param {string|number} hostId - The ID of the host to edit
- */
-export async function editRedirectionHostWithModal(hostId) {
-  try {
-    const RedirectionHostModals = await import("../modals/RedirectionHostModals.js");
-    const host = await fetchRedirectionHost(hostId);
-    const updatedData = await RedirectionHostModals.editRedirectionHostModal(host);
-    await editRedirectionHost(hostId, updatedData);
-  } catch (error) {
-    console.error("Failed to edit redirection host", error);
-    showError("Failed to edit redirection host");
-  }
-}
-
-/**
- * Fetches a single redirection host by ID
- * @param {string|number} hostId - The ID of the host to fetch
- * @returns {Promise<Object>} - The host data
- */
-export async function fetchRedirectionHost(hostId) {
-  try {
-    const response = await makeRequest(
-      "/npm-api",
-      `/nginx/redirection-hosts/${hostId}`,
-      "GET"
-    );
-    return response;
-  } catch (error) {
-    showError("Failed to fetch redirection host");
-    throw error;
-  }
-}
-
 // Export all functions to be available globally if needed
 window.RedirectionHostManager = {
   createRedirectionHost,
@@ -148,15 +111,3 @@ window.RedirectionHostManager = {
   fetchRedirectionHost
 };
 
-// Initialize when DOM is loaded
-document.addEventListener("DOMContentLoaded", () => {
-  const createBtn = document.getElementById("createRedirectionHostBtn");
-  if (createBtn) {
-    createBtn.addEventListener("click", async () => {
-      const RedirectionHostModals = await import("../modals/RedirectionHostModals.js");
-      RedirectionHostModals.showCreateRedirectionHostModal()
-        .then(data => createRedirectionHost(data))
-        .catch(err => console.error("Failed to create redirection host:", err));
-    });
-  }
-});

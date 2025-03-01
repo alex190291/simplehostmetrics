@@ -5,13 +5,18 @@ import * as Views from "../NPMViews.js";
 
 /**
  * Creates a new proxy host
- * @param {Object} newData - The proxy host data
+ * @param {Object} proxyData - The proxy host data
  */
-export async function createProxyHost(newData) {
+export async function createProxyHost(proxyData) {
   try {
-    await makeRequest("/npm-api", "/nginx/proxy-hosts", "POST", newData);
-    showSuccess("Host created successfully");
-    await Views.loadProxyHosts();
+    await makeRequest(
+      "/npm-api", 
+      "/nginx/proxy-hosts", 
+      "POST", proxyData
+    );
+
+    showSuccess("Proxy Host created successfully");
+    await Views.loadProxyHosts();    
   } catch (error) {
     showError("Failed to create host");
     throw error;
@@ -21,15 +26,15 @@ export async function createProxyHost(newData) {
 /**
  * Edits an existing proxy host
  * @param {string|number} hostId - The ID of the host to edit
- * @param {Object} updatedData - The updated host data
+ * @param {Object} updatedProxyData - The updated host data
  */
-export async function editProxyHost(hostId, updatedData) {
+export async function editProxyHost(hostId, updatedProxyData) {
   try {
     await makeRequest(
       "/npm-api",
       `/nginx/proxy-hosts/${hostId}`,
       "PUT",
-      updatedData
+      updatedProxyData
     );
     showSuccess("Host updated successfully");
     await Views.loadProxyHosts();
@@ -43,9 +48,15 @@ export async function editProxyHost(hostId, updatedData) {
  * @param {string|number} hostId - The ID of the host to delete
  */
 export async function deleteProxyHost(hostId) {
-  if (!confirm("Are you sure you want to delete this host?")) return;
+  if (!confirm("Are you sure you want to delete this host?")) 
+    return;
+
   try {
-    await makeRequest("/npm-api", `/nginx/proxy-hosts/${hostId}`, "DELETE");
+    await makeRequest(
+      "/npm-api", 
+      `/nginx/proxy-hosts/${hostId}`, 
+      "DELETE"
+    );
     showSuccess("Host deleted successfully");
     await Views.loadProxyHosts();
   } catch (error) {

@@ -1,178 +1,80 @@
 // /static/npm/modals/ProxyHostModals.js
-import { switchTab, closeModals } from "/static/npm/NPMUtils.js";
-
 import {
+  switchTab, 
+  closeModals,
   showSuccess,
   showError,
   populateCertificateDropdown,
-  openDnsChallengeModal,
+  populateAccessListDropdown,
   handleCertificateCreation,
+  openDnsChallengeModal,
 } from "../NPMUtils.js";
 
-// Helper function to populate the access list dropdown dynamically
-async function populateAccessListDropdown(selectElement, selectedValue = "") {
-  try {
-    const response = await fetch("/npm-api/nginx/access-lists");
-    if (!response.ok) {
-      console.error("Failed to load access lists", response.statusText);
-      return;
+// Cache the template content
+let proxyHostFormTemplate = null;
+
+// Generate form HTML for proxy host configuration - used by both add and edit modals
+async function generateProxyHostFormHTML(host = null) {
+  // Fetch the template if we haven't already
+  if (!proxyHostFormTemplate) {
+    try {
+      const response = await fetch("/static/npm/templates/proxy-host-form.html");
+      if (!response.ok) {
+        throw new Error(`Failed to load template: ${response.status}`);
+      }
+      proxyHostFormTemplate = await response.text();
+    } catch (error) {
+      console.error("Failed to load proxy host form template:", error);
+      // Fall back to empty template
+      proxyHostFormTemplate = "<div>Error loading template</div>";
     }
-    const accessLists = await response.json();
-    selectElement.innerHTML = '<option value="">None</option>';
-    accessLists.forEach((list) => {
-      const option = document.createElement("option");
-      option.value = list.id;
-      option.textContent = list.name;
-      if (list.id == selectedValue) option.selected = true;
-      selectElement.appendChild(option);
-    });
-  } catch (error) {
-    console.error("Failed to load access lists", error);
   }
-}
-
-// Generate form HTML for host configuration - used by both add and edit modals
-function generateProxyHostFormHTML(host = null) {
+  
+  // Create a temporary container to manipulate the HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = proxyHostFormTemplate;
+  
   const isEdit = host !== null;
-  const idField = isEdit
-    ? `<input type="hidden" name="host_id" value="${host.id}">`
-    : "";
-  const domainNames = isEdit ? host.domain_names.join(", ") : "";
-  const forwardHost = isEdit ? host.forward_host : "";
-  const forwardPort = isEdit ? host.forward_port : "";
-  const forwardSchemeHttp =
-    isEdit && host.forward_scheme === "http" ? "selected" : "";
-  const forwardSchemeHttps =
-    isEdit && host.forward_scheme === "https" ? "selected" : "";
-  const cacheAssets = isEdit && host.cache_assets ? "checked" : "";
-  // Fix: Use allow_websocket_upgrade instead of websockets_support to match API property
-  const websocketsSupport =
-    isEdit && host.allow_websocket_upgrade ? "checked" : "";
-  const blockExploits = isEdit && host.block_exploits ? "checked" : "";
-  const sslForced = isEdit && host.ssl_forced ? "checked" : "";
-  const http2Support = isEdit && host.http2_support ? "checked" : "";
-  const hstsEnabled = isEdit && host.hsts_enabled ? "checked" : "";
-  const hstsSubdomains = isEdit && host.hsts_subdomains ? "checked" : "";
-  const customConfig = isEdit && host.custom_config ? host.custom_config : "";
-  const submitBtnText = isEdit ? "Update Host" : "Add Host";
-
-  // Make sure all checkboxes are replaced with toggle switches
-  return `
-    ${idField}
-    <div class="tabs">
-      <button type="button" class="btn btn-secondary tab-link active" data-tab="general">General</button>
-      <button type="button" class="btn btn-secondary tab-link" data-tab="custom">Custom Nginx Config</button>
-    </div>
-    <div class="tab-content" id="generalTab">
-      <div class="form-group">
-        <label for="domain_names">Domain Names (comma-separated)</label>
-        <input type="text" id="domain_names" name="domain_names" value="${domainNames}" required>
-      </div>
-      <div class="form-group">
-        <label for="forward_host">Forward Host</label>
-        <input type="text" id="forward_host" name="forward_host" value="${forwardHost}" required>
-      </div>
-      <div class="form-group">
-        <label for="forward_port">Forward Port</label>
-        <input type="number" id="forward_port" name="forward_port" value="${forwardPort}" required>
-      </div>
-      <div class="form-group">
-        <label for="forward_scheme">Upstream Scheme</label>
-        <select id="forward_scheme" name="forward_scheme" required>
-          <option value="http" ${forwardSchemeHttp}>http</option>
-          <option value="https" ${forwardSchemeHttps}>https</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="certificate_id">Certificate</label>
-        <select id="certificate_id" name="certificate_id" required></select>
-      </div>
-      <div class="form-group">
-        <label for="access_list_id">Access List</label>
-        <select id="access_list_id" name="access_list_id">
-          <option value="">None</option>
-        </select>
-      </div>
-
-      <!-- Toggle switches instead of checkboxes -->
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="cache_assets" name="cache_assets" ${cacheAssets}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Cache Assets</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="websockets_support" name="websockets_support" ${websocketsSupport}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Websockets Support</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="block_exploits" name="block_exploits" ${blockExploits}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Block Common Exploits</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="ssl_forced" name="ssl_forced" ${sslForced}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">Force SSL</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="http2_support" name="http2_support" ${http2Support}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HTTP/2 Support</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_enabled" name="hsts_enabled" ${hstsEnabled}>
-            <span class="slider"></span>
-          </span>
-          <span class="toggle-label">HSTS Enabled</span>
-        </label>
-      </div>
-
-      <div class="form-group toggle">
-        <label>
-          <span class="toggle-switch">
-            <input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" ${hstsSubdomains}>
-
-}div>
-    </div>
-    <div class="tab-content" id="customTab" style="display:none;">
-      <div class="form-group">
-        <label for="custom_config">Custom Nginx Config</label>
-        <textarea id="custom_config" name="custom_config" rows="30">${customConfig}</textarea>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">${submitBtnText}</button>
-      <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-    </div>
-  `;
+  
+  // Update all the form fields with data
+  if (isEdit) {
+    // Set host ID for edit mode
+    const idField = tempDiv.querySelector('#hostIdField');
+    idField.value = host.id;
+    
+    // Set domain names
+    const domainNamesInput = tempDiv.querySelector('#domain_names');
+    domainNamesInput.value = host.domain_names.join(", ");
+    
+    // Set forward host and port
+    tempDiv.querySelector('#forward_host').value = host.forward_host;
+    tempDiv.querySelector('#forward_port').value = host.forward_port;
+    
+    // Set forward scheme
+    const forwardSchemeSelect = tempDiv.querySelector('#forward_scheme');
+    Array.from(forwardSchemeSelect.options).forEach(option => {
+      option.selected = option.value === host.forward_scheme;
+    });
+    
+    // Set all checkboxes
+    if (host.cache_assets) tempDiv.querySelector('#cache_assets').checked = true;
+    if (host.allow_websocket_upgrade) tempDiv.querySelector('#websockets_support').checked = true;
+    if (host.block_exploits) tempDiv.querySelector('#block_exploits').checked = true;
+    if (host.ssl_forced) tempDiv.querySelector('#ssl_forced').checked = true;
+    if (host.http2_support) tempDiv.querySelector('#http2_support').checked = true;
+    if (host.hsts_enabled) tempDiv.querySelector('#hsts_enabled').checked = true;
+    if (host.hsts_subdomains) tempDiv.querySelector('#hsts_subdomains').checked = true;
+    
+    // Set custom config
+    if (host.custom_config) {
+      tempDiv.querySelector('#custom_config').value = host.custom_config;
+    }
+    
+    // Set submit button text
+    tempDiv.querySelector('#submitBtn').textContent = "Update Host";
+  }
+  
+  return tempDiv.innerHTML;
 }
 
 // Process form data from both add and edit forms
